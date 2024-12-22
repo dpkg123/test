@@ -1,2 +1,2 @@
-Initial content line 1 in file 12
-Initial content line 2 in file 12
+Updated content line 1 in file 12
+Updated content line 2 in file 12

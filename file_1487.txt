@@ -1,1 +1,1 @@
-Initial content line 1 in file 1487
+Updated content line 1 in file 1487
