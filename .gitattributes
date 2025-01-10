@@ -1,0 +1,2 @@
+*.ninja linguist-detectable
+*.spec linguist-detectable
