@@ -1,2 +1,3 @@
 *.ninja linguist-detectable
 *.spec linguist-detectable
+Kconfig linguist-detectable
