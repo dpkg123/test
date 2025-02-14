@@ -1,0 +1,33 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+ half RgbToLuminance( half3 color )
+{
+	return dot( color, half3( 0.2126, 0.7152, 0.0722 ) );
+}
+
+ void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D sourceImage : TEXUNIT0,
+		uniform half3 captureRange, 
+		out half4 out_color : COLOR
+	)
+{
+	half3 color = h3tex2D( sourceImage, in_uv );
+	
+	half exposureLevel = captureRange.x;
+	half minLuminance = captureRange.y;
+	half luminanceRangeRcp = captureRange.z;
+	
+	color = color * exposureLevel.xxx;
+	half luminance = max( RgbToLuminance( color ), minLuminance );
+	half scale = clamp( ( luminance - minLuminance ) * luminanceRangeRcp, 0.0, 1.0 );
+	out_color.xyz = ( scale / luminance ).xxx * color;
+	
+	out_color.w = 0.0;
+}

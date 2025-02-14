@@ -1,0 +1,77 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+// M matrix, for encoding
+const static float3x3 M = float3x3
+	(
+	   0.2209, 0.3390, 0.4184,
+	   0.1138, 0.6780, 0.7319,
+	   0.0102, 0.1130, 0.2969
+	);
+
+// Inverse M matrix, for decoding
+const static float3x3 InverseM = float3x3
+	(
+		6.0014, -2.7008, -1.7996,
+		-1.3320,  3.1029, -5.7721,
+		0.3008, -1.0882,  5.6268
+	);
+
+float4 _LogLuvEncode( in float3 vRGB)
+{
+	float4 vResult;
+	float3 Xp_Y_XYZp = mul(vRGB, M);
+	Xp_Y_XYZp = max(Xp_Y_XYZp, float3(1e-6, 1e-6, 1e-6));
+	vResult.xy = Xp_Y_XYZp.xy / Xp_Y_XYZp.z;
+	float Le = 2 * log2( Xp_Y_XYZp.y) + 127;
+	vResult.w = frac(Le);
+	vResult.z = (Le - (floor(vResult.w*255.0f))/255.0f)/255.0f;
+	return vResult;
+}
+
+float4 _FP16LuvEncode( in float3 vRGB)
+{
+	float4 vResult;
+	float3 Xp_Y_XYZp = mul(vRGB, M);
+	Xp_Y_XYZp = max(Xp_Y_XYZp, float3(1e-6, 1e-6, 1e-6));
+	vResult.xy = Xp_Y_XYZp.xy / Xp_Y_XYZp.z;
+	vResult.zw = unpack_4ubyte( pack_2half( Xp_Y_XYZp.y )).xy;
+	return vResult;
+}
+
+float3 _LogLuvDecode( in float4 vLogLuv)
+{
+	float Le = vLogLuv.z * 255 + vLogLuv.w;
+	float3 Xp_Y_XYZp;
+	Xp_Y_XYZp.y = exp2((Le - 127) / 2);
+	Xp_Y_XYZp.z = Xp_Y_XYZp.y / vLogLuv.y;
+	Xp_Y_XYZp.x = vLogLuv.x * Xp_Y_XYZp.z;
+	float3 vRGB = mul( Xp_Y_XYZp, InverseM);
+	return max(vRGB, 0);
+}
+
+float3 _FP16LuvDecode( in float4 vFp16Luv)
+{
+	float3 Xp_Y_XYZp;
+	
+	Xp_Y_XYZp.y = unpack_2half( pack_4ubyte( vFp16Luv.zwzw)).x;
+	Xp_Y_XYZp.z = Xp_Y_XYZp.y / vFp16Luv.y;
+	Xp_Y_XYZp.x = vFp16Luv.x * Xp_Y_XYZp.z;
+	float3 vRGB = mul( Xp_Y_XYZp, InverseM);
+	return max(vRGB, 0);
+}
+
+half4 EncodeColor( in half3 vRGB)
+{
+	return _FP16LuvEncode( vRGB );
+	//	return _LogLuvEncode( vRGB );
+}
+
+half3 DecodeColor( in half4 v )
+{
+	return _FP16LuvDecode( v );
+	//	return _LogLuvDecode( v );
+}

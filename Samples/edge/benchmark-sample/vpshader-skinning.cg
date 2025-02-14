@@ -1,0 +1,74 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2007 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+struct VpIn
+{
+	float4      position        : ATTR0;//POSITION;
+	float3      normal          : ATTR2;//NORMAL;
+	float4      tanFlip         : ATTR14;//TANGENT;
+	float2      texcoord        : ATTR8;//TEXCOORD0;
+	float4		skinning1       : ATTR3;// bone weights and indices part 1
+	float4      skinning2       : ATTR4;// bone weights and indices part 2
+	
+};
+
+struct VpOut
+{
+	float4      position        : POSITION; // Not used in fragment program
+	half2       texcoord        : TEX0;
+	half3       tanSpaceLightVec: TEX1; // For L dot N
+	half3       tanSpaceViewVec : TEX2; // For H dot N
+	half3       objSpaceLightVec: TEX3; // Used for computing attenuation only
+};
+
+VpOut main(VpIn vertex, uniform float4x4 mvp : C0, uniform float3 lightPos : C4, uniform float3 eyePos : C5, uniform float3x4 boneArray[32] : C6)
+{
+	VpOut result;
+	
+	// skinning
+	float4 boneWeights;
+	boneWeights.xy = vertex.skinning1.xz;
+	boneWeights.zw = vertex.skinning2.xz;
+	boneWeights /= 255.0f;
+	float4 boneIndexes;
+	boneIndexes.xy = vertex.skinning1.yw;
+	boneIndexes.zw = vertex.skinning2.yw;
+
+	float3x4 blendedMatrix = 
+		  boneArray[boneIndexes[0]] * boneWeights[0] +
+		  boneArray[boneIndexes[1]] * boneWeights[1] +
+		  boneArray[boneIndexes[2]] * boneWeights[2] +
+		  boneArray[boneIndexes[3]] * boneWeights[3];
+	float4x4 finalMatrix;
+	finalMatrix[0] = blendedMatrix[0];
+	finalMatrix[1] = blendedMatrix[1];
+	finalMatrix[2] = blendedMatrix[2];
+	finalMatrix[3] = float4(0.0, 0.0, 0.0, 1.0);
+
+	float3x3 cofactorMatrix;
+	cofactorMatrix[0] = finalMatrix[0].xyz;
+	cofactorMatrix[1] = finalMatrix[1].xyz;
+	cofactorMatrix[2] = finalMatrix[2].xyz;
+	
+	float4 skinnedPos = mul(finalMatrix, vertex.position);
+
+	result.position = mul(mvp, skinnedPos);
+	result.texcoord = vertex.texcoord;
+	
+	float3 skinnedNormal = normalize(mul(cofactorMatrix, vertex.normal));
+	float3 skinnedTangent = normalize(mul(cofactorMatrix, vertex.tanFlip.xyz));
+	skinnedTangent = normalize(skinnedTangent - skinnedNormal * dot(skinnedNormal, skinnedTangent));
+	float3 skinnedBitangent = cross(skinnedNormal, skinnedTangent) * vertex.tanFlip.w;
+	float3 lightVec = lightPos - (float3)skinnedPos;
+	float3 viewVec = eyePos - (float3)skinnedPos;
+	result.tanSpaceLightVec = float3(dot(lightVec, skinnedTangent), dot(lightVec, skinnedBitangent),
+		dot(lightVec, skinnedNormal));
+	result.tanSpaceViewVec = float3(dot(viewVec, skinnedTangent), dot(viewVec, skinnedBitangent),
+		dot(viewVec, skinnedNormal));
+	result.objSpaceLightVec = lightVec;
+
+	return result;
+}

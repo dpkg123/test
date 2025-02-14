@@ -1,0 +1,30 @@
+/*=============================================================================
+	Common360.usf: Xbox360 specific common, not named Xbox360Common.usf to not get filtered by Perforce
+	Copyright 1998-2011 Epic Games, Inc. All Rights Reserved.
+=============================================================================*/
+
+/**
+ * This function decodes the 3 channel 7e3 format from a 10-bit input, the alpha channel remains untouched
+ * The function is stored in the Xbox360 folder as it reveals how the 7e3 format is internally implemented.
+ * The formula is the usual decode math for a floating point value with mantissa and exponent with an exception
+ * around 0 where the values no longer converge against 0, they reach 0.
+ */
+float4 Decode7e3(float4 vColor)
+{
+	// This can be moved to the sample state
+	vColor.rgb *= 8.0f;
+
+	float3 Exponent = floor(vColor.rgb);
+	float3 Mantissa = frac(vColor.rgb);
+	
+	vColor.rgb  = (Exponent == 0.0f) ? Mantissa : (1 + Mantissa) / 2 * pow(2, Exponent);    	
+
+	return float4(vColor.rgb / 32, vColor.a);
+}
+
+// Get the HDR scene color (used for material effect postprocessing and normal postprocessing)
+// for non XBox360 the function is implemented in Common.usf
+half4 FixupSceneColor(half4 In)
+{
+	return Decode7e3(In);
+}

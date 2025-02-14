@@ -1,0 +1,47 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+#define NUM_ELEMENTS 8
+#define STRENGTH 0.12f
+#define ELEMENT(r, g, b, a) float4( r * STRENGTH, g * STRENGTH, b * STRENGTH, -1.0f/a)
+static const float4 elements[NUM_ELEMENTS] = 
+{
+	// RGB tints the element, and the alpha value scales it.
+	ELEMENT( 1.0f, 0.3f, 0.2f, -0.4f),
+	ELEMENT( 1.0f, 0.6f, 0.3f, -0.2f),
+	ELEMENT( 1.0f, 0.3,  0.2f, 0.65f),
+	ELEMENT( 1.0f, 0.7f, 0.4f, 0.7f	),
+	ELEMENT( 0.8f, 0.7f, 0.7f, 0.9f	),
+	ELEMENT( 0.4f, 0.55f,0.8f, 1.3f	),
+	ELEMENT( 0.55f,0.4f, 1.0f, 1.8f	),
+	ELEMENT( 0.7f, 0.3f, 0.9f, 2.1f	),
+};
+
+void main
+	( 
+		in float2 in_uv : TEXCOORD0,
+		uniform sampler2D sourceImage : TEXUNIT0,
+		out half4 out_color : COLOR
+	)
+{
+	// Offset UV coordinates to scale around centre
+	const half2 uv_minus_half = in_uv - half2(0.5f);
+	
+	// Start with first one
+	half3 accumulator = 0;
+	
+	// For each tap
+	for ( int i = 0; i < NUM_ELEMENTS; ++i )
+	{
+		// Read colour, tint and add to accumulator
+		accumulator += tex2D( sourceImage, half2(0.5f) + uv_minus_half*elements[i].w ).rgb * elements[i].rgb;
+	}
+
+	// Scale
+	out_color.rgb = accumulator;
+	out_color.a = 0;
+}
+

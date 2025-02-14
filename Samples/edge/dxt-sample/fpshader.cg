@@ -1,0 +1,15 @@
+/* SCE CONFIDENTIAL
+* PlayStation(R)Edge 1.2.0
+* Copyright (C) 2007 Sony Computer Entertainment Inc.
+* All Rights Reserved.
+*/
+
+void main( 	
+		in float2 in_uv : TEXCOORD0
+	,	uniform sampler2D testTex : TEXUNIT0
+	,	out half4 out_value : COLOR0 
+	)
+{
+	out_value = h4tex2D(testTex, in_uv);
+}
+

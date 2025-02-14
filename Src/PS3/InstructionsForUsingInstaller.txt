@@ -1,0 +1,57 @@
+(Step 1)
+In Advanced, uncheck the Set Environment Variables
+
+
+
+(Step 2)
+Set install location to a new, safe directory, possibly in same directory as temporary downloads go in Advanced
+
+
+
+(Step 3)
+Check the following items. Note that this is the minimum required, you can check more documentation or Tools as you desire. I suggest NOT checking SN/ProDG stuff (except for SNC toolchain), and install SN/ProDG as a separate step.
+
++ Documentation [English] 
+	CHECK Document CHM
+
++ PLAYSTATION Edge
+	CHECK 1.0.0 (or latest supported by UE3)
++ Tools:
+	CHECK Disc Image Generator
+	+ Graphics Tools
+		+ GPAD
+			CHECK GPAD Zip Install
+	+ Sound Tools
+		CHECK MultiStream Offline Tools
++ TRC:
+	CHECK TRC 3.2.1 (or latest version)
+CHECK SDK 
+CHECK SDK Patch
+CHECK SDK Sample Package
+CHECK SNC PPU toolchain
+CHECK Toolchain(Compiler)
+CHECK Update data (for Debugging Station)
+CHECK Update data (for Reference Tool)
+CHECK CP Update
+
+
+
+
+(Step 4)
+Start installation.
+
+
+
+(Step 5) 
+During installation, the Multistream Tools will run an installer. You can uncheck everything but MSEnc. For the directory, use the same directory that you chose in the initial installer setup, but append "\host-win32\bin"
+
+
+
+(Step 6)
+After installing, do the following:
+	Using Explorer, Go into <InstallDir>\Tools\GPAD\cell
+	Move the subdirectories (host-win32, SDK_doc, target) up to <InstallDir>, telling Explorer to merge the directories
+	You can then delete the now-empty Tools\GPAD\cell directory, and even move the contents of GPAD\GPAD up a directory (but it's not required, builder will find the files in either location)
+
+(Step 7)
+For MP3 encoding, you must obtain lame_enc.dll (from the Internet), and place it in the <InstallDir>\host-win32\bin\MSEnc directory.

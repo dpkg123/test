@@ -1,0 +1,28 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lzo1x-segcomp-sample", "lzo1x-segcomp-sample.vcproj", "{72A8A4E5-798B-4F58-A548-81E29E3B63A4}"
+	ProjectSection(ProjectDependencies) = postProject
+		{7F948B59-5107-4390-A519-836EC97EBE35} = {7F948B59-5107-4390-A519-836EC97EBE35}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lzo1xcompress", "lzo1x\lzo1xcompress.vcproj", "{7F948B59-5107-4390-A519-836EC97EBE35}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{72A8A4E5-798B-4F58-A548-81E29E3B63A4}.Debug|Win32.ActiveCfg = Debug|Win32
+		{72A8A4E5-798B-4F58-A548-81E29E3B63A4}.Debug|Win32.Build.0 = Debug|Win32
+		{72A8A4E5-798B-4F58-A548-81E29E3B63A4}.Release|Win32.ActiveCfg = Release|Win32
+		{72A8A4E5-798B-4F58-A548-81E29E3B63A4}.Release|Win32.Build.0 = Release|Win32
+		{7F948B59-5107-4390-A519-836EC97EBE35}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7F948B59-5107-4390-A519-836EC97EBE35}.Debug|Win32.Build.0 = Debug|Win32
+		{7F948B59-5107-4390-A519-836EC97EBE35}.Release|Win32.ActiveCfg = Release|Win32
+		{7F948B59-5107-4390-A519-836EC97EBE35}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

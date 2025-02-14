@@ -1,0 +1,712 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2010 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+// we run out of registers at O2 and higher.
+.setoptim 1
+
+// This version leaves the alpha channel at 0xFF.
+// It works somewhat different from the ARGB version, in that the entire operation
+// is transposed, with one register working on the same value for 4 lines, instead
+// of one register working on all channels of one pixel.
+
+.macro EXTRACT(target, a, b, c, d, mask)
+	.localreg	lower, upper
+	shufb		upper, a, b, mask
+	shufb		lower, c, d, mask
+	shufb		target, upper, lower, kShufABcd
+	cuflt		target, target, 0
+.endmacro
+
+.macro GET_INPUT(
+	r0, g0, b0,
+	r1, g1, b1,
+	r2, g2, b2,
+	r3, g3, b3,
+	offset,
+	src0, src1, src2, src3
+)
+	.localreg	in0, in1, in2, in3
+	lqx			in0, offset, src0
+	lqx			in1, offset, src1
+	lqx			in2, offset, src2
+	lqx			in3, offset, src3
+		
+	EXTRACT(r0,in0,in1,in2,in3,kExtractRed0)
+	EXTRACT(r1,in0,in1,in2,in3,kExtractRed1)
+	EXTRACT(r2,in0,in1,in2,in3,kExtractRed2)
+	EXTRACT(r3,in0,in1,in2,in3,kExtractRed3)
+
+	EXTRACT(g0,in0,in1,in2,in3,kExtractGreen0)
+	EXTRACT(g1,in0,in1,in2,in3,kExtractGreen1)
+	EXTRACT(g2,in0,in1,in2,in3,kExtractGreen2)
+	EXTRACT(g3,in0,in1,in2,in3,kExtractGreen3)
+
+	EXTRACT(b0,in0,in1,in2,in3,kExtractBlue0)
+	EXTRACT(b1,in0,in1,in2,in3,kExtractBlue1)
+	EXTRACT(b2,in0,in1,in2,in3,kExtractBlue2)
+	EXTRACT(b3,in0,in1,in2,in3,kExtractBlue3)
+	
+.endmacro
+
+.macro CLAMP(t,s,low,high)
+	.localreg	larger, smaller
+	fcgt		larger, s, high
+	fcgt		smaller, low, s
+	selb		t, s, high, larger
+	selb		t, t, low, smaller
+.endmacro
+
+.macro CLAMP_CONVERT(t,s)
+.if 0	// clamping is no longer needed, unless I messed up my FP math somewhere.
+	CLAMP(t,a,k0F,k255F)
+	cfltu		t, t, 0
+.else
+	cfltu		t, s, 0
+.endif	
+.endmacro
+
+//if you're keeping track, yes, this is the same macro as EXTRACT
+.macro PACK_CHANNELS(target, c0, c1, c2, c3, mask0, mask1)
+	.localreg	upper, lower
+	shufb		upper, c0, c1, kPixelPackUpper
+	shufb		lower, c2, c3, kPixelPackLower
+	shufb		target, upper, lower, kShufABcd
+.endmacro
+
+.macro BUILD_PIXEL(target, red, green, blue, argMask, bMask)
+	shufb		target, red, green, argMask
+	shufb		target, target, blue, bMask
+.endmacro
+
+.macro STORE_QUADLINE(
+		r0, g0, b0,
+		r1, g1, b1,
+		r2, g2, b2,
+		r3, g3, b3,
+		dst0, dst1, dst2, dst3)
+
+	.localreg	clamped_r0, clamped_g0, clamped_b0
+	.localreg	clamped_r1, clamped_g1, clamped_b1
+	.localreg	clamped_r2, clamped_g2, clamped_b2
+	.localreg	clamped_r3, clamped_g3, clamped_b3
+
+	CLAMP_CONVERT(clamped_r0, r0)
+	CLAMP_CONVERT(clamped_g0, g0)
+	CLAMP_CONVERT(clamped_b0, b0)
+	
+	CLAMP_CONVERT(clamped_r1, r1)
+	CLAMP_CONVERT(clamped_g1, g1)
+	CLAMP_CONVERT(clamped_b1, b1)
+
+	CLAMP_CONVERT(clamped_r2, r2)
+	CLAMP_CONVERT(clamped_g2, g2)
+	CLAMP_CONVERT(clamped_b2, b2)
+
+	CLAMP_CONVERT(clamped_r3, r3)
+	CLAMP_CONVERT(clamped_g3, g3)
+	CLAMP_CONVERT(clamped_b3, b3)	
+	
+	.localreg	pixel0, pixel1, pixel2, pixel3
+	.localreg	red, green, blue
+	PACK_CHANNELS(red,   clamped_r0, clamped_r1, clamped_r2, clamped_r3, kShufPackRed01, kShufPackRed23)
+	PACK_CHANNELS(green, clamped_g0, clamped_g1, clamped_g2, clamped_g3, kShufPackGreen01, kShufPackGreen23)
+	PACK_CHANNELS(blue,  clamped_b0, clamped_b1, clamped_b2, clamped_b3, kShufPackBlue01, kShufPackBlue23)
+
+	
+	BUILD_PIXEL(pixel0, red, green, blue, kShufPixel0ARG, kShufPixel0B)
+	BUILD_PIXEL(pixel1, red, green, blue, kShufPixel1ARG, kShufPixel1B)
+	BUILD_PIXEL(pixel2, red, green, blue, kShufPixel2ARG, kShufPixel2B)
+	BUILD_PIXEL(pixel3, red, green, blue, kShufPixel3ARG, kShufPixel3B)
+	
+	
+	stqx		pixel0, src_offset, dst0
+	stqx		pixel1, src_offset, dst1
+	stqx		pixel2, src_offset, dst2
+	stqx		pixel3, src_offset, dst3
+
+.endmacro
+
+
+.macro QUADLINE_FORWARD(offset, w0, n0, w1, w2, w3, scratch)
+	
+	fma		w0, w1, b1, n0
+	fma		w0, w2, b2, w0
+	fma		w0, w3, b3, w0
+	//fm		w0, w0, B
+	stqd	w0, offset(scratch)	
+.endmacro
+
+.macro QUADLINE_BACKWARD(offset, w0, w1, w2, w3, scratch)
+	.localreg	n0	
+	lqd			n0, offset(scratch)
+	fm			n0, n0, B
+	fma			w0, w1, b1, n0
+	fma			w0, w2, b2, w0
+	fma			w0, w3, b3, w0
+		
+.endmacro
+
+.macro CORRECT(last, w1, w2, w3)
+	.localreg	plus1, plus2, plus3, vplus
+	
+	fnms		plus1, last, recsum0, w1
+	fnms		plus2, last, recsum0, w2
+	fnms		plus3, last, recsum0, w3
+	
+	fm			vplus, last, recsum1
+	
+	fma			w1, M0, plus1, vplus
+	fma			w1, M1, plus2, w1
+	fma			w1, M2, plus3, w1
+	fm			w1, B, w1
+	
+	fma			w2, M3, plus1, vplus
+	fma			w2, M4, plus2, w2
+	fma			w2, M5, plus3, w2
+	fm			w2, B, w2
+	
+	fma			w3, M6, plus1, vplus
+	fma			w3, M7, plus2, w3
+	fma			w3, M8, plus3, w3
+	fm			w3, B, w3
+	
+	
+	CLAMP(w1,w1,k0F,k255F)
+	CLAMP(w2,w2,k0F,k255F)
+	CLAMP(w3,w3,k0F,k255F)
+	
+	
+.endmacro
+
+.macro GET_LAST(last, src)
+	.localreg	offset
+	mpya		offset, width, kFour, kMinusFour
+	lqx			last, offset, src
+.endmacro
+
+.macro GET_FIRST(first, src)
+	lqd			first, 0x00(src)
+.endmacro
+
+
+.macro BACKWARD_ITERATION(
+	w0_r, w0_g, w0_b,
+	w1_r, w1_g, w1_b,
+	w2_r, w2_g, w2_b,
+	w3_r, w3_g, w3_b,
+	w4_r, w4_g, w4_b,
+	w5_r, w5_g, w5_b,
+	w6_r, w6_g, w6_b,
+	scratch_red, scratch_green, scratch_blue,
+	dst0, dst1, dst2, dst3)
+
+	QUADLINE_BACKWARD(-0x10, w3_r, w4_r, w5_r, w6_r, scratch_red   )
+	QUADLINE_BACKWARD(-0x10, w3_g, w4_g, w5_g, w6_g, scratch_green )
+	QUADLINE_BACKWARD(-0x10, w3_b, w4_b, w5_b, w6_b, scratch_blue  )
+								 	 	 	 			
+	QUADLINE_BACKWARD(-0x20, w2_r, w3_r, w4_r, w5_r, scratch_red   )
+	QUADLINE_BACKWARD(-0x20, w2_g, w3_g, w4_g, w5_g, scratch_green )
+	QUADLINE_BACKWARD(-0x20, w2_b, w3_b, w4_b, w5_b, scratch_blue  )
+								 	 	 	 			
+	QUADLINE_BACKWARD(-0x30, w1_r, w2_r, w3_r, w4_r, scratch_red   )
+	QUADLINE_BACKWARD(-0x30, w1_g, w2_g, w3_g, w4_g, scratch_green )
+	QUADLINE_BACKWARD(-0x30, w1_b, w2_b, w3_b, w4_b, scratch_blue  )
+								 	 	 	 			
+	QUADLINE_BACKWARD(-0x40, w0_r, w1_r, w2_r, w3_r, scratch_red   )
+	QUADLINE_BACKWARD(-0x40, w0_g, w1_g, w2_g, w3_g, scratch_green )
+	QUADLINE_BACKWARD(-0x40, w0_b, w1_b, w2_b, w3_b, scratch_blue  )
+
+	STORE_QUADLINE(w0_r, w0_g, w0_b,
+	               w1_r, w1_g, w1_b,
+	               w2_r, w2_g, w2_b,
+	               w3_r, w3_g, w3_b,
+	               dst0, dst1, dst2, dst3)
+
+	mvo			w6_r, w2_r
+	mvo			w5_r, w1_r
+	mvo			w4_r, w0_r
+						
+	mvo			w6_g, w2_g
+	mvo			w5_g, w1_g
+	mvo			w4_g, w0_g
+						
+	mvo			w6_b, w2_b
+	mvo			w5_b, w1_b
+	mvo			w4_b, w0_b
+
+	ai			scratch_red,   scratch_red,   -0x40
+	ai			scratch_green, scratch_green, -0x40
+	ai			scratch_blue,  scratch_blue,  -0x40
+
+.endmacro
+
+
+.macro INTERLUDE(
+	last_r, last_g, last_b,
+	w0_r, w0_g, w0_b,
+	w1_r, w1_g, w1_b,
+	w2_r, w2_g, w2_b,
+	w3_r, w3_g, w3_b,
+	w4_r, w4_g, w4_b,
+	w5_r, w5_g, w5_b,
+	w6_r, w6_g, w6_b,
+	scratch_red, scratch_green, scratch_blue,
+	scratch0,scratch1,scratch2,
+	dst0, dst1, dst2, dst3)
+
+	// reduce register pressure by loading these late.
+	il			k0F, 0
+	ilf32		k255F, 255.f
+
+
+	// Perform Triggs correction
+	
+	CORRECT(last_r, w4_r, w5_r, w6_r)
+	CORRECT(last_g, w4_g, w5_g, w6_g)
+	CORRECT(last_b, w4_b, w5_b, w6_b)
+	
+	// set up pointers for the next round. We point *after* the last pixel on scratch, for convenience.
+
+	mpya		scratch_red,   width, kSixteen, scratch0
+	mpya		scratch_green, width, kSixteen, scratch1
+	mpya		scratch_blue,  width, kSixteen, scratch2
+
+	// the first block is taken directly from w4
+	mvo			w3_r, w4_r
+	mvo			w3_g, w4_g
+	mvo			w3_b, w4_b
+
+	QUADLINE_BACKWARD(-0x10, w2_r, w3_r, w4_r, w5_r, scratch_red   )
+	QUADLINE_BACKWARD(-0x10, w2_g, w3_g, w4_g, w5_g, scratch_green )
+	QUADLINE_BACKWARD(-0x10, w2_b, w3_b, w4_b, w5_b, scratch_blue  )
+								 	  		 	
+	QUADLINE_BACKWARD(-0x20, w1_r, w2_r, w3_r, w4_r, scratch_red   )
+	QUADLINE_BACKWARD(-0x20, w1_g, w2_g, w3_g, w4_g, scratch_green )
+	QUADLINE_BACKWARD(-0x20, w1_b, w2_b, w3_b, w4_b, scratch_blue  )
+								 	  		 	
+	QUADLINE_BACKWARD(-0x30, w0_r, w1_r, w2_r, w3_r, scratch_red   )
+	QUADLINE_BACKWARD(-0x30, w0_g, w1_g, w2_g, w3_g, scratch_green )
+	QUADLINE_BACKWARD(-0x30, w0_b, w1_b, w2_b, w3_b, scratch_blue  )	
+	
+	STORE_QUADLINE(w0_r, w0_g, w0_b,
+	               w1_r, w1_g, w1_b,
+	               w2_r, w2_g, w2_b,
+	               w3_r, w3_g, w3_b,
+	               dst0, dst1, dst2, dst3)
+
+	ai			scratch_red,   scratch_red,   -0x40
+	ai			scratch_green, scratch_green, -0x40
+	ai			scratch_blue,  scratch_blue,  -0x40
+
+.endmacro
+
+.macro FORWARD_ITERATION(
+		w0_r, w0_g, w0_b,
+		w1_r, w1_g, w1_b,
+		w2_r, w2_g, w2_b,
+		w3_r, w3_g, w3_b,
+		w4_r, w4_g, w4_b,
+		w5_r, w5_g, w5_b,
+		w6_r, w6_g, w6_b,
+		scratch_red, scratch_green, scratch_blue,
+		src0, src1, src2, src3)
+	
+	.localreg	n0_r, n0_g, n0_b
+	.localreg	n1_r, n1_g, n1_b
+	.localreg	n2_r, n2_g, n2_b
+	.localreg	n3_r, n3_g, n3_b
+
+
+	GET_INPUT(
+		n3_r, n3_g, n3_b,
+		n2_r, n2_g, n2_b,
+		n1_r, n1_g, n1_b,
+		n0_r, n0_g, n0_b,
+		src_offset,
+		src0, src1, src2, src3)
+
+
+	QUADLINE_FORWARD(0x00, w3_r, n3_r, w4_r, w5_r, w6_r, scratch_red   )
+	QUADLINE_FORWARD(0x00, w3_g, n3_g, w4_g, w5_g, w6_g, scratch_green )
+	QUADLINE_FORWARD(0x00, w3_b, n3_b, w4_b, w5_b, w6_b, scratch_blue  )
+
+	QUADLINE_FORWARD(0x10, w2_r, n2_r, w3_r, w4_r, w5_r, scratch_red   )
+	QUADLINE_FORWARD(0x10, w2_g, n2_g, w3_g, w4_g, w5_g, scratch_green )
+	QUADLINE_FORWARD(0x10, w2_b, n2_b, w3_b, w4_b, w5_b, scratch_blue  )
+
+	QUADLINE_FORWARD(0x20, w1_r, n1_r, w2_r, w3_r, w4_r, scratch_red   )
+	QUADLINE_FORWARD(0x20, w1_g, n1_g, w2_g, w3_g, w4_g, scratch_green )
+	QUADLINE_FORWARD(0x20, w1_b, n1_b, w2_b, w3_b, w4_b, scratch_blue  )
+
+	QUADLINE_FORWARD(0x30, w0_r, n0_r, w1_r, w2_r, w3_r, scratch_red   )
+	QUADLINE_FORWARD(0x30, w0_g, n0_g, w1_g, w2_g, w3_g, scratch_green )
+	QUADLINE_FORWARD(0x30, w0_b, n0_b, w1_b, w2_b, w3_b, scratch_blue  )
+
+
+	mvo			w6_r, w2_r
+	mvo			w5_r, w1_r
+	mvo			w4_r, w0_r
+						
+	mov			w6_g, w2_g
+	mvo			w5_g, w1_g
+	mvo			w4_g, w0_g
+						
+	mov			w6_b, w2_b
+	mov			w5_b, w1_b
+	mov			w4_b, w0_b
+
+	ai			scratch_red,   scratch_red,   0x40
+	ai			scratch_green, scratch_green, 0x40
+	ai			scratch_blue,  scratch_blue,  0x40
+
+.endmacro
+
+.cfunc void edgeYvvHorizontal3(
+	qword srcPtr0,
+	qword srcPtr1,
+	qword srcPtr2,
+	qword srcPtr3,
+	qword srcPtr4,
+	qword srcPtr5,
+	qword srcPtr6,
+	qword srcPtr7,
+	qword scratchPtr0,
+	qword scratchPtr1,
+	qword scratchPtr2,
+	qword scratchPtr3,
+	qword scratchPtr4,
+	qword scratchPtr5,
+	qword width,
+	qword bPtr,
+	qword mPtr
+)
+
+	// these masks are used to extract single-channel quads out of 4xARGB qwords in LOAD_INPUT
+	// each one is used twice, each time only the first or second dword is actually used.
+	.reg		kExtractRed0,kExtractGreen0,kExtractBlue0
+	.reg		kExtractRed1,kExtractGreen1,kExtractBlue1
+	.reg		kExtractRed2,kExtractGreen2,kExtractBlue2
+	.reg		kExtractRed3,kExtractGreen3,kExtractBlue3
+
+	il128		kExtractRed0, "000B000b000B000b"
+	il128		kExtractRed1, "000F000f000F000f"
+	il128		kExtractRed2, "000J000j000J000j"
+	il128		kExtractRed3, "000N000n000N000n"
+	
+	// green and blue masks can be computed by adding a constant to red.
+	ai			kExtractGreen0, kExtractRed0, 1
+	ai			kExtractGreen1, kExtractRed1, 1
+	ai			kExtractGreen2, kExtractRed2, 1
+	ai			kExtractGreen3, kExtractRed3, 1
+	
+	ai			kExtractBlue0, kExtractRed0, 2
+	ai			kExtractBlue1, kExtractRed1, 2
+	ai			kExtractBlue2, kExtractRed2, 2
+	ai			kExtractBlue3, kExtractRed3, 2
+		
+	.reg		kPixelPackUpper, kPixelPackLower
+	il128		kPixelPackUpper, "DHLPdhlp00000000"
+	il128		kPixelPackLower, "00000000DHLPdhlp"
+	
+	// At the point these mask are used, the colors are stored in the red/green/blue regsiters like this
+	//   A   B   C   D    E   F   G   H    I   J   K   L    M   N   O   P
+	// [(00)(10)(20)(30),(01)(11)(21)(31),(02)(12)(22)(32),(03)(13)(23)(33)], 
+	// where (nm) color component m of line n.
+	// To put it another way, the element-index within a word is the line index. 
+	.reg		kShufPixel0ARG, kShufPixel0B
+	.reg		kShufPixel1ARG, kShufPixel1B
+	.reg		kShufPixel2ARG, kShufPixel2B
+	.reg		kShufPixel3ARG, kShufPixel3B
+	.reg		kShufPixelARGStep, kShufPixelBStep
+	
+	il128		kShufPixel0ARG, "XAa0XEe0XIi0XMm0"	
+	il128		kShufPixel0B,   "ABCaEFGeIJKiMNOm"
+
+	il32		kShufPixelARGStep, 0x00010100
+	il32		kShufPixelBStep,   0x00000001
+	
+	a			kShufPixel1ARG, kShufPixel0ARG, kShufPixelARGStep
+	a			kShufPixel1B,   kShufPixel0B,   kShufPixelBStep
+	a			kShufPixel2ARG, kShufPixel1ARG, kShufPixelARGStep
+	a			kShufPixel2B,   kShufPixel1B,   kShufPixelBStep
+	a			kShufPixel3ARG, kShufPixel2ARG, kShufPixelARGStep
+	a			kShufPixel3B,   kShufPixel2B,   kShufPixelBStep
+
+
+
+	.reg		kSplatA, kSplatB, kSplatC, kSplatD
+	il128		kSplatA, "AAAA"
+	il128		kSplatB, "BBBB"
+	il128		kSplatC, "CCCC"
+	il128		kSplatD, "DDDD"
+	
+	.reg		kShufABcd
+	il128		kShufABcd, "ABcd"
+	
+	
+	.reg		kFour, kSixteen, kMinusFour, k0F, k255F : readoptional
+	il			kFour, 4
+	il			kSixteen, 16
+	il			kMinusFour, -4	
+
+
+	.reg		w0_r_0, w0_g_0, w0_b_0
+	.reg		w1_r_0, w1_g_0, w1_b_0
+	.reg		w2_r_0, w2_g_0, w2_b_0
+	.reg		w3_r_0, w3_g_0, w3_b_0
+	.reg		w4_r_0, w4_g_0, w4_b_0
+	.reg		w5_r_0, w5_g_0, w5_b_0
+	.reg		w6_r_0, w6_g_0, w6_b_0
+									
+	.reg		w0_r_1, w0_g_1, w0_b_1
+	.reg		w1_r_1, w1_g_1, w1_b_1
+	.reg		w2_r_1, w2_g_1, w2_b_1
+	.reg		w3_r_1, w3_g_1, w3_b_1
+	.reg		w4_r_1, w4_g_1, w4_b_1
+	.reg		w5_r_1, w5_g_1, w5_b_1
+	.reg		w6_r_1, w6_g_1, w6_b_1
+	
+			
+	.reg		b, b1, b2, b3
+	lqd			b, 0x00(bPtr)
+	shufb		b1, b, b, kSplatB
+	shufb		b2, b, b, kSplatC
+	shufb		b3, b, b, kSplatD
+	
+
+	.reg		scratch_red_0, scratch_green_0, scratch_blue_0
+	.reg		scratch_red_1, scratch_green_1, scratch_blue_1
+	mov			scratch_red_0,   scratchPtr0
+	mov			scratch_green_0, scratchPtr1
+	mov			scratch_blue_0,  scratchPtr2
+	mov			scratch_red_1,   scratchPtr3
+	mov			scratch_green_1, scratchPtr4
+	mov			scratch_blue_1,  scratchPtr5
+	
+	// get B, but don't get the recums now, to conserve registers.
+	.reg		sums, B, recsum0, recsum1
+	lqd			sums, 0x10(bPtr)
+	shufb		B, sums, sums, kSplatA
+	shufb		recsum0, sums, sums, kSplatB
+	shufb		recsum1, sums, sums, kSplatC
+	fm			recsum1, recsum0, recsum1
+	fm			B, B, B
+
+	// initialize the left side, assuming infinite repetition of the signal.
+	.reg		first0_0, first1_0, first2_0, first3_0
+	.reg		first0_1, first1_1, first2_1, first3_1
+
+	GET_FIRST(first0_0, srcPtr0)
+	GET_FIRST(first1_0, srcPtr1)
+	GET_FIRST(first2_0, srcPtr2)
+	GET_FIRST(first3_0, srcPtr3)
+	
+	GET_FIRST(first0_1, srcPtr4)
+	GET_FIRST(first1_1, srcPtr5)
+	GET_FIRST(first2_1, srcPtr6)
+	GET_FIRST(first3_1, srcPtr7)
+
+	
+	.reg		first_r_0, first_g_0, first_b_0
+	.reg		first_r_1, first_g_1, first_b_1
+	
+	EXTRACT(first_r_0, first0_0, first1_0, first2_0, first3_0, kExtractRed3)
+	EXTRACT(first_g_0, first0_0, first1_0, first2_0, first3_0, kExtractGreen3)
+	EXTRACT(first_b_0, first0_0, first1_0, first2_0, first3_0, kExtractBlue3)
+													  
+	EXTRACT(first_r_1, first0_1, first1_1, first2_1, first3_1, kExtractRed3)
+	EXTRACT(first_g_1, first0_1, first1_1, first2_1, first3_1, kExtractGreen3)
+	EXTRACT(first_b_1, first0_1, first1_1, first2_1, first3_1, kExtractBlue3)
+	
+	fm			first_r_0, first_r_0, recsum0
+	fm			first_g_0, first_g_0, recsum0
+	fm			first_b_0, first_b_0, recsum0
+	fm			first_r_1, first_r_1, recsum0
+	fm			first_g_1, first_g_1, recsum0
+	fm			first_b_1, first_b_1, recsum0
+	
+	// now initialize the coefficients
+	
+	mov		w4_r_0, first_r_0
+	mov		w4_g_0, first_g_0
+	mov		w4_b_0, first_b_0
+
+	mov		w5_r_0, first_r_0
+	mov		w5_g_0, first_g_0
+	mov		w5_b_0, first_b_0
+
+	mov		w6_r_0, first_r_0
+	mov		w6_g_0, first_g_0
+	mov		w6_b_0, first_b_0
+	
+	mov		w4_r_1, first_r_1
+	mov		w4_g_1, first_g_1
+	mov		w4_b_1, first_b_1
+
+	mov		w5_r_1, first_r_1
+	mov		w5_g_1, first_g_1
+	mov		w5_b_1, first_b_1
+
+	mov		w6_r_1, first_r_1
+	mov		w6_g_1, first_g_1
+	mov		w6_b_1, first_b_1
+	
+
+	// save last pixels
+	
+	.reg		last0_0, last1_0, last2_0, last3_0
+	.reg		last0_1, last1_1, last2_1, last3_1
+
+	GET_LAST(last0_0, srcPtr0)
+	GET_LAST(last1_0, srcPtr1)
+	GET_LAST(last2_0, srcPtr2)
+	GET_LAST(last3_0, srcPtr3)
+	
+	GET_LAST(last0_1, srcPtr4)
+	GET_LAST(last1_1, srcPtr5)
+	GET_LAST(last2_1, srcPtr6)
+	GET_LAST(last3_1, srcPtr7)
+
+	
+	.reg		last_r_0, last_g_0, last_b_0
+	.reg		last_r_1, last_g_1, last_b_1
+	
+	EXTRACT(last_r_0, last0_0, last1_0, last2_0, last3_0, kExtractRed3)
+	EXTRACT(last_g_0, last0_0, last1_0, last2_0, last3_0, kExtractGreen3)
+	EXTRACT(last_b_0, last0_0, last1_0, last2_0, last3_0, kExtractBlue3)
+													  
+	EXTRACT(last_r_1, last0_1, last1_1, last2_1, last3_1, kExtractRed3)
+	EXTRACT(last_g_1, last0_1, last1_1, last2_1, last3_1, kExtractGreen3)
+	EXTRACT(last_b_1, last0_1, last1_1, last2_1, last3_1, kExtractBlue3)
+
+	
+	.reg		count
+	mov			count, width
+	
+	.reg		src_offset
+	il			src_offset, 0
+		
+forward:
+	ai			count, count, -4
+	
+
+	FORWARD_ITERATION(
+		w0_r_0, w0_g_0, w0_b_0,
+		w1_r_0, w1_g_0, w1_b_0,
+		w2_r_0, w2_g_0, w2_b_0,
+		w3_r_0, w3_g_0, w3_b_0,
+		w4_r_0, w4_g_0, w4_b_0,
+		w5_r_0, w5_g_0, w5_b_0,
+		w6_r_0, w6_g_0, w6_b_0,
+		scratch_red_0, scratch_green_0, scratch_blue_0,
+		srcPtr0, srcPtr1, srcPtr2, srcPtr3)
+		
+	FORWARD_ITERATION(
+		w0_r_1, w0_g_1, w0_b_1,
+		w1_r_1, w1_g_1, w1_b_1,
+		w2_r_1, w2_g_1, w2_b_1,
+		w3_r_1, w3_g_1, w3_b_1,
+		w4_r_1, w4_g_1, w4_b_1,
+		w5_r_1, w5_g_1, w5_b_1,
+		w6_r_1, w6_g_1, w6_b_1,
+		scratch_red_1, scratch_green_1, scratch_blue_1,
+		srcPtr4, srcPtr5, srcPtr6, srcPtr7)
+		
+	
+
+	ai			src_offset, src_offset, 0x10
+
+	brnz		count, forward
+	
+// perform boundary correction
+	
+	.reg		M0, M1, M2, M3, M4, M5, M6, M7, M8	// matrix components
+	.reg		MQ0, MQ1, MQ2						// matrix qword
+	lqd			MQ0, 0x00(mPtr)
+	lqd			MQ1, 0x10(mPtr)
+	lqd			MQ2, 0x20(mPtr)
+	
+	shufb		M0, MQ0, MQ0, kSplatA
+	shufb		M1, MQ0, MQ0, kSplatB
+	shufb		M2, MQ0, MQ0, kSplatC
+	shufb		M3, MQ0, MQ0, kSplatD	
+	
+	shufb		M4, MQ1, MQ1, kSplatA
+	shufb		M5, MQ1, MQ1, kSplatB
+	shufb		M6, MQ1, MQ1, kSplatC
+	shufb		M7, MQ1, MQ1, kSplatD
+	
+	shufb		M8, MQ2, MQ2, kSplatA
+	
+	mpy			src_offset, width, kFour
+	
+	ai			src_offset, src_offset, -0x10
+	
+	INTERLUDE(
+		last_r_0, last_g_0, last_b_0,
+		w0_r_0, w0_g_0, w0_b_0,
+		w1_r_0, w1_g_0, w1_b_0,
+		w2_r_0, w2_g_0, w2_b_0,
+		w3_r_0, w3_g_0, w3_b_0,
+		w4_r_0, w4_g_0, w4_b_0,
+		w5_r_0, w5_g_0, w5_b_0,
+		w6_r_0, w6_g_0, w6_b_0,
+		scratch_red_0, scratch_green_0, scratch_blue_0,
+		scratchPtr0,scratchPtr1,scratchPtr2,
+		srcPtr0, srcPtr1, srcPtr2, srcPtr3)
+	
+	INTERLUDE(
+		last_r_1, last_g_1, last_b_1,
+		w0_r_1, w0_g_1, w0_b_1,
+		w1_r_1, w1_g_1, w1_b_1,
+		w2_r_1, w2_g_1, w2_b_1,
+		w3_r_1, w3_g_1, w3_b_1,
+		w4_r_1, w4_g_1, w4_b_1,
+		w5_r_1, w5_g_1, w5_b_1,
+		w6_r_1, w6_g_1, w6_b_1,
+		scratch_red_1, scratch_green_1, scratch_blue_1,
+		scratchPtr3,scratchPtr4,scratchPtr5,
+		srcPtr4, srcPtr5, srcPtr6, srcPtr7)
+	
+	
+	ai			src_offset, src_offset, -0x10
+	
+	ai			count, width, -4
+
+
+
+	
+backward:	
+	ai			count, count, -4
+	
+	BACKWARD_ITERATION(
+	w0_r_0, w0_g_0, w0_b_0,
+	w1_r_0, w1_g_0, w1_b_0,
+	w2_r_0, w2_g_0, w2_b_0,
+	w3_r_0, w3_g_0, w3_b_0,
+	w4_r_0, w4_g_0, w4_b_0,
+	w5_r_0, w5_g_0, w5_b_0,
+	w6_r_0, w6_g_0, w6_b_0,
+	scratch_red_0, scratch_green_0, scratch_blue_0,
+	srcPtr0, srcPtr1, srcPtr2, srcPtr3)
+	
+	BACKWARD_ITERATION(
+	w0_r_1, w0_g_1, w0_b_1,
+	w1_r_1, w1_g_1, w1_b_1,
+	w2_r_1, w2_g_1, w2_b_1,
+	w3_r_1, w3_g_1, w3_b_1,
+	w4_r_1, w4_g_1, w4_b_1,
+	w5_r_1, w5_g_1, w5_b_1,
+	w6_r_1, w6_g_1, w6_b_1,
+	scratch_red_1, scratch_green_1, scratch_blue_1,
+	srcPtr4, srcPtr5, srcPtr6, srcPtr7)
+	
+
+	ai			src_offset, src_offset, -0x10
+
+	brnz		count, backward
+
+.endfunc

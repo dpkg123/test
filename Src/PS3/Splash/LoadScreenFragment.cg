@@ -1,0 +1,10 @@
+/**
+ *
+ * Copyright 1998-2011 Epic Games, Inc. All Rights Reserved.
+ */
+ 
+// sample the texture and output it
+float4 main(float2 UV : TEXCOORD0, uniform sampler2D Tex) : COLOR
+{
+    return tex2D(Tex, UV);
+}

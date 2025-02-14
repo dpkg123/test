@@ -1,0 +1,47 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lzma-inflate-retry-sample", "lzma-inflate-retry-sample.vcproj", "{58088A43-2D29-4E46-944A-1C3CE3D9C288}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1355DE25-4595-2546-4597-219784659320} = {1355DE25-4595-2546-4597-219784659320}
+		{02948732-0468-9831-0500-000000000000} = {02948732-0468-9831-0500-000000000000}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "edgelzma_ppu", "..\..\..\target\ppu\src\edge\lzma\edgelzma_ppu.vcproj", "{02948732-0468-9831-0500-000000000000}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1355DE25-4595-2546-4597-219784659320} = {1355DE25-4595-2546-4597-219784659320}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "edgelzma_spu", "..\..\..\target\spu\src\edge\lzma\edgelzma_spu.vcproj", "{90E1CC00-8826-40B4-BF74-F9A71712FED4}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "edgelzma-inflate-task", "..\..\..\target\spu\src\edge\lzma-inflate-task\edgelzma-inflate-task.vcproj", "{1355DE25-4595-2546-4597-219784659320}"
+	ProjectSection(ProjectDependencies) = postProject
+		{90E1CC00-8826-40B4-BF74-F9A71712FED4} = {90E1CC00-8826-40B4-BF74-F9A71712FED4}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		PS3 Debug|Win32 = PS3 Debug|Win32
+		PS3 Release|Win32 = PS3 Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{58088A43-2D29-4E46-944A-1C3CE3D9C288}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{58088A43-2D29-4E46-944A-1C3CE3D9C288}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{58088A43-2D29-4E46-944A-1C3CE3D9C288}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{58088A43-2D29-4E46-944A-1C3CE3D9C288}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+		{02948732-0468-9831-0500-000000000000}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{02948732-0468-9831-0500-000000000000}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{02948732-0468-9831-0500-000000000000}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{02948732-0468-9831-0500-000000000000}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+		{90E1CC00-8826-40B4-BF74-F9A71712FED4}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{90E1CC00-8826-40B4-BF74-F9A71712FED4}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{90E1CC00-8826-40B4-BF74-F9A71712FED4}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{90E1CC00-8826-40B4-BF74-F9A71712FED4}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+		{1355DE25-4595-2546-4597-219784659320}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{1355DE25-4595-2546-4597-219784659320}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{1355DE25-4595-2546-4597-219784659320}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{1355DE25-4595-2546-4597-219784659320}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

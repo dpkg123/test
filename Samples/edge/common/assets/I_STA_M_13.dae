@@ -1,0 +1,642 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <contributor>
+      <author>Nicolas_Serres</author>
+      <authoring_tool>Maya 8.5P01 | ColladaMaya v3.02 | FCollada v3.2</authoring_tool>
+      <comments>Collada Maya Export Options: bakeTransforms=1;exportPolygonMeshes=0;bakeLighting=0;isSampling=1;
+curveConstrainSampling=0;exportCameraAsLookat=0;
+exportLights=0;exportCameras=0;exportJointsAndSkin=1;
+exportAnimations=1;exportTriangles=0;exportInvisibleNodes=0;
+exportNormals=0;exportTexCoords=0;exportVertexColors=0;exportTangents=0;
+exportTexTangents=0;exportConstraints=0;exportPhysics=0;exportXRefs=1;
+dereferenceXRefs=0;cameraXFov=0;cameraYFov=1</comments>
+      <source_data>file:///C:/Documents%20and%20Settings/nicolas_serres/Desktop/EDGE_ASSETS/ANIMATION/MALE/I_STA_M_13.mb</source_data>
+    </contributor>
+    <created>2007-05-10T15:24:04Z</created>
+    <modified>2007-05-10T15:24:04Z</modified>
+    <unit meter="1" name="meter"/>
+    <up_axis>Y_UP</up_axis>
+  </asset>
+  <library_images>
+    <image id="file69" name="file69">
+      <init_from>file:///D:/Online/hub/Build/Characters/Male/Male01/Legs/Textures/Male01_legs_jeans_regular_C.dds</init_from>
+    </image>
+    <image id="file81" name="file81">
+      <init_from>file:///D:/Online/Hub/Build/Characters/Male/Male01/Torso/Textures/male01_tshirt_generic_C.dds</init_from>
+    </image>
+    <image id="imported_file76" name="imported_file76">
+      <init_from>file:///D:/Online/Hub/Build/Characters/Male/Male01/Shared%20textures/male01_body_Cauc_C.dds</init_from>
+    </image>
+    <image id="file76" name="file76">
+      <init_from>file:///D:/Online/Hub/Build/Characters/Male/Male01/Feet/Textures/male01_feet_shoes_generic_C.dds</init_from>
+    </image>
+    <image id="file72" name="file72">
+      <init_from>file:///D:/Online/Hub/Build/Characters/Male/Male01/Shared%20textures/male01_head_Cauc_C.dds</init_from>
+    </image>
+  </library_images>
+  <library_materials>
+    <material id="imported_lambert2SG1" name="imported_lambert2SG1">
+      <instance_effect url="#imported_lambert2SG1-fx"/>
+    </material>
+    <material id="initialShadingGroup2" name="initialShadingGroup2">
+      <instance_effect url="#initialShadingGroup2-fx"/>
+    </material>
+    <material id="imported_lambert4" name="imported_lambert4">
+      <instance_effect url="#imported_lambert4-fx"/>
+    </material>
+    <material id="imported_lambert2SG3" name="imported_lambert2SG3">
+      <instance_effect url="#imported_lambert2SG3-fx"/>
+    </material>
+    <material id="imported_lambert14" name="imported_lambert14">
+      <instance_effect url="#imported_lambert14-fx"/>
+    </material>
+    <material id="imported_lambert15" name="imported_lambert15">
+      <instance_effect url="#imported_lambert15-fx"/>
+    </material>
+  </library_materials>
+  <library_effects>
+    <effect id="imported_lambert2SG1-fx">
+      <profile_COMMON>
+        <newparam sid="file69-surface">
+          <surface type="2D">
+            <init_from>file69</init_from>
+            <format>A8R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="file69-sampler">
+          <sampler2D>
+            <source>file69-surface</source>
+            <minfilter>LINEAR_MIPMAP_LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="file69-sampler" texcoord="TEX0">
+                <extra>
+                  <technique profile="MAYA">
+                    <blend_mode>NONE</blend_mode>
+                  </technique>
+                </extra>
+              </texture>
+            </diffuse>
+            <transparent opaque="A_ONE">
+              <color>0 0 0 1</color>
+            </transparent>
+            <transparency>
+              <float>1</float>
+            </transparency>
+            <index_of_refraction>
+              <float>1</float>
+            </index_of_refraction>
+          </lambert>
+          <extra>
+            <technique profile="FCOLLADA"/>
+          </extra>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="initialShadingGroup2-fx">
+      <profile_COMMON>
+        <newparam sid="file81-surface">
+          <surface type="2D">
+            <init_from>file81</init_from>
+            <format>A8R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="file81-sampler">
+          <sampler2D>
+            <source>file81-surface</source>
+            <minfilter>LINEAR_MIPMAP_LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="file81-sampler" texcoord="TEX0">
+                <extra>
+                  <technique profile="MAYA">
+                    <blend_mode>NONE</blend_mode>
+                  </technique>
+                </extra>
+              </texture>
+            </diffuse>
+            <transparent opaque="A_ONE">
+              <color>0 0 0 1</color>
+            </transparent>
+            <transparency>
+              <float>1</float>
+            </transparency>
+            <index_of_refraction>
+              <float>1</float>
+            </index_of_refraction>
+          </lambert>
+          <extra>
+            <technique profile="FCOLLADA"/>
+          </extra>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="imported_lambert4-fx">
+      <profile_COMMON>
+        <newparam sid="imported_file76-surface">
+          <surface type="2D">
+            <init_from>imported_file76</init_from>
+            <format>A8R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="imported_file76-sampler">
+          <sampler2D>
+            <source>imported_file76-surface</source>
+            <minfilter>LINEAR_MIPMAP_LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="imported_file76-sampler" texcoord="TEX0">
+                <extra>
+                  <technique profile="MAYA">
+                    <blend_mode>NONE</blend_mode>
+                  </technique>
+                </extra>
+              </texture>
+            </diffuse>
+            <transparent opaque="A_ONE">
+              <color>0 0 0 1</color>
+            </transparent>
+            <transparency>
+              <float>1</float>
+            </transparency>
+            <index_of_refraction>
+              <float>1</float>
+            </index_of_refraction>
+          </lambert>
+          <extra>
+            <technique profile="FCOLLADA"/>
+          </extra>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="imported_lambert2SG3-fx">
+      <profile_COMMON>
+        <newparam sid="file76-surface">
+          <surface type="2D">
+            <init_from>file76</init_from>
+            <format>A8R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="file76-sampler">
+          <sampler2D>
+            <source>file76-surface</source>
+            <minfilter>LINEAR_MIPMAP_LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="file76-sampler" texcoord="TEX0">
+                <extra>
+                  <technique profile="MAYA">
+                    <blend_mode>NONE</blend_mode>
+                  </technique>
+                </extra>
+              </texture>
+            </diffuse>
+            <transparent opaque="A_ONE">
+              <color>0 0 0 1</color>
+            </transparent>
+            <transparency>
+              <float>1</float>
+            </transparency>
+            <index_of_refraction>
+              <float>1</float>
+            </index_of_refraction>
+          </lambert>
+          <extra>
+            <technique profile="FCOLLADA"/>
+          </extra>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="imported_lambert14-fx">
+      <profile_COMMON>
+        <newparam sid="file72-surface">
+          <surface type="2D">
+            <init_from>file72</init_from>
+            <format>A8R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="file72-sampler">
+          <sampler2D>
+            <source>file72-surface</source>
+            <minfilter>LINEAR_MIPMAP_LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="file72-sampler" texcoord="TEX0">
+                <extra>
+                  <technique profile="MAYA">
+                    <blend_mode>NONE</blend_mode>
+                  </technique>
+                </extra>
+              </texture>
+            </diffuse>
+            <transparent opaque="A_ONE">
+              <color>0 0 0 1</color>
+            </transparent>
+            <transparency>
+              <float>1</float>
+            </transparency>
+            <index_of_refraction>
+              <float>1</float>
+            </index_of_refraction>
+          </lambert>
+          <extra>
+            <technique profile="FCOLLADA"/>
+          </extra>
+        </technique>
+      </profile_COMMON>
+    </effect>
+    <effect id="imported_lambert15-fx">
+      <profile_COMMON>
+        <newparam sid="imported_file76-surface">
+          <surface type="2D">
+            <init_from>imported_file76</init_from>
+            <format>A8R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="imported_file76-sampler">
+          <sampler2D>
+            <source>imported_file76-surface</source>
+            <minfilter>LINEAR_MIPMAP_LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <ambient>
+              <color>0 0 0 1</color>
+            </ambient>
+            <diffuse>
+              <texture texture="imported_file76-sampler" texcoord="TEX0">
+                <extra>
+                  <technique profile="MAYA">
+                    <blend_mode>NONE</blend_mode>
+                  </technique>
+                </extra>
+              </texture>
+            </diffuse>
+            <transparent opaque="A_ONE">
+              <color>0 0 0 1</color>
+            </transparent>
+            <transparency>
+              <float>1</float>
+            </transparency>
+            <index_of_refraction>
+              <float>1</float>
+            </index_of_refraction>
+          </lambert>
+          <extra>
+            <technique profile="FCOLLADA"/>
+          </extra>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_visual_scenes>
+    <visual_scene id="VisualSceneNode" name="I_STA_M_13">
+      <node id="pointLight1" name="pointLight1" type="NODE">
+        <matrix sid="transform">1 0 0 -0.637677 0 1 0 1.94601 0 0 1 1.31159 0 0 0 1</matrix>
+      </node>
+      <node id="GEOM" name="GEOM" type="NODE">
+        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <node id="male01_torso_tshirt_lod1" name="male01_torso_tshirt_lod1" type="NODE">
+          <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        </node>
+        <node id="male01_feet_shoesgeneric_lod1" name="male01_feet_shoesgeneric_lod1" type="NODE">
+          <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        </node>
+        <node id="male01_legs_jeans_regular_lod1" name="male01_legs_jeans_regular_lod1" type="NODE">
+          <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        </node>
+        <node id="BASE_HEAD" name="BASE_HEAD" type="NODE">
+          <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        </node>
+        <node id="male01_hands_lod1" name="male01_hands_lod1" type="NODE">
+          <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        </node>
+      </node>
+      <node id="ambientLight1" name="ambientLight1" type="NODE">
+        <matrix sid="transform">1 0 0 0.511583 0 1 0 2.19624 0 0 1 1.15508 0 0 0 1</matrix>
+      </node>
+      <node id="PelvisRoot" name="PelvisRoot" type="JOINT">
+        <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+        <node id="Pelvis" name="Pelvis" type="JOINT">
+          <matrix sid="transform">1 0 0 0 0 0.999266 -0.038295 1.001 0 0.038295 0.999266 0 0 0 0 1</matrix>
+          <node id="Hips" name="Hips" type="JOINT">
+            <matrix sid="transform">1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+            <node id="LeftUpLeg_Helper1" name="LeftUpLeg_Helper1" type="JOINT">
+              <matrix sid="transform">-0.998526 0.054265 0.001278 0.087164 -0.054242 -0.998433 0.013779 -0.000001 0.002024 0.01369 0.999904 0 0 0 0 1</matrix>
+            </node>
+            <node id="RightUpLeg_Helper1" name="RightUpLeg_Helper1" type="JOINT">
+              <matrix sid="transform">-0.998526 0.054265 0.001278 -0.087164 0.054243 0.998433 -0.013782 0 -0.002024 -0.013692 -0.999904 0 0 0 0 1</matrix>
+            </node>
+            <node id="LeftUpLeg_Helper2" name="LeftUpLeg_Helper2" type="JOINT">
+              <matrix sid="transform">-0.998506 0.054265 0.006393 0.087164 -0.054171 -0.998433 0.014057 -0.000001 0.007146 0.01369 0.999881 0 0 0 0 1</matrix>
+            </node>
+            <node id="RightUpLeg_Helper2" name="RightUpLeg_Helper2" type="JOINT">
+              <matrix sid="transform">-0.998506 0.054265 0.006393 -0.087164 0.054171 0.998433 -0.014059 0 -0.007146 -0.013692 -0.999881 0 0 0 0 1</matrix>
+            </node>
+            <node id="LeftUpLeg" name="LeftUpLeg" type="JOINT">
+              <matrix sid="transform">-0.998445 0.054265 0.012786 0.087164 -0.05408 -0.998433 0.014404 -0.000001 0.013548 0.01369 0.999815 0 0 0 0 1</matrix>
+              <node id="LeftLeg" name="LeftLeg" type="JOINT">
+                <matrix sid="transform">1 0.00006 0.000302 0 -0.000094 0.993475 0.114047 0.513626 -0.000293 -0.114047 0.993475 0.00777 0 0 0 1</matrix>
+                <node id="LeftFoot" name="LeftFoot" type="JOINT">
+                  <matrix sid="transform">0.989574 -0.071638 -0.124945 0 -0.069953 0.519248 -0.851756 0.396099 0.125896 0.851616 0.508823 0 0 0 0 1</matrix>
+                  <node id="LeftToes" name="LeftToes" type="JOINT">
+                    <matrix sid="transform">1 0 0 0 0 0.779169 -0.626814 0.153519 0 0.626814 0.779169 0 0 0 0 1</matrix>
+                    <node id="LeftToesNull" name="LeftToesNull" type="JOINT">
+                      <matrix sid="transform">1 0 0 0 0 1 0 0.093148 0 0 1 0 0 0 0 1</matrix>
+                    </node>
+                  </node>
+                </node>
+              </node>
+            </node>
+            <node id="RightUpLeg" name="RightUpLeg" type="JOINT">
+              <matrix sid="transform">-0.998445 0.054265 0.012786 -0.087164 0.05408 0.998433 -0.014406 0 -0.013548 -0.013692 -0.999814 0 0 0 0 1</matrix>
+              <node id="RightLeg" name="RightLeg" type="JOINT">
+                <matrix sid="transform">1 0.00006 0.000303 0 -0.000085 0.996516 0.083396 -0.513628 -0.000297 -0.083396 0.996516 -0.00777 0 0 0 1</matrix>
+                <node id="RightFoot" name="RightFoot" type="JOINT">
+                  <matrix sid="transform">0.989574 -0.071637 -0.124948 0 -0.066046 0.545232 -0.835679 -0.395911 0.127991 0.835218 0.534816 0.012201 0 0 0 1</matrix>
+                  <node id="RightToes" name="RightToes" type="JOINT">
+                    <matrix sid="transform">1 0 0 0 0 0.779169 -0.626814 -0.153519 0 0.626814 0.779169 0 0 0 0 1</matrix>
+                    <node id="RightToesNull" name="RightToesNull" type="JOINT">
+                      <matrix sid="transform">1 0 0 0 0 1 0 -0.093148 0 0 1 0 0 0 0 1</matrix>
+                    </node>
+                  </node>
+                </node>
+              </node>
+            </node>
+          </node>
+          <node id="Spine" name="Spine" type="JOINT">
+            <matrix sid="transform">1 0 0 0 0 0.998644 0.052065 0.070051 0 -0.052065 0.998644 -0.000217 0 0 0 1</matrix>
+            <node id="Spine1" name="Spine1" type="JOINT">
+              <matrix sid="transform">1 0 0 0 0 0.999871 0.016032 0.077503 0 -0.016032 0.999871 0 0 0 0 1</matrix>
+              <node id="Spine2" name="Spine2" type="JOINT">
+                <matrix sid="transform">1 0 0 0 0 0.999877 0.01571 0.073924 0 -0.01571 0.999877 0 0 0 0 1</matrix>
+                <node id="Spine3" name="Spine3" type="JOINT">
+                  <matrix sid="transform">1 0 0 0 0 0.999577 0.02909 0.111876 0 -0.02909 0.999577 0 0 0 0 1</matrix>
+                  <node id="Neck" name="Neck" type="JOINT">
+                    <matrix sid="transform">1 0 0 0 0 0.962052 -0.272867 0.248046 0 0.272867 0.962052 0 0 0 0 1</matrix>
+                    <node id="Neck1" name="Neck1" type="JOINT">
+                      <matrix sid="transform">1 0 0 0 0 0.998264 -0.0589 0.04828 0 0.0589 0.998264 0 0 0 0 1</matrix>
+                      <node id="Head" name="Head" type="JOINT">
+                        <matrix sid="transform">1 0 0 0 0 0.965557 0.260192 0.053577 0 -0.260192 0.965557 0 0 0 0 1</matrix>
+                        <node id="HeadNull" name="HeadNull" type="JOINT">
+                          <matrix sid="transform">1 0 0 0 0 1 0 0.180848 0 0 1 0 0 0 0 1</matrix>
+                        </node>
+                      </node>
+                    </node>
+                  </node>
+                  <node id="LeftShoulder" name="LeftShoulder" type="JOINT">
+                    <matrix sid="transform">-0.48001 0.876436 0.038091 0.017011 0.046716 0.068896 -0.996529 0.181867 -0.876018 -0.476564 -0.074014 0.084759 0 0 0 1</matrix>
+                    <node id="LeftArm" name="LeftArm" type="JOINT">
+                      <matrix sid="transform">0.732001 -0.005814 0.681279 0 0.676391 0.126066 -0.725674 0.188543 -0.081666 0.992005 0.096213 0 0 0 0 1</matrix>
+                      <node id="LeftForeArm" name="LeftForeArm" type="JOINT">
+                        <matrix sid="transform">0.93468 -0.355491 0 0.000011 0.355491 0.934678 -0.001515 0.3215 0.000538 0.001416 0.999999 0 0 0 0 1</matrix>
+                        <node id="LeftHand" name="LeftHand" type="JOINT">
+                          <matrix sid="transform">0.948747 0.057654 0.310733 0.000011 -0.013627 0.989768 -0.142035 0.244116 -0.315742 0.130521 0.939825 0 0 0 0 1</matrix>
+                          <node id="LeftIndex1" name="LeftIndex1" type="JOINT">
+                            <matrix sid="transform">0.98679 0.158414 -0.033916 -0.027238 -0.159699 0.916009 -0.368 0.104 -0.027228 0.368555 0.929207 -0.012047 0 0 0 1</matrix>
+                            <node id="LeftIndex2" name="LeftIndex2" type="JOINT">
+                              <matrix sid="transform">0.999999 -0.001361 0.000723 0 0.001523 0.944944 -0.327229 0.037252 -0.000237 0.327229 0.944945 0 0 0 0 1</matrix>
+                              <node id="LeftIndex3" name="LeftIndex3" type="JOINT">
+                                <matrix sid="transform">0.999999 -0.001353 0.00072 0 0.001481 0.9744 -0.224817 0.025094 -0.000397 0.224817 0.974401 0 0 0 0 1</matrix>
+                                <node id="LeftIndexNull" name="LeftIndexNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 0 0 1 0 0.025118 0 0 1 0 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="LeftMiddle1" name="LeftMiddle1" type="JOINT">
+                            <matrix sid="transform">0.999143 0.041063 -0.005121 -0.001251 -0.039971 0.925649 -0.376266 0.107976 -0.01071 0.376148 0.926498 -0.013471 0 0 0 1</matrix>
+                            <node id="LeftMiddle2" name="LeftMiddle2" type="JOINT">
+                              <matrix sid="transform">0.999999 -0.00127 0.001029 0 0.001588 0.904214 -0.427076 0.039923 -0.000388 0.427077 0.904215 0 0 0 0 1</matrix>
+                              <node id="LeftMiddle3" name="LeftMiddle3" type="JOINT">
+                                <matrix sid="transform">0.999999 -0.00102 0.000883 0 0.001286 0.918466 -0.395498 0.027331 -0.000407 0.395498 0.918467 0 0 0 0 1</matrix>
+                                <node id="LeftMiddleNull" name="LeftMiddleNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 0 0 1 0 0.026102 0 0 1 0 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="LeftRing1" name="LeftRing1" type="JOINT">
+                            <matrix sid="transform">0.996226 -0.076279 -0.041408 0.021135 0.04781 0.880471 -0.471683 0.102233 0.072438 0.467923 0.880795 -0.010783 0 0 0 1</matrix>
+                            <node id="LeftRing2" name="LeftRing2" type="JOINT">
+                              <matrix sid="transform">0.999999 -0.001077 0.001083 0 0.001484 0.852989 -0.521927 0.039098 -0.000362 0.521928 0.85299 0 0 0 0 1</matrix>
+                              <node id="LeftRing3" name="LeftRing3" type="JOINT">
+                                <matrix sid="transform">0.999999 -0.00108 0.001086 0 0.001471 0.87451 -0.485006 0.027324 -0.000425 0.485007 0.87451 0 0 0 0 1</matrix>
+                                <node id="LeftRingNull" name="LeftRingNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 0 0 1 0 0.024717 0 0 1 0 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="LeftPinky1" name="LeftPinky1" type="JOINT">
+                            <matrix sid="transform">0.989961 -0.125912 -0.064209 0.041258 0.076197 0.858069 -0.507849 0.096203 0.119041 0.497859 0.859049 -0.00331 0 0 0 1</matrix>
+                            <node id="LeftPinky2" name="LeftPinky2" type="JOINT">
+                              <matrix sid="transform">0.999686 -0.024872 -0.003088 0 0.017173 0.76951 -0.638404 0.032185 0.018254 0.638151 0.769695 0 0 0 0 1</matrix>
+                              <node id="LeftPinky3" name="LeftPinky3" type="JOINT">
+                                <matrix sid="transform">0.999685 -0.024918 -0.003048 0 0.020672 0.886024 -0.463179 0.016345 0.014242 0.46297 0.88626 0 0 0 0 1</matrix>
+                                <node id="LeftPinkyNull" name="LeftPinkyNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 0 0 1 0 0.019694 0 0 1 0 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="LeftThumb1" name="LeftThumb1" type="JOINT">
+                            <matrix sid="transform">-0.910493 0.385704 0.149112 -0.038235 0.362049 0.917756 -0.163228 0.02164 -0.199806 -0.094632 -0.975255 0.002124 0 0 0 1</matrix>
+                            <node id="LeftThumb2" name="LeftThumb2" type="JOINT">
+                              <matrix sid="transform">0.235193 0.247901 -0.939803 0.025687 0.419652 0.846254 0.328246 0.021903 0.876685 -0.471591 0.095 -0.017375 0 0 0 1</matrix>
+                              <node id="LeftThumb3" name="LeftThumb3" type="JOINT">
+                                <matrix sid="transform">0.999931 0.010364 0.005484 0 -0.008963 0.977127 -0.212468 0.034681 -0.00756 0.212404 0.977153 0 0 0 0 1</matrix>
+                                <node id="LeftThumbNull" name="LeftThumbNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 0 0 1 0 0.027381 0 0 1 0 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                        </node>
+                        <node id="LeftForeArm_Helper1" name="LeftForeArm_Helper1" type="JOINT">
+                          <matrix sid="transform">0.987126 0 0.159945 0 0 1 0 0.078445 -0.159945 0 0.987126 0 0 0 0 1</matrix>
+                          <node id="LeftForeArm_Helper2" name="LeftForeArm_Helper2" type="JOINT">
+                            <matrix sid="transform">0.987126 0 0.159945 0 0 1 0 0.153671 -0.159945 0 0.987126 0 0 0 0 1</matrix>
+                          </node>
+                        </node>
+                      </node>
+                    </node>
+                    <node id="LeftArm_Helper2" name="LeftArm_Helper2" type="JOINT">
+                      <matrix sid="transform">0.732001 -0.005814 0.681279 0 0.676391 0.126066 -0.725674 0.188543 -0.081666 0.992005 0.096213 0 0 0 0 1</matrix>
+                    </node>
+                    <node id="LeftArm_Helper1" name="LeftArm_Helper1" type="JOINT">
+                      <matrix sid="transform">0.732001 -0.005814 0.681279 0 0.676391 0.126066 -0.725674 0.188543 -0.081666 0.992005 0.096213 0 0 0 0 1</matrix>
+                    </node>
+                  </node>
+                  <node id="RightShoulder" name="RightShoulder" type="JOINT">
+                    <matrix sid="transform">-0.48001 0.876436 0.038091 -0.017011 -0.046716 -0.068896 0.996529 0.181869 0.876018 0.476564 0.074014 0.084759 0 0 0 1</matrix>
+                    <node id="RightArm" name="RightArm" type="JOINT">
+                      <matrix sid="transform">0.732001 -0.005814 0.681279 0 0.676391 0.126066 -0.725674 -0.188543 -0.081666 0.992005 0.096213 -0.000002 0 0 0 1</matrix>
+                      <node id="RightForeArm" name="RightForeArm" type="JOINT">
+                        <matrix sid="transform">0.934677 -0.355497 0 -0.000011 0.355497 0.934676 -0.001515 -0.321501 0.000538 0.001416 0.999999 0.000000 0 0 0 1</matrix>
+                        <node id="RightHand" name="RightHand" type="JOINT">
+                          <matrix sid="transform">0.948747 0.057654 0.310733 -0.000011 -0.013625 0.989767 -0.142041 -0.244116 -0.315743 0.130527 0.939824 0.000000 0 0 0 1</matrix>
+                          <node id="RightIndex1" name="RightIndex1" type="JOINT">
+                            <matrix sid="transform">0.986789 0.158419 -0.033919 0.027237 -0.159706 0.91601 -0.367994 -0.104 -0.027227 0.368549 0.929209 0.012048 0 0 0 1</matrix>
+                            <node id="RightIndex2" name="RightIndex2" type="JOINT">
+                              <matrix sid="transform">0.999999 -0.001361 0.000723 0 0.001523 0.944944 -0.327229 -0.037252 -0.000237 0.327229 0.944945 -0.000003 0 0 0 1</matrix>
+                              <node id="RightIndex3" name="RightIndex3" type="JOINT">
+                                <matrix sid="transform">0.999999 -0.001352 0.000719 0 0.001479 0.9744 -0.224817 -0.025094 -0.000397 0.224817 0.974401 -0.000002 0 0 0 1</matrix>
+                                <node id="RightIndexNull" name="RightIndexNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 0 0 1 -0.000001 -0.025118 0 0.000001 1 0 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="RightMiddle1" name="RightMiddle1" type="JOINT">
+                            <matrix sid="transform">0.999143 0.041068 -0.005123 0.00125 -0.039977 0.925651 -0.37626 -0.107975 -0.01071 0.376142 0.9265 0.013471 0 0 0 1</matrix>
+                            <node id="RightMiddle2" name="RightMiddle2" type="JOINT">
+                              <matrix sid="transform">0.999999 -0.00127 0.001029 0 0.001588 0.904214 -0.427076 -0.039923 -0.000388 0.427077 0.904215 0.000005 0 0 0 1</matrix>
+                              <node id="RightMiddle3" name="RightMiddle3" type="JOINT">
+                                <matrix sid="transform">0.999999 -0.00102 0.000883 0 0.001286 0.918466 -0.395498 -0.027332 -0.000407 0.395498 0.918467 -0.000005 0 0 0 1</matrix>
+                                <node id="RightMiddleNull" name="RightMiddleNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 0 0 1 0 -0.026101 0 0 1 0.000003 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="RightRing1" name="RightRing1" type="JOINT">
+                            <matrix sid="transform">0.996227 -0.076273 -0.041411 -0.021136 0.047804 0.880475 -0.471677 -0.102233 0.072437 0.467918 0.880798 0.010788 0 0 0 1</matrix>
+                            <node id="RightRing2" name="RightRing2" type="JOINT">
+                              <matrix sid="transform">0.999999 -0.00108 0.001085 -0.000000 0.001488 0.852989 -0.521927 -0.039099 -0.000362 0.521928 0.85299 -0.000001 0 0 0 1</matrix>
+                              <node id="RightRing3" name="RightRing3" type="JOINT">
+                                <matrix sid="transform">0.999999 -0.00108 0.001086 -0.000000 0.001471 0.874508 -0.485009 -0.027324 -0.000425 0.48501 0.874508 -0.000005 0 0 0 1</matrix>
+                                <node id="RightRingNull" name="RightRingNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 -0.000000 0 1 -0.000005 -0.024717 0 0.000005 1 -0.000002 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="RightPinky1" name="RightPinky1" type="JOINT">
+                            <matrix sid="transform">0.989962 -0.125907 -0.064212 -0.041259 0.076192 0.858073 -0.507844 -0.096202 0.11904 0.497853 0.859053 0.003314 0 0 0 1</matrix>
+                            <node id="RightPinky2" name="RightPinky2" type="JOINT">
+                              <matrix sid="transform">0.999686 -0.024872 -0.003088 -0.000000 0.017173 0.76951 -0.638404 -0.032185 0.018254 0.638151 0.769695 -0.000003 0 0 0 1</matrix>
+                              <node id="RightPinky3" name="RightPinky3" type="JOINT">
+                                <matrix sid="transform">0.999685 -0.024918 -0.003048 0.000000 0.020672 0.886024 -0.463179 -0.016344 0.014242 0.46297 0.88626 0.000002 0 0 0 1</matrix>
+                                <node id="RightPinkyNull" name="RightPinkyNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 -0.000000 0 1 0 -0.019694 0 0 1 -0.000006 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                          <node id="RightThumb1" name="RightThumb1" type="JOINT">
+                            <matrix sid="transform">-0.910491 0.38571 0.149111 0.038235 0.362054 0.917753 -0.163235 -0.02164 -0.199808 -0.094638 -0.975254 -0.002127 0 0 0 1</matrix>
+                            <node id="RightThumb2" name="RightThumb2" type="JOINT">
+                              <matrix sid="transform">0.235193 0.247901 -0.939803 -0.025687 0.419652 0.846254 0.328246 -0.021903 0.876685 -0.471591 0.095 0.017372 0 0 0 1</matrix>
+                              <node id="RightThumb3" name="RightThumb3" type="JOINT">
+                                <matrix sid="transform">0.999931 0.010364 0.005484 0.000002 -0.008963 0.977127 -0.212468 -0.034682 -0.00756 0.212404 0.977153 0.000000 0 0 0 1</matrix>
+                                <node id="RightThumbNull" name="RightThumbNull" type="JOINT">
+                                  <matrix sid="transform">1 0 0 -0.000001 0 1 0 -0.027381 0 0 1 0 0 0 0 1</matrix>
+                                </node>
+                              </node>
+                            </node>
+                          </node>
+                        </node>
+                        <node id="RightForeArm_Helper1" name="RightForeArm_Helper1" type="JOINT">
+                          <matrix sid="transform">0.987126 0 0.159945 -0.000000 0.000001 1 -0.000006 -0.078445 -0.159945 0.000006 0.987126 0.000003 0 0 0 1</matrix>
+                          <node id="RightForeArm_Helper2" name="RightForeArm_Helper2" type="JOINT">
+                            <matrix sid="transform">0.987126 0 0.159945 -0.000000 0.000001 1 -0.000008 -0.15367 -0.159945 0.000008 0.987126 -0.000000 0 0 0 1</matrix>
+                          </node>
+                        </node>
+                      </node>
+                    </node>
+                    <node id="RightArm_Helper2" name="RightArm_Helper2" type="JOINT">
+                      <matrix sid="transform">0.732001 -0.005814 0.681279 0 0.676391 0.126066 -0.725674 -0.188543 -0.081666 0.992005 0.096213 -0.000002 0 0 0 1</matrix>
+                    </node>
+                    <node id="RightArm_Helper1" name="RightArm_Helper1" type="JOINT">
+                      <matrix sid="transform">0.732001 -0.005814 0.681279 0 0.676391 0.126066 -0.725674 -0.188543 -0.081666 0.992005 0.096213 -0.000002 0 0 0 1</matrix>
+                    </node>
+                  </node>
+                </node>
+              </node>
+            </node>
+          </node>
+        </node>
+        <extra>
+          <technique profile="MAYA">
+            <dynamic_attributes>
+              <homeSex short_name="homeSex" type="string">man</homeSex>
+            </dynamic_attributes>
+          </technique>
+        </extra>
+      </node>
+      <extra>
+        <technique profile="MAYA">
+          <layer name="tshirt_lod1">male01_torso_tshirt_lod1</layer>
+          <layer name="shoes_lod1">male01_feet_shoesgeneric_lod1</layer>
+          <layer name="trousers_lod1">male01_legs_jeans_regular_lod1</layer>
+          <layer name="hands_lod1">male01_hands_lod1</layer>
+          <layer name="skeleton">PelvisRoot Pelvis Hips LeftUpLeg_Helper1 RightUpLeg_Helper1 LeftUpLeg_Helper2 RightUpLeg_Helper2 LeftUpLeg LeftLeg LeftFoot LeftToes LeftToesNull RightUpLeg RightLeg RightFoot RightToes RightToesNull Spine Spine1 Spine2 Spine3 Neck Neck1 Head HeadNull LeftShoulder LeftArm LeftForeArm LeftHand LeftIndex1 LeftIndex2 LeftIndex3 LeftIndexNull LeftMiddle1 LeftMiddle2 LeftMiddle3 LeftMiddleNull LeftRing1 LeftRing2 LeftRing3 LeftRingNull LeftPinky1 LeftPinky2 LeftPinky3 LeftPinkyNull LeftThumb1 LeftThumb2 LeftThumb3 LeftThumbNull LeftForeArm_Helper1 LeftForeArm_Helper2 LeftArm_Helper2 LeftArm_Helper1 RightShoulder RightArm RightForeArm RightHand RightIndex1 RightIndex2 RightIndex3 RightIndexNull RightMiddle1 RightMiddle2 RightMiddle3 RightMiddleNull RightRing1 RightRing2 RightRing3 RightRingNull RightPinky1 RightPinky2 RightPinky3 RightPinkyNull RightThumb1 RightThumb2 RightThumb3 RightThumbNull RightForeArm_Helper1 RightForeArm_Helper2 RightArm_Helper2 RightArm_Helper1</layer>
+        </technique>
+        <technique profile="FCOLLADA">
+          <start_time>0</start_time>
+          <end_time>1</end_time>
+        </technique>
+      </extra>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene>
+    <instance_visual_scene url="#VisualSceneNode"/>
+  </scene>
+</COLLADA>

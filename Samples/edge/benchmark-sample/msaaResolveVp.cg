@@ -1,0 +1,17 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2010 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+void main (
+	float4		position		: ATTR0,
+	float2		texCoord		: ATTR1,	
+	out float4 oPosition		: POSITION,
+	out float2 oTexCoord		: TEXCOORD0
+	)
+{
+	oPosition = position;
+	oTexCoord = texCoord;
+}
+

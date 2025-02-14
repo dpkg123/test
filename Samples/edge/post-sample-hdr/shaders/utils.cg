@@ -1,0 +1,43 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+
+half2 GenerateMotion( float4 cp, float4 pp, float motionScaler )
+{
+	// persp divide
+	cp.xy /= cp.ww;
+	pp.xy /= pp.ww;
+	
+	// invert y
+	cp.xy *= float2( 1, -1 );
+	pp.xy *= float2( 1, -1 );
+	
+	// get motion
+	half2 mv = pp.xy - cp.xy;
+	
+	// rescale and normalize
+	mv = mv * half2( 1280.f / 32.f, 720.f / 32.f) * motionScaler.xx;
+	half mag = length( mv );
+	if ( mag > 1.f )
+	{
+		mv /= mag;
+		mag = 1.f;
+	}
+	
+	// map -1..1 to 0..1
+	mv = ( mv * 0.5) + 0.5;
+	return mv;
+}
+
+half2 PackDepth( half ld )
+{
+	return unpack_4ubyte( pack_2half( ld.xx )).gb;
+}
+
+half UnpackDepth( half2 pk )
+{
+	return unpack_2half( pack_4ubyte( pk.yxyx)).x;
+}

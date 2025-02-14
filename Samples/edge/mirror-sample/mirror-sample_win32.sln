@@ -1,0 +1,28 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mirror-sample_win32", "mirror-sample_win32.vcproj", "{6C90351B-281C-421C-8E84-4F41E689321A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{968E6B21-49F8-4B8B-A609-53EC42305A6E} = {968E6B21-49F8-4B8B-A609-53EC42305A6E}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "edgeanim_win32", "..\..\..\target\windows\src\edge\anim\edgeanim_win32.vcproj", "{968E6B21-49F8-4B8B-A609-53EC42305A6E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Win32Debug|Win32 = Win32Debug|Win32
+		Win32Release|Win32 = Win32Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6C90351B-281C-421C-8E84-4F41E689321A}.Win32Debug|Win32.ActiveCfg = Win32Debug|Win32
+		{6C90351B-281C-421C-8E84-4F41E689321A}.Win32Debug|Win32.Build.0 = Win32Debug|Win32
+		{6C90351B-281C-421C-8E84-4F41E689321A}.Win32Release|Win32.ActiveCfg = Win32Release|Win32
+		{6C90351B-281C-421C-8E84-4F41E689321A}.Win32Release|Win32.Build.0 = Win32Release|Win32
+		{968E6B21-49F8-4B8B-A609-53EC42305A6E}.Win32Debug|Win32.ActiveCfg = Win32Debug|Win32
+		{968E6B21-49F8-4B8B-A609-53EC42305A6E}.Win32Debug|Win32.Build.0 = Win32Debug|Win32
+		{968E6B21-49F8-4B8B-A609-53EC42305A6E}.Win32Release|Win32.ActiveCfg = Win32Release|Win32
+		{968E6B21-49F8-4B8B-A609-53EC42305A6E}.Win32Release|Win32.Build.0 = Win32Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

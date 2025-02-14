@@ -1,0 +1,36 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+ /*
+ static const float k0 = 0.3125;
+ static const float k1 = 0.234375;
+ static const float k2 = 0.09375;
+ static const float k3 = 0.015625;
+ */
+
+ 
+ void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D sourceImage : TEXUNIT0,
+		uniform float dx,
+		uniform float4 weights,
+		out half4 out_color : COLOR
+	)
+{
+	half4 sample = 0.0.xxxx;
+	
+	sample += h4tex2D( sourceImage, in_uv ) * weights.x;
+	sample += h4tex2D( sourceImage, in_uv + float2( 0, 1 * dx) ) * weights.y;
+	sample += h4tex2D( sourceImage, in_uv - float2( 0, 1 * dx) ) * weights.y;
+	sample += h4tex2D( sourceImage, in_uv + float2( 0, 2 * dx) ) * weights.z;
+	sample += h4tex2D( sourceImage, in_uv - float2( 0, 2 * dx) ) * weights.z;
+	sample += h4tex2D( sourceImage, in_uv + float2( 0, 3 * dx) ) * weights.w;
+	sample += h4tex2D( sourceImage, in_uv - float2( 0, 3 * dx) ) * weights.w;
+	
+	out_color = sample;
+}

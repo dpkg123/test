@@ -1,0 +1,65 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+
+#include "../utils.cg" 
+ 
+void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D depthBuffer : TEXUNIT0,
+		out half4 out_color : COLOR
+	)
+{
+	
+#if 1
+	// sample 4 times
+	float dx = 1.f / 1280.f;
+	float dy = 1.f / 720.f;
+	half4 s0 = h4tex2D( depthBuffer, in_uv + float2( 0, 0));
+	half4 s1 = h4tex2D( depthBuffer, in_uv + float2( dx, 0));
+	half4 s2 = h4tex2D( depthBuffer, in_uv + float2( 0, dy));
+	half4 s3 = h4tex2D( depthBuffer, in_uv + float2( dx, dy));
+#else
+	// sample 4 times
+	float dx = .5f * ( 1.f / 1280.f);
+	float dy = .5f * ( 1.f / 720.f);
+	half4 s0 = h4tex2D( depthBuffer, in_uv + float2( -dx, -dy));
+	half4 s1 = h4tex2D( depthBuffer, in_uv + float2( -dx, dy));
+	half4 s2 = h4tex2D( depthBuffer, in_uv + float2( dx, dy));
+	half4 s3 = h4tex2D( depthBuffer, in_uv + float2( dx, -dy));
+#endif
+	
+	
+	/*
+		ar = motion vector
+		gb = depth
+	
+		- motion vector is linear downsampled
+		- depth is candidate downsampled
+	*/
+	
+	// downsample motion vector
+	half2 motion = 
+		s0.ar * .25f + 
+		s1.ar * .25f + 
+		s2.ar * .25f + 
+		s3.ar * .25f;
+	
+	// unpack depth
+	half d0 = UnpackDepth( s0.gb );
+	half d1 = UnpackDepth( s1.gb );
+	half d2 = UnpackDepth( s2.gb );
+	half d3 = UnpackDepth( s3.gb );
+	
+	// downsample depth ( take closer to camera )
+	half d = min( min( d0, d1), min( d2, d3) );
+	
+	// repack
+	out_color.ar = motion;
+	out_color.gb = PackDepth( d );
+}

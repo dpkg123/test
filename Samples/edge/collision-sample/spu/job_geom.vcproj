@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="job_geom"
+	ProjectGUID="{E30C3E12-F265-421E-A9D1-E3788A5E1F9D}"
+	RootNamespace="job_geom"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="PS3 Debug|Win32"
+			OutputDirectory="$(ProjectName).PS3_Debug"
+			IntermediateDirectory="$(ProjectName).PS3_Debug"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);undefined"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-g -Wall -fno-exceptions -fno-rtti -O1 -fpic -fstack-check"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\spu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\spu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;;..\..\..\..\target\spu\include;..\..\..\..\target\common\include"
+				PreprocessorDefinitions="EDGE_GEOM_DEBUG;SN_TARGET_PS3_SPU;_DEBUG;__GCC__;SPU;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+				ForcedUsingFiles=""
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-mspurs-job-initialize -Ttext=0x0 -fpic -Wl,-q -Wl,--gc-sections"
+				AdditionalDependencies="&quot;$(SCE_PS3_ROOT)\target\spu\lib\pic\libspurs.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\pic\libdma.a&quot;"
+				OutputFile="$(OutDir)/$(ProjectName).spu.elf"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+				ImportLibrary="$(OutDir)/$(TargetName).ppu.obj"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Creating PPU Export Library from Job: &quot;$(TargetName).ppu.obj&quot;"
+				CommandLine="cd &quot;$(TargetDir)&quot;&#x0D;&#x0A;spu_elf-to-ppu_obj &quot;$(TargetFileName)&quot; &quot;$(TargetName).ppu.obj&quot;&#x0D;&#x0A;copy &quot;$(TargetFileName)&quot; &quot;$(SolutionDir)$(ProjectName).$(ConfigurationName).spu.elf&quot;&#x0D;&#x0A;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="PS3 Release|Win32"
+			OutputDirectory="$(ProjectName).PS3_Release"
+			IntermediateDirectory="$(ProjectName).PS3_Release"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);undefined"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-Wall -fno-exceptions -fno-rtti -O2 -fpic"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\spu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\spu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;;..\..\..\..\target\spu\include;..\..\..\..\target\common\include"
+				PreprocessorDefinitions="SN_TARGET_PS3_SPU;NDEBUG;__GCC__;SPU;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+				ForcedUsingFiles=""
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-mspurs-job-initialize -Ttext=0x0 -fpic -Wl,-q -Wl,--gc-sections"
+				AdditionalDependencies="&quot;$(SCE_PS3_ROOT)\target\spu\lib\pic\libspurs.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\pic\libdma.a&quot;"
+				OutputFile="$(OutDir)/$(ProjectName).spu.elf"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+				ImportLibrary="$(OutDir)/$(TargetName).ppu.obj"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Creating PPU Export Library from Job: &quot;$(TargetName).ppu.obj&quot;"
+				CommandLine="cd &quot;$(TargetDir)&quot;&#x0D;&#x0A;spu_elf-to-ppu_obj &quot;$(TargetFileName)&quot; &quot;$(TargetName).ppu.obj&quot;&#x0D;&#x0A;copy &quot;$(TargetFileName)&quot; &quot;$(SolutionDir)$(ProjectName).$(ConfigurationName).spu.elf&quot;&#x0D;&#x0A;"
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Source Files"
+			Filter="cpp;c;cxx;cc;s;asm"
+			>
+			<File
+				RelativePath=".\job_geom.cpp"
+				>
+			</File>
+		</Filter>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

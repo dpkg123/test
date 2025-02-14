@@ -1,0 +1,30 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+#include "utils.cg"
+#include "logluv.cg"
+
+struct VpOut
+{
+	half3       texcoord        : TEX0;
+};
+
+
+struct FpOut
+{
+	half4 color				: COLOR0;
+};
+
+FpOut main
+	(
+		VpOut fragment, 
+		uniform samplerCUBE sky : TEXUNIT0
+	)
+{
+	FpOut result;
+	result.color = EncodeColor( h3texCUBE( sky, fragment.texcoord) );
+	return result;
+}

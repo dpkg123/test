@@ -1,0 +1,30 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2007 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+struct VpIn
+{
+	float4      position        : ATTR0;
+	float4		colour	        : ATTR1;
+};
+
+struct VpOut
+{
+	float4      position        : POSITION;
+	float4		colour;
+};
+
+VpOut main(VpIn vertex)
+{
+	VpOut result;
+	
+	// x range [0,1] -> [-1, 1]
+	// y range [0,1] -> [ 1,-1]
+	result.position = vertex.position * float4(2, -2, 1, 1) + float4(-1, 1, 0, 0);
+
+	result.colour = vertex.colour;
+	
+	return result;
+}

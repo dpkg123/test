@@ -1,0 +1,3 @@
+SRC_DIR = ../../FCollada/
+INCDIR = -I$(SRC_DIR) -I$(SRC_DIR)/LibXML/include/
+INCFILES = -include stdint.h

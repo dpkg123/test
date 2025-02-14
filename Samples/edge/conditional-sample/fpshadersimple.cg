@@ -1,0 +1,28 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2007 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+struct VpOut
+{
+	float4      position        : POSITION; // Not used in fragment program
+        float4      color           : COLOR;
+};
+
+struct FpOut
+{
+	half4 color : COLOR;
+};
+
+// We would like to put binding semantics on the uniform inputs, but the current compiler does not allow this.
+// cgfx2bin does print out the resource bindings of the uniform inputs on compilation and these can be used
+// by the application to set values.
+FpOut main(VpOut fragment)
+{
+	FpOut result;
+	
+	result.color = fragment.color;
+
+	return result;
+}

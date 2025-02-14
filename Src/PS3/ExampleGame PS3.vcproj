@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="9.00"
+	Name="ExampleGame PS3"
+	ProjectGUID="{7BAA718F-3209-40D2-B67D-CEF156EE5AB0}"
+	RootNamespace="ExampleGame PS3"
+	Keyword="MakeFileProj"
+	TargetFrameworkVersion="131072"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/PS3/EXAMPLEGAME-PS3-DEBUG.elf"
+				PreprocessorDefinitions="SN_TARGET_PS3"
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/PS3/EXAMPLEGAME-PS3-RELEASE.elf"
+				PreprocessorDefinitions="SN_TARGET_PS3"
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Shipping|Win32"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/PS3/EXAMPLEGAME-PS3-SHIPPING.elf"
+				PreprocessorDefinitions="SN_TARGET_PS3"
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+		<Configuration
+			Name="Test|Win32"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/PS3/EXAMPLEGAME-PS3-TEST.elf"
+				PreprocessorDefinitions="SN_TARGET_PS3"
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<File
+			RelativePath=".\vsi.nul"
+			>
+		</File>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

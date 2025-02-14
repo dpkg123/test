@@ -1,0 +1,48 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+ #include "../utils.cg" 
+ 
+ /*
+	params.x = nearFuzzy
+	params.y = k0
+	params.z = farSharp
+	params.w = k1
+ */
+ 
+ void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D depthBuffer : TEXUNIT0,
+		uniform float4 params0,
+		uniform float maxFuzziness,
+		out half4 out_color : COLOR
+	)
+{
+	// parameters
+	float farSharp = params0.z;
+	float k1 = params0.w;
+
+	// extract linearDepth
+	float linearDepth = UnpackDepth( h4tex2D( depthBuffer, in_uv ).gb );
+	
+	// no fuzziness by default
+	float fuzziness = 0;
+	
+	if ( linearDepth > farSharp )
+	{
+		// far zone maps to 0..1
+		fuzziness = ( linearDepth - farSharp ) * k1;
+		
+		// clamp to max fuzziness
+		fuzziness = clamp( fuzziness, 0, maxFuzziness );	
+	}
+	
+	out_color.x = fuzziness;
+	out_color.y = linearDepth;
+	out_color.zw = fuzziness;
+}

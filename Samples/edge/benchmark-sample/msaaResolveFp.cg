@@ -1,0 +1,16 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2010 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+
+sampler2D	gMSAATexture;
+
+float4 main(
+	float2 texcoord			: TEXCOORD0
+	) : COLOR
+{
+	return tex2D(gMSAATexture, texcoord);
+}
+

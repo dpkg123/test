@@ -1,0 +1,1099 @@
+Assembly Interop.XDevkit.1.0, Version=1.0.*, Culture=Idioma indiferente (país indiferente): 
+	hash=SHA1, flags=PublicKey
+Assembly mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=SHA1, flags=None
+Struct XDevkit.XBOX_PROCESS_INFO: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    UInt32 ProcessId : Public
+    System.String ProgramName : Public, HasFieldMarshal
+Struct XDevkit.XboxAccessFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxAccessFlags Read = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAccessFlags Write = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAccessFlags Control = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAccessFlags Configure = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAccessFlags Manage = 16 : Public, Static, Literal, HasDefault
+Struct XDevkit.XBOX_USER: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    System.String UserName : Public, HasFieldMarshal
+    XDevkit.XboxAccessFlags Access : Public
+Struct XDevkit.XboxModuleInfoFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxModuleInfoFlags Main = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxModuleInfoFlags Tls = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxModuleInfoFlags Dll = 4 : Public, Static, Literal, HasDefault
+Struct XDevkit.XBOX_MODULE_INFO: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    System.String Name : Public, HasFieldMarshal
+    System.String FullName : Public, HasFieldMarshal
+    UInt32 BaseAddress : Public
+    UInt32 Size : Public
+    UInt32 TimeStamp : Public
+    UInt32 CheckSum : Public
+    XDevkit.XboxModuleInfoFlags Flags : Public
+Struct XDevkit.XboxSectionInfoFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxSectionInfoFlags Loaded = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxSectionInfoFlags Readable = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxSectionInfoFlags Writeable = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxSectionInfoFlags Executable = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxSectionInfoFlags Uninitialized = 16 : Public, Static, Literal, HasDefault
+Struct XDevkit.XBOX_SECTION_INFO: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    System.String Name : Public, HasFieldMarshal
+    UInt32 BaseAddress : Public
+    UInt32 Size : Public
+    UInt32 Index : Public
+    XDevkit.XboxSectionInfoFlags Flags : Public
+Struct XDevkit.XBOX_THREAD_INFO: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    UInt32 ThreadId : Public
+    UInt32 SuspendCount : Public
+    UInt32 Priority : Public
+    UInt32 TlsBase : Public
+    UInt32 StartAddress : Public
+    UInt32 StackBase : Public
+    UInt32 StackLimit : Public
+    UInt32 StackSlackSpace : Public
+    System.Object CreateTime : Public, HasFieldMarshal
+    System.String Name : Public, HasFieldMarshal
+Struct XDevkit.XboxFunctionType: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxFunctionType NoPData = -1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxFunctionType SaveMillicode = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxFunctionType NoHandler = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxFunctionType RestoreMillicode = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxFunctionType Handler = 3 : Public, Static, Literal, HasDefault
+Struct XDevkit.XBOX_FUNCTION_INFO: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    XDevkit.XboxFunctionType FunctionType : Public
+    UInt32 BeginAddress : Public
+    UInt32 PrologEndAddress : Public
+    UInt32 FunctionEndAddress : Public
+Struct XDevkit.XboxDebugEventType: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxDebugEventType NoEvent = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType ExecutionBreak = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType DebugString = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType ExecStateChange = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType SingleStep = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType ModuleLoad = 5 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType ModuleUnload = 6 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType ThreadCreate = 7 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType ThreadDestroy = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType Exception = 9 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType AssertionFailed = 10 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType AssertionFailedEx = 11 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType DataBreak = 12 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType RIP = 13 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType SectionLoad = 14 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType SectionUnload = 15 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType StackTrace = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType FiberCreate = 17 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType FiberDestroy = 18 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType BugCheck = 19 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugEventType PgoModuleStartup = 20 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxExecutionState: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxExecutionState Stopped = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxExecutionState Running = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxExecutionState Rebooting = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxExecutionState Pending = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxExecutionState RebootingTitle = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxExecutionState PendingTitle = 5 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxStopOnFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxStopOnFlags OnThreadCreate = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxStopOnFlags OnFirstChanceException = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxStopOnFlags OnDebugString = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxStopOnFlags OnStackTrace = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxStopOnFlags OnModuleLoad = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxStopOnFlags OnTitleLaunch = 32 : Public, Static, Literal, HasDefault
+    XDevkit.XboxStopOnFlags OnPgoModuleStartup = 64 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxRebootFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxRebootFlags Title = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRebootFlags Wait = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRebootFlags Cold = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRebootFlags Warm = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRebootFlags Stop = 8 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxExceptionFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxExceptionFlags Noncontinuable = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxExceptionFlags FirstChance = 2 : Public, Static, Literal, HasDefault
+Struct XDevkit.XBOX_EVENT_INFO: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    XDevkit.XboxDebugEventType Event : Public
+    Int16 IsThreadStopped : Public
+    XDevkit.IXboxThread Thread : Public, HasFieldMarshal
+    XDevkit.IXboxModule Module : Public, HasFieldMarshal
+    XDevkit.IXboxSection Section : Public, HasFieldMarshal
+    XDevkit.XboxExecutionState ExecState : Public
+    System.String Message : Public, HasFieldMarshal
+    UInt32 Code : Public
+    UInt32 Address : Public
+    XDevkit.XboxExceptionFlags Flags : Public
+    UInt32 ParameterCount : Public
+    UInt32[] Parameters : Public, HasFieldMarshal
+Interface XDevkit.IXboxThread: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    UInt32 ThreadId 'get ' : 
+    XDevkit.XBOX_THREAD_INFO ThreadInfo 'get ' : 
+    XDevkit.XBOX_EVENT_INFO StopEventInfo 'get ' : 
+    XDevkit.IXboxStackFrame TopOfStack 'get ' : 
+    UInt32 CurrentProcessor 'get ' : 
+    UInt32 LastError 'get ' : 
+  Methods:
+    get_ThreadId(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_ThreadInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_StopEventInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_TopOfStack(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    Halt(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    Continue(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    Suspend(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    Resume(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_CurrentProcessor(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_LastError(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Interface XDevkit.IXboxStackFrame: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    Boolean TopOfStack 'get ' : 
+    Boolean Dirty 'get ' : 
+    XDevkit.IXboxStackFrame NextStackFrame 'get ' : 
+    XDevkit.XBOX_FUNCTION_INFO FunctionInfo 'get ' : 
+    UInt32 StackPointer 'get ' : 
+    UInt32 ReturnAddress 'get ' : 
+  Methods:
+    get_TopOfStack(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Dirty(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_NextStackFrame(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetRegister32(XboxRegisters32(In), Int32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetRegister32(XboxRegisters32(In), Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    GetRegister64(XboxRegisters64(In), Int64&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetRegister64(XboxRegisters64(In), Int64(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    GetRegisterDouble(XboxRegistersDouble(In), Double&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetRegisterDouble(XboxRegistersDouble(In), Double(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    GetRegisterVector_cpp(XboxRegistersVector(In), Single&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetRegisterVector_cpp(XboxRegistersVector(In), Single&(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    GetRegisterVector(XboxRegistersVector(In), Single[](HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetRegisterVector(XboxRegistersVector(In), Single[](HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    FlushRegisterChanges(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_FunctionInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_StackPointer(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_ReturnAddress(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Struct XDevkit.XboxRegisters32: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxRegisters32 msr = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters32 iar = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters32 lr = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters32 cr = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters32 xer = 4 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxRegisters64: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxRegisters64 ctr = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r0 = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r1 = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r2 = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r3 = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r4 = 5 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r5 = 6 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r6 = 7 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r7 = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r8 = 9 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r9 = 10 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r10 = 11 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r11 = 12 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r12 = 13 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r13 = 14 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r14 = 15 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r15 = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r16 = 17 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r17 = 18 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r18 = 19 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r19 = 20 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r20 = 21 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r21 = 22 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r22 = 23 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r23 = 24 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r24 = 25 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r25 = 26 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r26 = 27 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r27 = 28 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r28 = 29 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r29 = 30 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r30 = 31 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegisters64 r31 = 32 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxRegistersDouble: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxRegistersDouble fp0 = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp1 = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp2 = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp3 = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp4 = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp5 = 5 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp6 = 6 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp7 = 7 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp8 = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp9 = 9 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp10 = 10 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp11 = 11 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp12 = 12 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp13 = 13 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp14 = 14 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp15 = 15 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp16 = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp17 = 17 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp18 = 18 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp19 = 19 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp20 = 20 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp21 = 21 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp22 = 22 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp23 = 23 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp24 = 24 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp25 = 25 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp26 = 26 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp27 = 27 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp28 = 28 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp29 = 29 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp30 = 30 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fp31 = 31 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersDouble fpscr = 32 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxRegistersVector: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxRegistersVector v0 = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v1 = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v2 = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v3 = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v4 = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v5 = 5 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v6 = 6 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v7 = 7 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v8 = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v9 = 9 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v10 = 10 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v11 = 11 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v12 = 12 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v13 = 13 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v14 = 14 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v15 = 15 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v16 = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v17 = 17 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v18 = 18 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v19 = 19 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v20 = 20 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v21 = 21 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v22 = 22 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v23 = 23 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v24 = 24 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v25 = 25 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v26 = 26 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v27 = 27 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v28 = 28 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v29 = 29 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v30 = 30 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v31 = 31 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v32 = 32 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v33 = 33 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v34 = 34 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v35 = 35 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v36 = 36 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v37 = 37 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v38 = 38 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v39 = 39 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v40 = 40 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v41 = 41 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v42 = 42 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v43 = 43 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v44 = 44 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v45 = 45 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v46 = 46 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v47 = 47 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v48 = 48 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v49 = 49 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v50 = 50 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v51 = 51 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v52 = 52 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v53 = 53 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v54 = 54 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v55 = 55 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v56 = 56 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v57 = 57 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v58 = 58 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v59 = 59 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v60 = 60 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v61 = 61 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v62 = 62 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v63 = 63 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v64 = 64 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v65 = 65 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v66 = 66 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v67 = 67 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v68 = 68 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v69 = 69 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v70 = 70 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v71 = 71 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v72 = 72 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v73 = 73 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v74 = 74 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v75 = 75 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v76 = 76 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v77 = 77 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v78 = 78 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v79 = 79 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v80 = 80 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v81 = 81 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v82 = 82 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v83 = 83 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v84 = 84 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v85 = 85 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v86 = 86 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v87 = 87 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v88 = 88 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v89 = 89 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v90 = 90 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v91 = 91 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v92 = 92 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v93 = 93 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v94 = 94 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v95 = 95 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v96 = 96 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v97 = 97 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v98 = 98 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v99 = 99 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v100 = 100 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v101 = 101 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v102 = 102 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v103 = 103 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v104 = 104 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v105 = 105 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v106 = 106 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v107 = 107 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v108 = 108 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v109 = 109 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v110 = 110 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v111 = 111 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v112 = 112 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v113 = 113 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v114 = 114 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v115 = 115 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v116 = 116 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v117 = 117 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v118 = 118 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v119 = 119 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v120 = 120 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v121 = 121 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v122 = 122 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v123 = 123 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v124 = 124 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v125 = 125 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v126 = 126 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector v127 = 127 : Public, Static, Literal, HasDefault
+    XDevkit.XboxRegistersVector vscr = 128 : Public, Static, Literal, HasDefault
+Interface XDevkit.IXboxModule: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    XDevkit.XBOX_MODULE_INFO ModuleInfo 'get ' : 
+    XDevkit.IXboxSections Sections 'get ' : 
+    UInt32 OriginalSize 'get ' : 
+    XDevkit.IXboxExecutable Executable 'get ' : 
+  Methods:
+    get_ModuleInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Sections(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetFunctionInfo(UInt32(In), XBOX_FUNCTION_INFO&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_OriginalSize(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Executable(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEntryPointAddress(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxSections: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    System.Collections.IEnumerable
+  Properties:
+    XDevkit.IXboxSection Item [Int32] 'get ' : 
+    Int32 Count 'get ' : 
+  Methods:
+    get_Item(Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Count(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEnumerator(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxSection: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    XDevkit.XBOX_SECTION_INFO SectionInfo 'get ' : 
+  Methods:
+    get_SectionInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Interface XDevkit.IXboxExecutable: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Methods:
+    GetPEModuleName(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Struct XDevkit.XboxBreakpointType: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxBreakpointType NoBreakpoint = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxBreakpointType OnWrite = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxBreakpointType OnRead = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxBreakpointType OnExecuteHW = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxBreakpointType OnExecute = 4 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxSelectConsoleFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxSelectConsoleFlags NoPromptIfDefaultExists = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxSelectConsoleFlags NoPromptIfOnlyOne = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxSelectConsoleFlags FilterByAccess = 2 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxDebugConnectFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxDebugConnectFlags Force = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDebugConnectFlags MonitorOnly = 2 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxDumpFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxDumpFlags Normal = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags WithDataSegs = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags WithFullMemory = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags WithHandleData = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags FilterMemory = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags ScanMemory = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags WithUnloadedModules = 32 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags WithIndirectlyReferencedMemory = 64 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags FilterModulePaths = 128 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags WithProcessThreadData = 256 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpFlags WithPrivateReadWriteMemory = 512 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxDumpMode: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxDumpMode Smart = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpMode Enabled = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpMode Disabled = 2 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxEventDeferFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxEventDeferFlags CanDeferExecutionBreak = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxEventDeferFlags CanDeferDebugString = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxEventDeferFlags CanDeferSingleStep = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxEventDeferFlags CanDeferAssertionFailed = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxEventDeferFlags CanDeferAssertionFailedEx = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxEventDeferFlags CanDeferDataBreak = 32 : Public, Static, Literal, HasDefault
+    XDevkit.XboxEventDeferFlags CanDeferRIP = 64 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxDumpReportFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxDumpReportFlags PromptToReport = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags AlwaysReport = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags NeverReport = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags ReportGroup = 15 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags LocalDestination = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags RemoteDestination = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags DestinationGroup = 15 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags FormatFullHeap = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags FormatPartialHeap = 256 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags FormatNoHeap = 512 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags FormatRetail = 1024 : Public, Static, Literal, HasDefault
+    XDevkit.XboxDumpReportFlags FormatGroup = 3840 : Public, Static, Literal, HasDefault
+Struct XDevkit.XBOX_DUMP_SETTINGS: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    XDevkit.XboxDumpReportFlags Flags : Public
+    System.String NetworkPath : Public, HasFieldMarshal
+Interface XDevkit.IXboxManager: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    System.String DefaultConsole 'get set' : 
+    XDevkit.IXboxConsoles Consoles 'get ' : 
+    System.String SystemSymbolServerPath 'get ' : 
+  Methods:
+    get_DefaultConsole(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_DefaultConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Consoles(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    AddConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RemoveConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    OpenConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    OpenDumpFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SelectConsole(Int32(In), String&(Out, HasFieldMarshal), XboxAccessFlags(In), XboxSelectConsoleFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RunAddConsoleWizard(Int32(In), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    OpenWindowsExplorer(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    TranslateError(Int32(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_SystemSymbolServerPath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    SelectConsoleEx(Int64(In), String&(Out, HasFieldMarshal), XboxAccessFlags(In), XboxSelectConsoleFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RunAddConsoleWizardEx(Int64(In), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxConsoles: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    System.Collections.IEnumerable
+  Properties:
+    System.String Item [Int32] 'get ' : 
+    Int32 Count 'get ' : 
+  Methods:
+    get_Item(Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Count(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEnumerator(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxConsole: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    System.String Name 'get set' : 
+    UInt32 IPAddress 'get ' : 
+    UInt32 IPAddressTitle 'get ' : 
+    System.Object SystemTime 'get set' : 
+    Boolean Shared 'get set' : 
+    UInt32 ConnectTimeout 'get set' : 
+    UInt32 ConversationTimeout 'get set' : 
+    XDevkit.XboxManager XboxManager 'get ' : 
+    XDevkit.IXboxDebugTarget DebugTarget 'get ' : 
+    XDevkit.XBOX_PROCESS_INFO RunningProcessInfo 'get ' : 
+    System.String Drives 'get ' : 
+    XDevkit.XboxDumpMode DumpMode 'get set' : 
+    XDevkit.XboxEventDeferFlags EventDeferFlags 'get set' : 
+    XDevkit.XboxConsoleType ConsoleType 'get ' : 
+    XDevkit.IXboxAutomation XboxAutomation 'get ' : 
+    XDevkit.XboxConsoleFeatures ConsoleFeatures 'get ' : 
+  Methods:
+    SendFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ReceiveFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ReadFileBytes(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte[](In, Out, HasFieldMarshal), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    WriteFileBytes(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte[](In, HasFieldMarshal), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ReadFileBytes_cpp(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte&(Out), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    WriteFileBytes_cpp(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte&(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetFileSize(String(In, HasFieldMarshal), UInt32(In), XboxCreateDisposition(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    GetFileObject(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RenameFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    DeleteFile(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ScreenShot(String(HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_DumpMode(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_DumpMode(XboxDumpMode(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetDumpSettings(XBOX_DUMP_SETTINGS&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetDumpSettings(XBOX_DUMP_SETTINGS&(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_EventDeferFlags(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_EventDeferFlags(XboxEventDeferFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_ConsoleType(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    StartFileEventCapture(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    StopFileEventCapture(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_XboxAutomation(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    LoadDebuggerExtension(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    UnloadDebuggerExtension(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_ConsoleFeatures(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Name(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_Name(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_IPAddress(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_IPAddressTitle(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_SystemTime(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_SystemTime(Object(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Shared(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_Shared(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_ConnectTimeout(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_ConnectTimeout(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_ConversationTimeout(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_ConversationTimeout(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    FindConsole(UInt32(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_XboxManager(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_DebugTarget(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    Reboot(String(In, HasFieldMarshal), String(In, HasFieldMarshal), String(In, HasFieldMarshal), XboxRebootFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetDefaultTitle(String(In, HasFieldMarshal), String(In, HasFieldMarshal), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_RunningProcessInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    OpenConnection(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    CloseConnection(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SendTextCommand(UInt32(In), String(In, HasFieldMarshal), String&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ReceiveSocketLine(UInt32(In), String&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ReceiveStatusResponse(UInt32(In), String&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SendBinary(UInt32(In), Byte[](In, HasFieldMarshal), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ReceiveBinary(UInt32(In), Byte[](In, Out, HasFieldMarshal), UInt32(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SendBinary_cpp(UInt32(In), Byte&(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ReceiveBinary_cpp(UInt32(In), Byte&(In), UInt32(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_Drives(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetDiskFreeSpace(UInt16(In), UInt64&(Out), UInt64&(Out), UInt64&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    MakeDirectory(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RemoveDirectory(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    DirectoryFiles(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxDebugTarget: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    System.String Name 'get ' : 
+    Boolean IsDump 'get ' : 
+    XDevkit.XboxManager XboxManager 'get ' : 
+    XDevkit.XboxConsole Console 'get ' : 
+    XDevkit.IXboxModules Modules 'get ' : 
+    XDevkit.IXboxThreads Threads 'get ' : 
+    Boolean MemoryCacheEnabled 'get set' : 
+    XDevkit.IXboxMemoryRegions MemoryRegions 'get ' : 
+    XDevkit.XBOX_PROCESS_INFO RunningProcessInfo 'get ' : 
+  Methods:
+    PgoSaveSnapshot(String(HasFieldMarshal), Boolean, UInt32): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    PgoSetAllocScale(UInt32, UInt32): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_Name(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_IsDump(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_XboxManager(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Console(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    ConnectAsDebugger(String(In, HasFieldMarshal), XboxDebugConnectFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    DisconnectAsDebugger(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    IsDebuggerConnected(String&(Out, HasFieldMarshal), String&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_Modules(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Threads(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetMemory(UInt32(In), UInt32(In), Byte[](In, Out, HasFieldMarshal), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetMemory(UInt32(In), UInt32(In), Byte[](In, HasFieldMarshal), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    GetMemory_cpp(UInt32(In), UInt32(In), Byte&(Out), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetMemory_cpp(UInt32(In), UInt32(In), Byte&(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    InvalidateMemoryCache(Boolean(In), UInt32(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    get_MemoryCacheEnabled(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_MemoryCacheEnabled(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_MemoryRegions(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_RunningProcessInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    StopOn(XboxStopOnFlags(In), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    Stop(Boolean&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    Go(Boolean&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetBreakpoint(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RemoveBreakpoint(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RemoveAllBreakpoints(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetInitialBreakpoint(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetDataBreakpoint(UInt32(In), XboxBreakpointType(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    IsBreakpoint(UInt32(In), XboxBreakpointType&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    WriteDump(String(In, HasFieldMarshal), XboxDumpFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    CopyEventInfo(XBOX_EVENT_INFO&(Out), XBOX_EVENT_INFO&(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    FreeEventInfo(XBOX_EVENT_INFO&(In, Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    PgoStartDataCollection(UInt32): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    PgoStopDataCollection(UInt32): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxModules: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    System.Collections.IEnumerable
+  Properties:
+    XDevkit.IXboxModule Item [Int32] 'get ' : 
+    Int32 Count 'get ' : 
+  Methods:
+    get_Item(Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Count(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEnumerator(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxThreads: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    System.Collections.IEnumerable
+  Properties:
+    XDevkit.IXboxThread Item [Int32] 'get ' : 
+    Int32 Count 'get ' : 
+  Methods:
+    get_Item(Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Count(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEnumerator(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxMemoryRegions: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    System.Collections.IEnumerable
+  Properties:
+    XDevkit.IXboxMemoryRegion Item [Int32] 'get ' : 
+    Int32 Count 'get ' : 
+  Methods:
+    get_Item(Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Count(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEnumerator(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxMemoryRegion: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    Int32 BaseAddress 'get ' : 
+    Int32 RegionSize 'get ' : 
+    XDevkit.XboxMemoryRegionFlags Flags 'get ' : 
+  Methods:
+    get_BaseAddress(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_RegionSize(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Flags(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Struct XDevkit.XboxMemoryRegionFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxMemoryRegionFlags NoAccess = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags ReadOnly = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags ReadWrite = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags WriteCopy = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags Execute = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags ExecuteRead = 32 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags ExecuteReadWrite = 64 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags ExecuteWriteCopy = 128 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags Guard = 256 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags NoCache = 512 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags WriteCombine = 1024 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags UserReadOnly = 4096 : Public, Static, Literal, HasDefault
+    XDevkit.XboxMemoryRegionFlags UserReadWrite = 8192 : Public, Static, Literal, HasDefault
+Interface XDevkit.IXboxFiles: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    System.Collections.IEnumerable
+  Properties:
+    XDevkit.IXboxFile Item [Int32] 'get ' : 
+    Int32 Count 'get ' : 
+  Methods:
+    get_Item(Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Count(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEnumerator(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxFile: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    System.String Name 'get set' : 
+    System.Object CreationTime 'get set' : 
+    System.Object ChangeTime 'get set' : 
+    UInt64 Size 'get set' : 
+    Boolean IsReadOnly 'get set' : 
+    Boolean IsDirectory 'get ' : 
+  Methods:
+    get_Name(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_Name(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_CreationTime(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_CreationTime(Object(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_ChangeTime(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_ChangeTime(Object(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Size(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_Size(UInt64(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_IsReadOnly(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_IsReadOnly(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_IsDirectory(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Struct XDevkit.XboxCreateDisposition: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxCreateDisposition CreateNew = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxCreateDisposition CreateAlways = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxCreateDisposition OpenExisting = 3 : Public, Static, Literal, HasDefault
+    XDevkit.XboxCreateDisposition OpenAlways = 4 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxConsoleType: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxConsoleType DevelopmentKit = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxConsoleType TestKit = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxConsoleType ReviewerKit = 2 : Public, Static, Literal, HasDefault
+Interface XDevkit.IXboxAutomation: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Methods:
+    GetInputProcess(UInt32(In), Boolean&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    BindController(UInt32(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    UnbindController(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ConnectController(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    DisconnectController(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetGamepadState(UInt32(In), XBOX_AUTOMATION_GAMEPAD&(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    QueueGamepadState_cpp(UInt32(In), XBOX_AUTOMATION_GAMEPAD&(In), UInt32&(In), UInt32&(In), UInt32(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    QueueGamepadState(UInt32(In), XBOX_AUTOMATION_GAMEPAD&(In), UInt32(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ClearGamepadQueue(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    QueryGamepadQueue(UInt32(In), UInt32&(Out), UInt32&(Out), UInt32&(Out), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    GetUserDefaultProfile(Int64&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SetUserDefaultProfile(Int64(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Struct XDevkit.XBOX_AUTOMATION_GAMEPAD: AutoLayout, AnsiClass, Class, Public, SequentialLayout, Sealed, BeforeFieldInit
+  :System.ValueType
+  Fields:
+    XDevkit.XboxAutomationButtonFlags Buttons : Public
+    UInt32 LeftTrigger : Public
+    UInt32 RightTrigger : Public
+    Int32 LeftThumbX : Public
+    Int32 LeftThumbY : Public
+    Int32 RightThumbX : Public
+    Int32 RightThumbY : Public
+Struct XDevkit.XboxAutomationButtonFlags: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxAutomationButtonFlags DPadUp = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags DPadDown = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags DPadLeft = 4 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags DPadRight = 8 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags StartButton = 16 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags BackButton = 32 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags LeftThumbButton = 64 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags RightThumbButton = 128 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags LeftShoulderButton = 256 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags RightShoulderButton = 512 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags A_Button = 4096 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags B_Button = 8192 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags X_Button = 16384 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags Y_Button = 32768 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags Xbox360_Button = 1024 : Public, Static, Literal, HasDefault
+    XDevkit.XboxAutomationButtonFlags Bind_Button = 2048 : Public, Static, Literal, HasDefault
+Struct XDevkit.XboxConsoleFeatures: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxConsoleFeatures Debugging = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxConsoleFeatures SecondaryNIC = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxConsoleFeatures GB_RAM = 4 : Public, Static, Literal, HasDefault
+Interface XDevkit.IXboxUser: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    System.String Name 'get set' : 
+    Boolean HasReadAccess 'get set' : 
+    Boolean HasWriteAccess 'get set' : 
+    Boolean HasControlAccess 'get set' : 
+    Boolean HasConfigureAccess 'get set' : 
+    Boolean HasManageAccess 'get set' : 
+  Methods:
+    get_Name(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_Name(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_HasReadAccess(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_HasReadAccess(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_HasWriteAccess(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_HasWriteAccess(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_HasControlAccess(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_HasControlAccess(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_HasConfigureAccess(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_HasConfigureAccess(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_HasManageAccess(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_HasManageAccess(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Interface XDevkit.IXboxUsers: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    System.Collections.IEnumerable
+  Properties:
+    XDevkit.IXboxUser Item [Int32] 'get ' : 
+    Int32 Count 'get ' : 
+  Methods:
+    get_Item(Int32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_Count(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    GetEnumerator(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxEventInfo: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    XDevkit.XBOX_EVENT_INFO Info 'get ' : 
+  Methods:
+    get_Info(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Interface XDevkit.XboxEvents: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Methods:
+    OnStdNotify(XboxDebugEventType(In), IXboxEventInfo(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    OnTextNotify(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Interface XDevkit.IXboxEvents: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Methods:
+    OnStdNotify(XboxDebugEventType(In), IXboxEventInfo(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    OnTextNotify(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Class XDevkit.XboxConsoleClass: AutoLayout, AnsiClass, Class, Public, Import
+  :System.__ComObject
+    Void .ctor(): PrivateScope, Public, SpecialName, RTSpecialName
+  Interfaces:
+    XDevkit.IXboxConsole
+    XDevkit.XboxConsole
+    XDevkit.XboxEvents_Event
+  Properties:
+    System.String Name 'get set' : 
+    UInt32 IPAddress 'get ' : 
+    UInt32 IPAddressTitle 'get ' : 
+    System.Object SystemTime 'get set' : 
+    Boolean Shared 'get set' : 
+    UInt32 ConnectTimeout 'get set' : 
+    UInt32 ConversationTimeout 'get set' : 
+    XDevkit.XboxManager XboxManager 'get ' : 
+    XDevkit.IXboxDebugTarget DebugTarget 'get ' : 
+    XDevkit.XBOX_PROCESS_INFO RunningProcessInfo 'get ' : 
+    System.String Drives 'get ' : 
+    XDevkit.XboxDumpMode DumpMode 'get set' : 
+    XDevkit.XboxEventDeferFlags EventDeferFlags 'get set' : 
+    XDevkit.XboxConsoleType ConsoleType 'get ' : 
+    XDevkit.IXboxAutomation XboxAutomation 'get ' : 
+    XDevkit.XboxConsoleFeatures ConsoleFeatures 'get ' : 
+  Events:
+    XDevkit.XboxEvents_OnStdNotifyEventHandler OnStdNotify: 
+    XDevkit.XboxEvents_OnTextNotifyEventHandler OnTextNotify: 
+  Methods:
+    StartFileEventCapture(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    StopFileEventCapture(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_XboxAutomation(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    LoadDebuggerExtension(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    UnloadDebuggerExtension(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_ConsoleFeatures(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    add_OnStdNotify(XboxEvents_OnStdNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    remove_OnStdNotify(XboxEvents_OnStdNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    add_OnTextNotify(XboxEvents_OnTextNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    remove_OnTextNotify(XboxEvents_OnTextNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SendBinary_cpp(UInt32(In), Byte&(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ReceiveBinary_cpp(UInt32(In), Byte&(In), UInt32(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_Drives(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    GetDiskFreeSpace(UInt16(In), UInt64&(Out), UInt64&(Out), UInt64&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    MakeDirectory(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    RemoveDirectory(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    DirectoryFiles(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SendFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ReceiveFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ReadFileBytes(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte[](In, Out, HasFieldMarshal), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    WriteFileBytes(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte[](In, HasFieldMarshal), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ReadFileBytes_cpp(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte&(Out), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    WriteFileBytes_cpp(String(In, HasFieldMarshal), UInt32(In), UInt32(In), Byte&(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SetFileSize(String(In, HasFieldMarshal), UInt32(In), XboxCreateDisposition(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    GetFileObject(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    RenameFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    DeleteFile(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ScreenShot(String(HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_DumpMode(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_DumpMode(XboxDumpMode(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    GetDumpSettings(XBOX_DUMP_SETTINGS&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SetDumpSettings(XBOX_DUMP_SETTINGS&(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_EventDeferFlags(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_EventDeferFlags(XboxEventDeferFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_ConsoleType(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_Name(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_Name(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_IPAddress(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_IPAddressTitle(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_SystemTime(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_SystemTime(Object(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_Shared(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_Shared(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_ConnectTimeout(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_ConnectTimeout(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_ConversationTimeout(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_ConversationTimeout(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    FindConsole(UInt32(In), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_XboxManager(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_DebugTarget(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    Reboot(String(In, HasFieldMarshal), String(In, HasFieldMarshal), String(In, HasFieldMarshal), XboxRebootFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SetDefaultTitle(String(In, HasFieldMarshal), String(In, HasFieldMarshal), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_RunningProcessInfo(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    OpenConnection(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    CloseConnection(UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SendTextCommand(UInt32(In), String(In, HasFieldMarshal), String&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ReceiveSocketLine(UInt32(In), String&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ReceiveStatusResponse(UInt32(In), String&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SendBinary(UInt32(In), Byte[](In, HasFieldMarshal), UInt32(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ReceiveBinary(UInt32(In), Byte[](In, Out, HasFieldMarshal), UInt32(In), UInt32&(Out)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+Interface XDevkit.XboxEvents_Event: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract
+  Events:
+    XDevkit.XboxEvents_OnStdNotifyEventHandler OnStdNotify: 
+    XDevkit.XboxEvents_OnTextNotifyEventHandler OnTextNotify: 
+  Methods:
+    add_OnStdNotify(XboxEvents_OnStdNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    remove_OnStdNotify(XboxEvents_OnStdNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    add_OnTextNotify(XboxEvents_OnTextNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    remove_OnTextNotify(XboxEvents_OnTextNotifyEventHandler): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Class XDevkit.XboxEvents_OnStdNotifyEventHandler: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.MulticastDelegate
+    Void .ctor(System.Object, UIntPtr): PrivateScope, Public, SpecialName, RTSpecialName
+  Methods:
+    Invoke(XboxDebugEventType(In), IXboxEventInfo(In, HasFieldMarshal)): PrivateScope, Public, Virtual
+Class XDevkit.XboxEvents_OnTextNotifyEventHandler: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.MulticastDelegate
+    Void .ctor(System.Object, UIntPtr): PrivateScope, Public, SpecialName, RTSpecialName
+  Methods:
+    Invoke(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual
+Interface XDevkit.XboxConsole: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    XDevkit.IXboxConsole
+    XDevkit.XboxEvents_Event
+Class XDevkit.XboxManagerClass: AutoLayout, AnsiClass, Class, Public, Import
+  :System.__ComObject
+    Void .ctor(): PrivateScope, Public, SpecialName, RTSpecialName
+  Interfaces:
+    XDevkit.IXboxManager
+    XDevkit.XboxManager
+  Properties:
+    System.String DefaultConsole 'get set' : 
+    XDevkit.IXboxConsoles Consoles 'get ' : 
+    System.String SystemSymbolServerPath 'get ' : 
+  Methods:
+    get_DefaultConsole(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    set_DefaultConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_Consoles(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    AddConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    RemoveConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    OpenConsole(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    OpenDumpFile(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SelectConsole(Int32(In), String&(Out, HasFieldMarshal), XboxAccessFlags(In), XboxSelectConsoleFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    RunAddConsoleWizard(Int32(In), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    OpenWindowsExplorer(String(In, HasFieldMarshal), String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    TranslateError(Int32(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    get_SystemSymbolServerPath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    SelectConsoleEx(Int64(In), String&(Out, HasFieldMarshal), XboxAccessFlags(In), XboxSelectConsoleFlags(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    RunAddConsoleWizardEx(Int64(In), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+Interface XDevkit.XboxManager: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    XDevkit.IXboxManager
+Class XDevkit.XboxExecutableDatabaseClass: AutoLayout, AnsiClass, Class, Public, Import
+  :System.__ComObject
+    Void .ctor(): PrivateScope, Public, SpecialName, RTSpecialName
+  Interfaces:
+    XDevkit.IXboxExecutableDatabase
+    XDevkit.XboxExecutableDatabase
+  Properties:
+    Boolean IsDirty 'get ' : 
+    System.String CurrentFileName 'get ' : 
+  Methods:
+    get_IsDirty(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    get_CurrentFileName(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, SpecialName
+    LoadDatabase(String(In, HasFieldMarshal), Boolean(In), XboxCreateDisposition(In), XboxShareMode(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    SaveDatabase(String(In, HasFieldMarshal), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    CloseDatabase(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    ResetDatabase(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    AddExecutable(String(In, HasFieldMarshal), String(In, HasFieldMarshal), String(In, HasFieldMarshal), String(In, HasFieldMarshal), Boolean(In), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    RemoveExecutable(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    FindExecutableByGuid(String(In, HasFieldMarshal), IXboxExecutableInfo&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    FindExecutableForSymServ(String(In, HasFieldMarshal), UInt32(In), UInt32(In), IXboxExecutableInfo&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+Interface XDevkit.XboxExecutableDatabase: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Interfaces:
+    XDevkit.IXboxExecutableDatabase
+Interface XDevkit.IXboxExecutableDatabase: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    Boolean IsDirty 'get ' : 
+    System.String CurrentFileName 'get ' : 
+  Methods:
+    get_IsDirty(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_CurrentFileName(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    LoadDatabase(String(In, HasFieldMarshal), Boolean(In), XboxCreateDisposition(In), XboxShareMode(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    SaveDatabase(String(In, HasFieldMarshal), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    CloseDatabase(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ResetDatabase(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    AddExecutable(String(In, HasFieldMarshal), String(In, HasFieldMarshal), String(In, HasFieldMarshal), String(In, HasFieldMarshal), Boolean(In), Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    RemoveExecutable(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    FindExecutableByGuid(String(In, HasFieldMarshal), IXboxExecutableInfo&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    FindExecutableForSymServ(String(In, HasFieldMarshal), UInt32(In), UInt32(In), IXboxExecutableInfo&(Out, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+Struct XDevkit.XboxShareMode: AutoLayout, AnsiClass, Class, Public, Sealed
+  :System.Enum
+  Fields:
+    Int32 value__ : Public, SpecialName, RTSpecialName
+    XDevkit.XboxShareMode ShareNone = 0 : Public, Static, Literal, HasDefault
+    XDevkit.XboxShareMode ShareRead = 1 : Public, Static, Literal, HasDefault
+    XDevkit.XboxShareMode ShareWrite = 2 : Public, Static, Literal, HasDefault
+    XDevkit.XboxShareMode ShareDelete = 4 : Public, Static, Literal, HasDefault
+Interface XDevkit.IXboxExecutableInfo: AutoLayout, AnsiClass, Class, Public, ClassSemanticsMask, Abstract, Import
+  Properties:
+    System.String SymbolGuid 'get ' : 
+    System.String XboxExecutablePath 'get ' : 
+    System.String PortableExecutablePath 'get ' : 
+    System.String SymbolPath 'get ' : 
+    System.String PublicSymbolPath 'get ' : 
+    System.String ModuleName 'get ' : 
+    UInt32 TimeDateStamp 'get ' : 
+    UInt32 SizeOfImage 'get ' : 
+    Boolean StoreRelativePath 'get ' : 
+    System.String BasePath 'get set' : 
+    Boolean PropGetRelativePath 'get set' : 
+  Methods:
+    get_SymbolGuid(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_XboxExecutablePath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_PortableExecutablePath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_SymbolPath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_PublicSymbolPath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_ModuleName(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_TimeDateStamp(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_SizeOfImage(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_StoreRelativePath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_BasePath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_BasePath(String(In, HasFieldMarshal)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    get_PropGetRelativePath(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+    set_PropGetRelativePath(Boolean(In)): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract, SpecialName
+Class XDevkit.XboxEvents_SinkHelper: AutoLayout, AnsiClass, Class, Public, Sealed
+  Interfaces:
+    XDevkit.XboxEvents
+  Fields:
+    XDevkit.XboxEvents_OnStdNotifyEventHandler m_OnStdNotifyDelegate : Public
+    XDevkit.XboxEvents_OnTextNotifyEventHandler m_OnTextNotifyDelegate : Public
+    Int32 m_dwCookie : Public
+  Methods:
+    OnStdNotify(XboxDebugEventType, IXboxEventInfo): PrivateScope, Public, Virtual
+    OnTextNotify(String, String): PrivateScope, Public, Virtual

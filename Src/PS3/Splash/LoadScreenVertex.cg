@@ -1,0 +1,10 @@
+/**
+ *
+ * Copyright 1998-2011 Epic Games, Inc. All Rights Reserved.
+ */
+ 
+void main(float4 Pos : POSITION, float2 UV : TEXCOORD0, out float4 OutPos : POSITION, out float2 OutUV : TEXCOORD0)
+{
+	OutPos = Pos;
+	OutUV = UV;
+}

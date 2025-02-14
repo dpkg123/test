@@ -1,0 +1,42 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2007 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+struct VpOut
+{
+	float4      position        : POSITION; // Not used in fragment program
+	half2       texcoord        : TEX0;
+	half3       tanSpaceLightVec: TEX1; // For L dot N
+	half3       tanSpaceViewVec : TEX2; // For H dot N
+	half3       objSpaceLightVec: TEX3; // Used for computing attenuation only
+};
+
+struct FpOut
+{
+	half4 color : COLOR;
+};
+
+// We would like to put binding semantics on the uniform inputs, but the current compiler does not allow this.
+// cgfx2bin does print out the resource bindings of the uniform inputs on compilation and these can be used
+// by the application to set values.
+FpOut main(VpOut fragment, float facing : FACE)
+{
+	FpOut result;
+	
+        float3 color = {0.05, .1, .7};
+
+        fragment.texcoord = 2.0 * (fragment.texcoord - .5);
+
+        half2 squared = fragment.texcoord * fragment.texcoord;
+
+        half radius = sqrt(squared.x + squared.y);
+
+	result.color.rgb = 1.0 - radius * radius;
+	result.color.rgb = result.color.rgb * color;
+
+        result.color.a = .3f; //min(radius, .3);
+
+	return result;
+}

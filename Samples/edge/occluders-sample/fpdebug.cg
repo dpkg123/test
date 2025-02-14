@@ -1,0 +1,26 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2007 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+
+struct VpOut
+{
+	float4      position        : POSITION;
+	float4		color			: COLOR0;
+};
+
+struct FpOut
+{
+	half4 color : COLOR;
+};
+
+FpOut main(VpOut fragment)
+{
+	FpOut result;
+	
+	result.color = fragment.color;
+	
+	return result;
+}

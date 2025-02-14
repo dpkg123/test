@@ -1,0 +1,40 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+ #include "logluv.cg"
+ 
+ void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D sourceImage : TEXUNIT0,		// source image ( 32bit LogLuv )
+		uniform sampler2D accumulator : TEXUNIT1,		// accumulator image ( 4 x FP16 )
+		uniform float4 parameters,						// x = avgLuminance, y = white, z = middleGray, w = bloom
+		out half4 out_color : COLOR
+	)
+{
+	half3 source = DecodeColor( h4tex2D( sourceImage, in_uv ));		// point sampling
+	half3 acc = h4tex2D( accumulator, in_uv ).gba;					// linear sampling
+	
+	// add weighted bloom
+	source = source + acc * parameters.www;
+	
+	// rgb->Yxy
+	float3 XYZ = mul( source, M );
+	half2 uv = XYZ.xy / XYZ.z;
+	
+	// tonemap
+	float luminance_scale = XYZ.y * parameters.z / ( parameters.x + 0.001f );
+	XYZ.y = (luminance_scale * ( 1.f + luminance_scale / parameters.y))/( 1.f + luminance_scale);
+	
+	// Yxy->rgb
+	XYZ.z = XYZ.y / uv.y;
+	XYZ.x = uv.x * XYZ.z;
+	float3 vRGB = mul( XYZ, InverseM );
+	
+	//	output result
+	out_color = half4( vRGB, .0f );
+}

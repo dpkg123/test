@@ -1,0 +1,394 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2010 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+.macro LINE_ITERATION_FORWARD(w4, w5, w6, src_ptr, scratch_ptr)
+	
+	.localreg	raw_pixels, pixel0, pixel1, pixel2, pixel3
+	lqx			raw_pixels, src_offset, src_ptr
+//	ai			src_ptr, src_ptr, 0x10
+	
+	shufb		pixel0, raw_pixels, raw_pixels, kShufExtractPixel0
+	shufb		pixel1, raw_pixels, raw_pixels, kShufExtractPixel1
+	shufb		pixel2, raw_pixels, raw_pixels, kShufExtractPixel2
+	shufb		pixel3, raw_pixels, raw_pixels, kShufExtractPixel3
+	
+	cuflt		pixel0, pixel0, 0
+	cuflt		pixel1, pixel1, 0
+	cuflt		pixel2, pixel2, 0
+	cuflt		pixel3, pixel3, 0
+	
+	.localreg	w3, w2, w1, w0				//computed in this order
+	fma			w3, b3, w6, pixel0
+	fma			w3, b2, w5, w3
+	fma			w3, b1, w4, w3
+	
+	fma			w2, b3, w5, pixel1
+	fma			w2, b2, w4, w2
+	fma			w2, b1, w3, w2
+	
+	fma			w1, b3, w4, pixel2
+	fma			w1, b2, w3, w1
+	fma			w1, b1, w2, w1
+
+	fma			w0, b3, w3, pixel3
+	fma			w0, b2, w2, w0
+	fma			w0, b1, w1, w0
+	
+	mvo			w4, w0
+	mvo			w5, w1
+	mvo			w6, w2
+	
+	stqd		w3, 0x00(scratch_ptr)
+	stqd		w2, 0x10(scratch_ptr)
+	stqd		w1, 0x20(scratch_ptr)
+	stqd		w0, 0x30(scratch_ptr)
+	
+	ai			scratch_ptr, scratch_ptr, 0x40
+.endmacro
+
+.macro CLAMP(t,s,low,high)
+	.localreg	larger, smaller
+	fcgt		larger, s, high
+	fcgt		smaller, low, s
+	selb		t, s, high, larger
+	selb		t, t, low, smaller
+.endmacro
+
+.macro CLAMP_CONVERT(t,s)
+.if 0	// clamping is no longer needed, unless I messed up my FP math somewhere.
+	CLAMP(t,a,k0F,k255F)
+	cfltu		t, t, 0
+.else
+	cfltu		t, s, 0
+.endif	
+.endmacro
+
+
+.macro LINE_ITERATION_BACKWARD(w4, w5, w6, dst_ptr, scratch_ptr)
+
+	.localreg	n0, n1, n2, n3
+	lqd			n0, -0x40(scratch_ptr)
+	lqd			n1, -0x30(scratch_ptr)
+	lqd			n2, -0x20(scratch_ptr)
+	lqd			n3, -0x10(scratch_ptr)
+	
+	ai			scratch_ptr, scratch_ptr, -0x40
+	
+	fm			n0, n0, B
+	fm			n1, n1, B
+	fm			n2, n2, B
+	fm			n3, n3, B
+
+	.localreg	w3, w2, w1, w0				//computed in this order
+	
+	fma			w3, b3, w6, n3
+	fma			w3, b2, w5, w3
+	fma			w3, b1, w4, w3
+	
+	fma			w2, b3, w5, n2
+	fma			w2, b2, w4, w2
+	fma			w2, b1, w3, w2
+	
+	fma			w1, b3, w4, n1
+	fma			w1, b2, w3, w1
+	fma			w1, b1, w2, w1
+
+	fma			w0, b3, w3, n0
+	fma			w0, b2, w2, w0
+	fma			w0, b1, w1, w0
+	
+	mvo			w4, w0
+	mvo			w5, w1
+	mvo			w6, w2
+	
+	CLAMP_CONVERT(w0, w0)
+	CLAMP_CONVERT(w1, w1)
+	CLAMP_CONVERT(w2, w2)
+	CLAMP_CONVERT(w3, w3)
+	
+	.localreg	upper, lower, combined
+	shufb		upper, w0, w1, kShufPackUpper
+	shufb		lower, w2, w3, kShufPackLower
+	shufb		combined, upper, lower, kShufABcd
+	
+	stqx		combined, src_offset, dst_ptr
+
+.endmacro
+
+.macro BACKWARD_FIRST_BLOCK(w4, w5, w6, dst_ptr, scratch_ptr)
+	.localreg	n0, n1, n2
+	lqd			n0, -0x40(scratch_ptr)
+	lqd			n1, -0x30(scratch_ptr)
+	lqd			n2, -0x20(scratch_ptr)
+	
+	ai			scratch_ptr, scratch_ptr, -0x40
+	
+	fm			n0, n0, B
+	fm			n1, n1, B
+	fm			n2, n2, B
+
+	.localreg	w3, w2, w1, w0				//computed in this order
+	mvo			w3, w6
+	
+	fma			w2, b3, w5, n2
+	fma			w2, b2, w4, w2
+	fma			w2, b1, w3, w2
+	
+	fma			w1, b3, w4, n1
+	fma			w1, b2, w3, w1
+	fma			w1, b1, w2, w1
+
+	fma			w0, b3, w3, n0
+	fma			w0, b2, w2, w0
+	fma			w0, b1, w1, w0
+	
+	mvo			w4, w0
+	mvo			w5, w1
+	mvo			w6, w2
+	
+	CLAMP_CONVERT(w0, w0)
+	CLAMP_CONVERT(w1, w1)
+	CLAMP_CONVERT(w2, w2)
+	CLAMP_CONVERT(w3, w3)
+	
+	.localreg	upper, lower, combined
+	shufb		upper, w0, w1, kShufPackUpper
+	shufb		lower, w2, w3, kShufPackLower
+	shufb		combined, upper, lower, kShufABcd
+	
+	stqd		combined, -0x10(dst_ptr)
+	
+	ai			dst_ptr, dst_ptr, -0x10
+.endmacro
+
+.macro CORRECT(last, w1, w2, w3)
+	.localreg	plus1, plus2, plus3, vplus
+	
+	fnms		plus1, last, recsum0, w1
+	fnms		plus2, last, recsum0, w2
+	fnms		plus3, last, recsum0, w3
+	
+	fm			vplus, last, recsum1
+	
+	fma			w1, M0, plus1, vplus
+	fma			w1, M1, plus2, w1
+	fma			w1, M2, plus3, w1
+	fm			w1, B, w1
+	
+	fma			w2, M3, plus1, vplus
+	fma			w2, M4, plus2, w2
+	fma			w2, M5, plus3, w2
+	fm			w2, B, w2
+	
+	fma			w3, M6, plus1, vplus
+	fma			w3, M7, plus2, w3
+	fma			w3, M8, plus3, w3
+	fm			w3, B, w3	
+	
+	CLAMP(w1,w1,k0F,k255F)
+	CLAMP(w2,w2,k0F,k255F)
+	CLAMP(w3,w3,k0F,k255F)
+		
+	
+.endmacro
+
+.macro GET_LAST(last, src)
+	.localreg	offset
+	mpya		offset, width, kFour, kMinusFour
+	lqx			last, offset, src
+	shufb		last, last, last, kShufExtractPixel3
+	cuflt		last, last, 0
+.endmacro
+
+.macro GET_FIRST(first, src)
+	lqd			first, 0x00(src)
+	shufb		first, first, first, kShufExtractPixel0
+	cuflt		first, first, 0
+.endmacro
+
+.cfunc void edgeYvvHorizontal(
+	qword srcPtr0,
+	qword srcPtr1,
+	qword srcPtr2,
+	qword srcPtr3,
+	qword scratchPtr0,
+	qword scratchPtr1,
+	qword scratchPtr2,
+	qword scratchPtr3,
+	qword width,
+	qword bPtr,
+	qword mPtr
+)
+
+	.reg		kSplatA, kSplatB, kSplatC, kSplatD
+	il128		kSplatA, "AAAA"
+	il128		kSplatB, "BBBB"
+	il128		kSplatC, "CCCC"
+	il128		kSplatD, "DDDD"
+	
+	.reg		kShufPackUpper, kShufPackLower, kShufABcd
+	il128		kShufPackUpper, "DHLPdhlp00000000"
+	il128		kShufPackLower, "00000000DHLPdhlp"
+	il128		kShufABcd, "ABcd"
+	
+	.reg		kShufExtractPixel0, kShufExtractPixel1, kShufExtractPixel2, kShufExtractPixel3
+	il128		kShufExtractPixel0, "000A000B000C000D"
+	il128		kShufExtractPixel1, "000E000F000G000H"
+	il128		kShufExtractPixel2, "000I000J000K000L"
+	il128		kShufExtractPixel3, "000M000N000O000P"
+	
+	.reg		kFour, kSixteen, kMinusFour, k0F, k255F
+	il			kFour, 4
+	il			kSixteen, 16
+	il			kMinusFour, -4
+	il			k0F, 0
+	ilf32		k255F, 255.f
+
+	
+	// get reciprocal sums and combine them
+	.reg		sums, B, recsum0, recsum1
+	lqd			sums, 0x10(bPtr)
+	shufb		B, sums, sums, kSplatA
+	shufb		recsum0, sums, sums, kSplatB
+	shufb		recsum1, sums, sums, kSplatC
+	fm			recsum1, recsum0, recsum1
+	fm			B, B, B
+	
+
+
+	.reg		first_0, first_1, first_2, first_3
+	GET_FIRST(first_0,srcPtr0)
+	GET_FIRST(first_1,srcPtr1)
+	GET_FIRST(first_2,srcPtr2)
+	GET_FIRST(first_3,srcPtr3)
+	
+	fm			first_0, first_0, recsum0
+	fm			first_1, first_1, recsum0
+	fm			first_2, first_2, recsum0
+	fm			first_3, first_3, recsum0
+	
+	.reg		w4_0, w5_0, w6_0
+	.reg		w4_1, w5_1, w6_1
+	.reg		w4_2, w5_2, w6_2
+	.reg		w4_3, w5_3, w6_3
+
+	
+	mov			w4_0, first_0
+	mov			w4_1, first_1
+	mov			w4_2, first_2
+	mov			w4_3, first_3
+	
+	mov			w5_0, first_0
+	mov			w5_1, first_1
+	mov			w5_2, first_2
+	mov			w5_3, first_3
+
+	mov			w6_0, first_0
+	mov			w6_1, first_1
+	mov			w6_2, first_2
+	mov			w6_3, first_3
+			
+	.reg		b, b1, b2, b3
+	lqd			b, 0x00(bPtr)
+	shufb		b1, b, b, kSplatB
+	shufb		b2, b, b, kSplatC
+	shufb		b3, b, b, kSplatD
+		
+	.reg		src0, scratch0, src1, scratch1, src2, scratch2, src3, scratch3
+	mov			src0, srcPtr0
+	mov			scratch0, scratchPtr0
+	mov			src1, srcPtr1
+	mov			scratch1, scratchPtr1
+	mov			src2, srcPtr2
+	mov			scratch2, scratchPtr2
+	mov			src3, srcPtr3
+	mov			scratch3, scratchPtr3
+	
+	.reg		last0, last1, last2, last3
+	GET_LAST(last0, src0)
+	GET_LAST(last1, src1)
+	GET_LAST(last2, src2)
+	GET_LAST(last3, src3)
+	
+	.reg		count
+	mov			count, width
+	
+	.reg		src_offset
+	il			src_offset, 0
+		
+forward:
+	ai			count, count, -4
+	
+	LINE_ITERATION_FORWARD(w4_0, w5_0, w6_0, src0, scratch0)
+	LINE_ITERATION_FORWARD(w4_1, w5_1, w6_1, src1, scratch1)
+	LINE_ITERATION_FORWARD(w4_2, w5_2, w6_2, src2, scratch2)
+	LINE_ITERATION_FORWARD(w4_3, w5_3, w6_3, src3, scratch3)
+	
+	ai			src_offset, src_offset, 0x10	
+	brnz		count, forward
+	
+.if 1
+// perform boundary correction
+	
+	.reg		M0, M1, M2, M3, M4, M5, M6, M7, M8	// matrix components
+	.reg		MQ0, MQ1, MQ2						// matrix qword
+	lqd			MQ0, 0x00(mPtr)
+	lqd			MQ1, 0x10(mPtr)
+	lqd			MQ2, 0x20(mPtr)
+	
+	shufb		M0, MQ0, MQ0, kSplatA
+	shufb		M1, MQ0, MQ0, kSplatB
+	shufb		M2, MQ0, MQ0, kSplatC
+	shufb		M3, MQ0, MQ0, kSplatD	
+	
+	shufb		M4, MQ1, MQ1, kSplatA
+	shufb		M5, MQ1, MQ1, kSplatB
+	shufb		M6, MQ1, MQ1, kSplatC
+	shufb		M7, MQ1, MQ1, kSplatD
+	
+	shufb		M8, MQ2, MQ2, kSplatA
+	
+	
+	
+	CORRECT(last0, w4_0, w5_0, w6_0)
+	CORRECT(last1, w4_1, w5_1, w6_1)
+	CORRECT(last2, w4_2, w5_2, w6_2)
+	CORRECT(last3, w4_3, w5_3, w6_3)
+	
+	// set up pointers for the next round. We point *after* the last pixel, for convenience.
+	
+	mpya		src0, width, kFour, srcPtr0
+	mpya		src1, width, kFour, srcPtr1
+	mpya		src2, width, kFour, srcPtr2
+	mpya		src3, width, kFour, srcPtr3
+	
+	mpya		scratch0, width, kSixteen, scratchPtr0
+	mpya		scratch1, width, kSixteen, scratchPtr1
+	mpya		scratch2, width, kSixteen, scratchPtr2
+	mpya		scratch3, width, kSixteen, scratchPtr3
+	
+	BACKWARD_FIRST_BLOCK(w4_0, w5_0, w6_0, src0, scratch0)
+	BACKWARD_FIRST_BLOCK(w4_1, w5_1, w6_1, src1, scratch1)
+	BACKWARD_FIRST_BLOCK(w4_2, w5_2, w6_2, src2, scratch2)
+	BACKWARD_FIRST_BLOCK(w4_3, w5_3, w6_3, src3, scratch3)
+	
+	ai			count, width, -4
+	
+	il			src_offset, -0x10
+	
+backward:	
+	ai			count, count, -4
+
+	LINE_ITERATION_BACKWARD(w4_0, w5_0, w6_0, src0, scratch0)
+	LINE_ITERATION_BACKWARD(w4_1, w5_1, w6_1, src1, scratch1)
+	LINE_ITERATION_BACKWARD(w4_2, w5_2, w6_2, src2, scratch2)
+	LINE_ITERATION_BACKWARD(w4_3, w5_3, w6_3, src3, scratch3)
+	
+	ai			src_offset, src_offset, -0x10
+	
+	brnz		count, backward
+.endif	
+.endfunc

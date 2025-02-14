@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="inflate-segs-file-task"
+	ProjectGUID="{BF66A61F-87A2-4A72-BBF5-BBB23725814E}"
+	RootNamespace="inflate-segs-file-task"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="PS3 Debug|Win32"
+			OutputDirectory="PS3_Debug"
+			IntermediateDirectory="PS3_Debug"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);undefined"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-g -Wall -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections -fstack-check"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\spu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\spu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;;&quot;../../../../target/common/include&quot;;&quot;../../../../target/spu/include&quot;"
+				PreprocessorDefinitions="SN_TARGET_PS3_SPU;_DEBUG;__GCC__;SPU;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+				ForcedUsingFiles=""
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-Ttext=0x3000 -Wl,--gc-sections"
+				AdditionalDependencies="&quot;$(SCE_PS3_ROOT)\target\spu\lib\libspurs.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\libsync.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\libdma.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\libatomic.a&quot;"
+				OutputFile="$(OutDir)/inflate_segs_file_task.spu.elf"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+				ImportLibrary="$(OutDir)/$(TargetName).ppu.obj"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Creating PPU Export Library from Task: &quot;$(TargetName).ppu.obj&quot;"
+				CommandLine="cd &quot;$(TargetDir)&quot;&#x0D;&#x0A;spu_elf-to-ppu_obj &quot;$(TargetFileName)&quot; &quot;$(TargetName).ppu.obj&quot;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="PS3 Release|Win32"
+			OutputDirectory="PS3_Release"
+			IntermediateDirectory="PS3_Release"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);undefined"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-Wall -fno-exceptions -fno-rtti -O2 -ffunction-sections -fdata-sections -fstack-check"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\spu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\spu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;;&quot;../../../../target/common/include&quot;;&quot;../../../../target/spu/include&quot;"
+				PreprocessorDefinitions="SN_TARGET_PS3_SPU;NDEBUG;__GCC__;SPU;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-Ttext=0x3000 -Wl,--gc-sections"
+				AdditionalDependencies="&quot;$(SCE_PS3_ROOT)\target\spu\lib\libspurs.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\libsync.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\libdma.a&quot; &quot;$(SCE_PS3_ROOT)\target\spu\lib\libatomic.a&quot;"
+				OutputFile="$(OutDir)/inflate_segs_file_task.spu.elf"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+				ImportLibrary="$(OutDir)/$(TargetName).ppu.obj"
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Creating PPU Export Library from Task: &quot;$(TargetName).ppu.obj&quot;"
+				CommandLine="cd &quot;$(TargetDir)&quot;&#x0D;&#x0A;spu_elf-to-ppu_obj &quot;$(TargetFileName)&quot; &quot;$(TargetName).ppu.obj&quot;"
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Source Files"
+			Filter="cpp;c;cxx;cc;s;asm"
+			>
+			<File
+				RelativePath=".\inflate_segs_file_task.cpp"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Header Files"
+			Filter="h;hpp"
+			>
+		</Filter>
+		<Filter
+			Name="Common Files"
+			>
+			<File
+				RelativePath=".\inflate_segs_file_queue_element.h"
+				>
+			</File>
+		</Filter>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

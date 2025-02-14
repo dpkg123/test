@@ -1,0 +1,42 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+ void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D sourceImage : TEXUNIT0,
+		uniform sampler2D motionBuffer : TEXUNIT1,
+		out half4 out_color : COLOR
+	)
+{
+	// read motion vectors
+	half2 motion = h4tex2D( motionBuffer, in_uv ).ar;
+	
+	// map to -1,1
+	motion.xy = ( motion.xy * 2.f ) - 1.f;
+	
+	// calculate motion amount
+	half motionAmount = length( motion.xy );
+	
+	// calculate step size
+	motion.xy *= 16;
+	float2 diff = ( motion.xy  / 8 ) * float2( 1.f / 640.f, 1.f / 360.f );
+	
+	// center sample
+	half4 centre = h4tex2D( sourceImage, in_uv);
+
+	// sample along motion vector
+	half3 rgb = centre.rgb;
+	for ( float i = 1; i < 8; ++i )
+		rgb += h3tex2D( sourceImage, in_uv + diff * i);
+	for ( float i = 1; i < 8; ++i )
+		rgb += h3tex2D( sourceImage, in_uv - diff * i);
+	rgb /= 15;
+
+	// max between fuzziness & motion amount
+	out_color = half4( rgb, max( motionAmount, centre.a) );
+}

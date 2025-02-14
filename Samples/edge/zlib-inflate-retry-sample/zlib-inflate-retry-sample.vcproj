@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="zlib-inflate-retry-sample"
+	ProjectGUID="{20F39C24-A7D8-4728-97C7-465F3C74F97F}"
+	RootNamespace="zlib-inflate-retry-sample"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="PS3 Debug|Win32"
+			OutputDirectory="PS3_PPU_Debug"
+			IntermediateDirectory="PS3_PPU_Debug"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);$(TargetDir)$(TargetName).self"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-g -Wall -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections"
+				Optimization="0"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\ppu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\ppu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;;&quot;../../../target/common/include&quot;;&quot;../../../target/ppu/include&quot;"
+				PreprocessorDefinitions="SN_TARGET_PS3;_DEBUG;__GCC__;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+				ForcedUsingFiles="?DbgSaveProj&#x0D;?DbgFilePath=$(TargetDir)$(TargetName).self&#x0D;?FileServDir=$(ProjectDir)"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-fno-exceptions -fno-rtti"
+				AdditionalDependencies="&quot;$(SN_PS3_PATH)\ppu\lib\sn\libsn.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libm.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libio_stub.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libspurs_stub.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libsync_stub.a&quot;"
+				OutputFile="$(ProjectName).$(ConfigurationName).ppu.elf"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Fake Signing ELF &quot;$(TargetDir)$(TargetName).self&quot;"
+				CommandLine="$(SCE_PS3_ROOT)\host-win32\bin\make_fself &quot;$(TargetPath)&quot; &quot;$(TargetDir)$(TargetName).self&quot;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="PS3 Release|Win32"
+			OutputDirectory="PS3_PPU_Release"
+			IntermediateDirectory="PS3_PPU_Release"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);$(TargetDir)$(TargetName).self"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-Wall -fno-exceptions -fno-rtti -O2 -ffunction-sections -fdata-sections"
+				Optimization="2"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\ppu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\ppu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;;&quot;../../../target/common/include&quot;;&quot;../../../target/ppu/include&quot;"
+				PreprocessorDefinitions="SN_TARGET_PS3;NDEBUG;__GCC__;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+				ForcedUsingFiles="?DbgSaveProj ?DbgFilePath=$(TargetDir)$(TargetName).self ?FileServDir=$(ProjectDir)"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-fno-exceptions -fno-rtti"
+				AdditionalDependencies="&quot;$(SN_PS3_PATH)\ppu\lib\sn\libsn.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libm.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libio_stub.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libspurs_stub.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libsync_stub.a&quot;"
+				OutputFile="$(ProjectName).$(ConfigurationName).ppu.elf"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Fake Signing ELF &quot;$(TargetDir)$(TargetName).self&quot;"
+				CommandLine="$(SCE_PS3_ROOT)\host-win32\bin\make_fself &quot;$(TargetPath)&quot; &quot;$(TargetDir)$(TargetName).self&quot;"
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Source Files"
+			Filter="cpp;c;cxx;cc;s;asm"
+			>
+			<File
+				RelativePath=".\gz.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\main.cpp"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Header Files"
+			Filter="h;hpp"
+			>
+			<File
+				RelativePath=".\gz.h"
+				>
+			</File>
+		</Filter>
+		<File
+			RelativePath=".\assets\assets.mk"
+			>
+			<FileConfiguration
+				Name="PS3 Debug|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					CommandLine="vsimake -f &quot;$(InputPath)&quot; -C &quot;$(InputDir)/&quot;&#x0D;&#x0A;"
+					Outputs="phony"
+				/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="PS3 Release|Win32"
+				>
+				<Tool
+					Name="VCCustomBuildTool"
+					CommandLine="vsimake -f &quot;$(InputPath)&quot; -C &quot;$(InputDir)/&quot;&#x0D;&#x0A;"
+					Outputs="phony"
+				/>
+			</FileConfiguration>
+		</File>
+		<File
+			RelativePath=".\readme_e.txt"
+			>
+		</File>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

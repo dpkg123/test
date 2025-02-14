@@ -1,0 +1,63 @@
+/*=============================================================================
+	MemCopyShader.usf: Shader for copying memory using the GPU.
+	Copyright 1998-2011 Epic Games, Inc. All Rights Reserved.
+=============================================================================*/
+
+/**
+ *	Vertex shader code
+ */
+
+static float4 Const01= {0, 1, 0, 0};
+
+extern float4 StreamConstant;
+extern int OffsetInVerts;
+
+struct FVertexInput
+{
+    float4  Data0  : POSITION0;
+    float4  Data1  : POSITION1;
+    float4  Data2  : POSITION2;
+    float4  Data3  : POSITION3;
+    float4  Data4  : POSITION4;
+    float4  Data5  : POSITION5;
+    float4  Data6  : POSITION6;
+    float4  Data7  : POSITION7;
+};
+
+void MainVertexShader(FVertexInput Input, int Index : INDEX )
+{
+    float4 Output0 = Input.Data0;
+    float4 Output1 = Input.Data1;
+    float4 Output2 = Input.Data2;
+    float4 Output3 = Input.Data3;
+    float4 Output4 = Input.Data4;
+    float4 Output5 = Input.Data5;
+    float4 Output6 = Input.Data6;
+    float4 Output7 = Input.Data7;
+    int OutputIndex0 = 8 * ( Index - OffsetInVerts );
+    asm 
+    {
+        alloc export=2
+        mad eA, OutputIndex0, Const01, StreamConstant
+        mov eM0, Output0
+        mov eM1, Output1
+        mov eM2, Output2
+        mov eM3, Output3
+    };
+    int OutputIndex1 = OutputIndex0 + 4;
+    asm 
+    {
+        alloc export=2
+        mad eA, OutputIndex1, Const01, StreamConstant
+        mov eM0, Output4
+        mov eM1, Output5
+        mov eM2, Output6
+        mov eM3, Output7
+    };
+}
+
+/** Pixel shader code */
+float4 MainPixelShader() : COLOR
+{
+	return 0;
+}

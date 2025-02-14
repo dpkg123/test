@@ -1,0 +1,34 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+#include "utils.cg"
+
+struct VpIn
+{
+	float3      position        : ATTR0;
+};
+
+struct VpOut
+{
+	float4      position        : POSITION;
+	half3       texcoord        : TEX0;
+};
+
+VpOut main
+	( 
+		VpIn vertex, 
+		uniform float4x4 mvp			: C0, 
+		uniform float3 skySize			: C17
+	)
+{
+	VpOut result;
+	
+	float4 pos = float4( vertex.position.xyz * skySize, 1);
+	float4 wpos = mul( mvp, pos );
+	result.position = wpos;
+	result.texcoord = normalize( vertex.position.xyz );
+	return result;
+}

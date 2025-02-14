@@ -1,0 +1,37 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+#include "utils.cg"
+#include "logluv.cg"
+
+struct VpOut
+{
+	half3       texcoord        : TEX0;
+	float4      current_pos		: TEX1;
+	float4      prev_pos		: TEX2;
+	float3      view_pos		: TEX3;
+};
+
+
+struct FpOut
+{
+	half4 color				: COLOR0;
+	half4 motion_and_depth  : COLOR1;
+};
+
+FpOut main
+	(
+		VpOut fragment, 
+		uniform samplerCUBE sky : TEXUNIT0,
+		uniform float4 depthAndMotionScale
+	)
+{
+	FpOut result;
+	result.color = EncodeColor( h3texCUBE( sky, fragment.texcoord) );
+	result.motion_and_depth.ar = GenerateMotion( fragment.current_pos, fragment.prev_pos, depthAndMotionScale.x );
+	result.motion_and_depth.gb = PackDepth( 1.f );
+	return result;
+}

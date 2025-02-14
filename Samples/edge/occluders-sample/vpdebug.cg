@@ -1,0 +1,26 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2007 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+struct VpIn
+{
+	float4      position        : ATTR0;
+};
+
+struct VpOut
+{
+	float4  position        : POSITION;
+	float4	color		: COLOR0;
+};
+
+VpOut main(VpIn vertex, uniform float4x4 mvp : C0, uniform float4 color : C4)
+{
+	VpOut result;
+	
+	result.position = mul(mvp, vertex.position);
+	result.color    = color;
+	
+	return result;
+}

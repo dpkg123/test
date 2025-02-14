@@ -1,0 +1,19 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+ 
+void main
+	(
+		in float4 in_position, 
+		uniform float4 originAndScale : C0,
+		out float4 out_position : POSITION, 
+		out float2 out_texcoord : TEXCOORD0
+	)
+{
+	out_position.xy = ( float2( 2.0f, -2.0f) * in_position.xy) + float2( -1.0f, 1.0f);
+	out_position.zw = in_position.zw;
+	out_texcoord = ((in_position.xy - originAndScale.xy) * originAndScale.zw ) + originAndScale.xy;
+}

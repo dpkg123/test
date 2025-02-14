@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="spu_code"
+	ProjectGUID="{D80209B5-FF9E-4607-945D-C7148D0BE812}"
+	RootNamespace="edgejob"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="PS3 Debug|Win32"
+			OutputDirectory="$(ProjectName).PS3_Debug"
+			IntermediateDirectory="$(ProjectName).PS3_Debug"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);$(TargetDir)$(TargetName).sprx"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-g -Wall -fno-exceptions -fno-rtti"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\ppu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\ppu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;"
+				PreprocessorDefinitions="SN_TARGET_PS3;_DEBUG;__GCC__;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-fno-exceptions -fno-rtti -mprx -zgenprx -zgenstub"
+				AdditionalDependencies="&quot;$(SN_PS3_PATH)\ppu\lib\sn\libsn.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libm.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libio_stub.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\liblv2_stub.a&quot;"
+				OutputFile="$(OutDir)/$(ProjectName).ppu.prx"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+				ImportLibrary=""
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Fake Signing PRX &quot;$(TargetDir)$(TargetName).sprx&quot;"
+				CommandLine="$(SCE_PS3_ROOT)\host-win32\bin\make_fself &quot;$(TargetPath)&quot; &quot;$(TargetDir)$(TargetName).sprx&quot;"
+			/>
+		</Configuration>
+		<Configuration
+			Name="PS3 Release|Win32"
+			OutputDirectory="$(ProjectName).PS3_Release"
+			IntermediateDirectory="$(ProjectName).PS3_Release"
+			ConfigurationType="1"
+			InheritedPropertySheets="$(VCInstallDir)VCProjectDefaults\UpgradeFromVC71.vsprops"
+			DeleteExtensionsOnClean="*.obj;*.d;*.map;*.lst;*.pch;$(TargetPath);$(TargetDir)$(TargetName).sprx"
+			>
+			<Tool
+				Name="VCPreBuildEventTool"
+			/>
+			<Tool
+				Name="VCCustomBuildTool"
+			/>
+			<Tool
+				Name="VCXMLDataGeneratorTool"
+			/>
+			<Tool
+				Name="VCWebServiceProxyGeneratorTool"
+			/>
+			<Tool
+				Name="VCMIDLTool"
+			/>
+			<Tool
+				Name="VCCLCompilerTool"
+				AdditionalOptions="-Wall -fno-exceptions -fno-rtti -O2"
+				AdditionalIncludeDirectories="&quot;$(SN_PS3_PATH)\ppu\include\sn&quot;;&quot;$(SCE_PS3_ROOT)\target\ppu\include&quot;;&quot;$(SCE_PS3_ROOT)\target\common\include&quot;"
+				PreprocessorDefinitions="SN_TARGET_PS3;NDEBUG;__GCC__;__CELL_ASSERT__"
+				ProgramDataBaseFileName=""
+				CompileAs="0"
+			/>
+			<Tool
+				Name="VCManagedResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCResourceCompilerTool"
+			/>
+			<Tool
+				Name="VCPreLinkEventTool"
+			/>
+			<Tool
+				Name="VCLinkerTool"
+				AdditionalOptions="-fno-exceptions -fno-rtti -mprx -zgenprx -zgenstub"
+				AdditionalDependencies="&quot;$(SN_PS3_PATH)\ppu\lib\sn\libsn.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libm.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\libio_stub.a&quot; &quot;$(SCE_PS3_ROOT)\target\ppu\lib\liblv2_stub.a&quot;"
+				OutputFile="$(OutDir)/$(ProjectName).ppu.prx"
+				AdditionalLibraryDirectories=""
+				ProgramDatabaseFile=""
+				ImportLibrary=""
+			/>
+			<Tool
+				Name="VCALinkTool"
+			/>
+			<Tool
+				Name="VCManifestTool"
+			/>
+			<Tool
+				Name="VCXDCMakeTool"
+			/>
+			<Tool
+				Name="VCBscMakeTool"
+			/>
+			<Tool
+				Name="VCFxCopTool"
+			/>
+			<Tool
+				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
+			/>
+			<Tool
+				Name="VCPostBuildEventTool"
+				Description="Stripping and Fake Signing PRX &quot;$(TargetDir)$(TargetName).sprx&quot;"
+				CommandLine="$(SCE_PS3_ROOT)\host-win32\bin\ppu-lv2-prx-strip &quot;$(TargetPath)&quot; -o &quot;$(TargetDir)$(TargetName).prx&quot;&#x0D;&#x0A;$(SCE_PS3_ROOT)\host-win32\bin\make_fself &quot;$(TargetDir)$(TargetName).prx&quot; &quot;$(TargetDir)$(TargetName).sprx&quot;&#x0D;&#x0A;"
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Source Files"
+			Filter="cpp;c;cxx;cc;s;asm"
+			>
+			<File
+				RelativePath=".\spu_code.cpp"
+				>
+			</File>
+		</Filter>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

@@ -1,0 +1,100 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+// Sample scale
+static const float2 scale = float2(6.0f/640.0f, 6.0f/360.0f);
+
+#define SAMPLE_COUNT 16
+
+#define TAP_OFFSET( x, y) float2( x, y ) * scale
+
+/*
+static const float2 taps[SAMPLE_COUNT] =
+{
+	float2( -0.258220f, 0.543813f ) * scale,
+	float2( -0.434058f, 0.381764f ) * scale,
+	float2( 0.056296f, 0.616842f ) * scale,
+	float2( -0.706061f, 0.132693f ) * scale,
+	float2( -0.202318f, 0.239745f ) * scale,
+	float2( -0.764672f, -0.063198f ) * scale,
+	float2( 0.263764f, 0.776956f ) * scale,
+	float2( -0.438999f, -0.007373f ) * scale,
+	float2( 0.414320f, 0.433819f ) * scale,
+	float2( -0.181898f, 0.029110f ) * scale,
+	float2( 0.077827f, 0.103592f ) * scale,
+	float2( -0.833748f, -0.325049f ) * scale,
+	float2( 0.070210f, 0.375632f ) * scale,
+	float2( -0.261129f, -0.348633f ) * scale,
+	float2( -0.500331f, -0.333446f ) * scale,
+	float2( -0.050543f, 0.843876f ) * scale,
+};
+*/
+
+static const float2 taps[SAMPLE_COUNT] =
+{
+	TAP_OFFSET( 0.402850, 0.040140 ),
+	TAP_OFFSET( 0.127312, 0.372079 ),
+	TAP_OFFSET( -0.287164, -0.523500 ),
+	TAP_OFFSET( -0.200276,  0.553908 ),
+	TAP_OFFSET( 0.177847, 0.554831 ),
+	TAP_OFFSET( -0.494969, 0.287847 ),
+	TAP_OFFSET( 0.314259, 0.663152 ),
+	TAP_OFFSET( 0.438827,  -0.395499 ),
+	TAP_OFFSET( -0.542696, 0.512252 ),
+	TAP_OFFSET( 0.399431, -0.649687 ),
+	TAP_OFFSET( -0.595748, -0.099768 ),
+	TAP_OFFSET( -0.141366, 0.091103 ),
+	TAP_OFFSET( 0.721309, 0.206925 ),
+	TAP_OFFSET( -0.434476, -0.411616 ),
+	TAP_OFFSET( 0.715196, -0.266536 ),
+	TAP_OFFSET( 0.178104, 0.747583 ),
+};
+
+
+void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D sourceImage : TEXUNIT0,
+		uniform sampler2D fuzzinessBuffer : TEXUNIT1,
+		out half4 out_color : COLOR
+	)
+{
+	// Read centre sample
+	half3 centre = h3tex2D( sourceImage, in_uv );
+	float4 cfd = f4tex2D( fuzzinessBuffer, in_uv );
+	float centreFuz = cfd.r;
+	float centreDepth = cfd.g;
+	
+	// Start with centre sample
+	half4 accumulator = half4( centre.rgb, 1);
+	
+	// Sample  points
+	for ( int i = 0; i < SAMPLE_COUNT; ++i )
+	{
+		// Looking for pixels which would blur onto this circle
+		float2 sample_uv = in_uv + centreFuz * taps[i].xy;
+		half3 sample = h3tex2D( sourceImage, sample_uv );
+		
+		float2 sfd = f2tex2D( fuzzinessBuffer, sample_uv );
+		float sampleFuz = sfd.r;
+		float sampleDepth = sfd.g;
+		
+		// prevent leaking ( only on far fuzziness )
+		float leakFactor = cfd.z > .0f ? .5f : 1.f;
+		sampleFuz = sampleDepth < centreDepth ? sampleFuz * leakFactor : sampleFuz;
+		
+		// Add self-weighting sample to accumulator.
+		accumulator.rgb += sample.rgb * sampleFuz;
+		accumulator.a += sampleFuz;
+	}
+		
+	// Normalise color
+	accumulator.rgb /= accumulator.a;
+	
+	// output color	
+	out_color = half4(accumulator.rgb, centreFuz);
+}

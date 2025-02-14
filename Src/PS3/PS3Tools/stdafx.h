@@ -1,0 +1,1 @@
+// This is a placeholder, do not remove unless you remove #include "stdafx.h" from CommandLineWrapper.cpp and fix StandaloneSymbolParser

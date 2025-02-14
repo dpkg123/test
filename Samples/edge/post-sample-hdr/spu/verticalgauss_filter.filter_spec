@@ -1,0 +1,14 @@
+# vertical 7 wide image filter
+Filter Filter1x7_fx16_fx16
+numChannels 4
+inputFormat fx16
+outputFormat fx16	
+unrollCount 4
+clamp false
+offset 0 -3
+offset 0 -2
+offset 0 -1
+offset 0 0
+offset 0 1
+offset 0 2
+offset 0 3

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="9,00"
+	Name="UDKGame Xbox360"
+	ProjectGUID="{5176A0FA-AEA9-4906-822C-758E2A147683}"
+	RootNamespace="UTGame Xbox360"
+	Keyword="MakeFileProj"
+	TargetFrameworkVersion="131072"
+	>
+	<Platforms>
+		<Platform
+			Name="Xbox 360"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Debug|Xbox 360"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			UseOfMFC="-1"
+			UseOfATL="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot; -remoteroot &quot;$(RemoteRoot)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/Xbox360/UDKGame-Xbox360-Debug.xex"
+				PreprocessorDefinitions=""
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+			<Tool
+				Name="VCX360DeploymentTool"
+				RemoteRoot="xe:\UE3-$(COMPUTERNAME)"
+				DeploymentFiles=""
+				DeploymentType="0"
+			/>
+			<DebuggerTool
+			/>
+		</Configuration>
+		<Configuration
+			Name="Release|Xbox 360"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			UseOfMFC="-1"
+			UseOfATL="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot; -remoteroot &quot;$(RemoteRoot)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/Xbox360/UDKGame-Xbox360-Release.xex"
+				PreprocessorDefinitions=""
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+			<Tool
+				Name="VCX360DeploymentTool"
+				RemoteRoot="xe:\UE3-$(COMPUTERNAME)"
+				DeploymentFiles=""
+				DeploymentType="0"
+			/>
+			<DebuggerTool
+			/>
+		</Configuration>
+		<Configuration
+			Name="Shipping|Xbox 360"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			UseOfMFC="-1"
+			UseOfATL="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot; -remoteroot &quot;$(RemoteRoot)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/Xbox360/UDKGame-Xbox360-Shipping.xex"
+				PreprocessorDefinitions=""
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+			<Tool
+				Name="VCX360DeploymentTool"
+				RemoteRoot="xe:\UE3-$(COMPUTERNAME)"
+				DeploymentFiles=""
+				DeploymentType="0"
+			/>
+			<DebuggerTool
+			/>
+		</Configuration>
+		<Configuration
+			Name="Test|Xbox 360"
+			OutputDirectory="..\..\Intermediate\Unused"
+			IntermediateDirectory="..\..\Intermediate\Unused"
+			ConfigurationType="0"
+			UseOfMFC="-1"
+			UseOfATL="0"
+			BuildLogFile="..\..\Intermediate\BuildLogs\$(ProjectName) $(ConfigurationName)\BuildLog.htm"
+			>
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot; -remoteroot &quot;$(RemoteRoot)&quot;"
+				ReBuildCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)&#x0D;&#x0A;@call Targets/Build.bat $(ProjectName) $(ConfigurationName) -output &quot;$(TargetPath)&quot;"
+				CleanCommandLine="@cd ..&#x0D;&#x0A;@call Targets/CleanGame.bat $(ProjectName) $(ConfigurationName) $(TargetPath)"
+				Output="../../../Binaries/Xbox360/UDKGame-Xbox360-Test.xex"
+				PreprocessorDefinitions=""
+				IncludeSearchPath=""
+				ForcedIncludes=""
+				AssemblySearchPath=""
+				ForcedUsingAssemblies=""
+				CompileAsManaged=""
+			/>
+			<Tool
+				Name="VCX360DeploymentTool"
+				RemoteRoot="xe:\UE3-$(COMPUTERNAME)"
+				DeploymentFiles=""
+				DeploymentType="0"
+			/>
+			<DebuggerTool
+			/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>

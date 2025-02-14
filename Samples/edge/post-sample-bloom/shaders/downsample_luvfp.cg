@@ -1,0 +1,37 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+
+#include "utils.cg"
+#include "logluv.cg"
+ 
+void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D source : TEXUNIT0,
+		out half4 out_color : COLOR
+	)
+{
+	float dx = 1.f / 1280.f;
+	float dy = 1.f / 720.f;
+	
+	// sample 4 times and decode color
+	half3 s0 = DecodeColor( h4tex2D( source, in_uv + float2( 0, 0)));
+	half3 s1 = DecodeColor( h4tex2D( source, in_uv + float2( dx, 0)));
+	half3 s2 = DecodeColor( h4tex2D( source, in_uv + float2( 0, dy)));
+	half3 s3 = DecodeColor( h4tex2D( source, in_uv + float2( dx, dy)));
+	
+	// average colors
+	half3 avg = 
+		s0 * .25f + 
+		s1 * .25f + 
+		s2 * .25f + 
+		s3 * .25f;
+	
+	// repack and output
+	out_color = EncodeColor( avg );
+}

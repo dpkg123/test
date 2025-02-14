@@ -1,0 +1,148 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+
+//--------------------------------------------------------------------------------------------------
+//  FUNCTION DEFINITION
+//--------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------------
+/**
+	void edgePostMakeMaskFromFuzzinessAndMotion( qword output, qword fuzziness, qword motion, qword count )
+**/
+//--------------------------------------------------------------------------------------------------
+
+
+.include "../../../../target/spu/src/edge/post/edgepost_helpers.inc"
+
+.cfunc void MakeMaskFromFuzzinessAndMotion( qword output, qword fuzziness, qword motion, qword count )
+	EDGEPOST_DECLARE_HELPER_CONSTANTS
+	
+	.reg		kShuf0, kShuf1
+	il128		kShuf0, "DHLPdhlp00000000"
+	il128		kShuf1, "00000000DHLPdhlp"
+	
+	.reg		kShufMotion0, kShufMotion1
+	il128		kShufMotion0, "000A000E000I000M"
+	il128		kShufMotion1, "000B000F000J000N"
+	
+	.reg		kC0, kC1
+	ilf32		kC0, ( 256.f / 255.f) * 2.f
+	ilf32		kC1, -1.f
+	
+loop:
+	ai			output, output, 0x10
+	ai			fuzziness, fuzziness, 0x40
+	ai			motion, motion, 0x40
+	ai			count, count, -16
+	
+	// Load input
+	.reg		f0, f1, f2, f3
+	.reg		m0, m1, m2, m3
+	lqd			f0, -0x40( fuzziness )
+	lqd			f1, -0x30( fuzziness )
+	lqd			f2, -0x20( fuzziness )
+	lqd			f3, -0x10( fuzziness )
+	lqd			m0, -0x40( motion )
+	lqd			m1, -0x30( motion )
+	lqd			m2, -0x20( motion )
+	lqd			m3, -0x10( motion )
+
+	// expand fuzziness
+	rotmi		f0, f0, -16
+	rotmi		f1, f1, -16
+	rotmi		f2, f2, -16
+	rotmi		f3, f3, -16
+	cuflt		f0, f0, 16
+	cuflt		f1, f1, 16
+	cuflt		f2, f2, 16
+	cuflt		f3, f3, 16
+
+	// expand motion vectors
+	.reg		mx0, mx1, mx2, mx3
+	.reg		my0, my1, my2, my3
+	shufb		mx0, m0, m0, kShufMotion0
+	shufb		mx1, m1, m1, kShufMotion0
+	shufb		mx2, m2, m2, kShufMotion0
+	shufb		mx3, m3, m3, kShufMotion0
+	shufb		my0, m0, m0, kShufMotion1
+	shufb		my1, m1, m1, kShufMotion1
+	shufb		my2, m2, m2, kShufMotion1
+	shufb		my3, m3, m3, kShufMotion1
+	cuflt		mx0, mx0, 8
+	cuflt		mx1, mx1, 8
+	cuflt		mx2, mx2, 8
+	cuflt		mx3, mx3, 8
+	cuflt		my0, my0, 8
+	cuflt		my1, my1, 8
+	cuflt		my2, my2, 8
+	cuflt		my3, my3, 8
+	fma			mx0, mx0, kC0, kC1
+	fma			mx1, mx1, kC0, kC1
+	fma			mx2, mx2, kC0, kC1
+	fma			mx3, mx3, kC0, kC1
+	fma			my0, my0, kC0, kC1
+	fma			my1, my1, kC0, kC1
+	fma			my2, my2, kC0, kC1
+	fma			my3, my3, kC0, kC1
+	
+	// calculate motion amount
+	.reg		ma0, ma1, ma2, ma3
+	fm			ma0, mx0, mx0
+	fm			ma1, mx1, mx1
+	fm			ma2, mx2, mx2
+	fm			ma3, mx3, mx3
+	fma			ma0, my0, my0, ma0
+	fma			ma1, my1, my1, ma1
+	fma			ma2, my2, my2, ma2
+	fma			ma3, my3, my3, ma3
+	frsqest		mx0, ma0
+	frsqest		mx1, ma1
+	frsqest		mx2, ma2
+	frsqest		mx3, ma3
+	fi			ma0, ma0, mx0
+	fi			ma1, ma1, mx1
+	fi			ma2, ma2, mx2
+	fi			ma3, ma3, mx3
+	frest		mx0, ma0
+	frest		mx1, ma1
+	frest		mx2, ma2
+	frest		mx3, ma3
+	fi			ma0, ma0, mx0
+	fi			ma1, ma1, mx1
+	fi			ma2, ma2, mx2
+	fi			ma3, ma3, mx3
+
+	// select max between fuzziness and motion amount
+	.reg		s0, s1, s2, s3
+	fcgt		s0, ma0, f0
+	fcgt		s1, ma1, f1
+	fcgt		s2, ma2, f2
+	fcgt		s3, ma3, f3
+	selb		s0, f0, ma0, s0
+	selb		s1, f1, ma1, s1
+	selb		s2, f2, ma2, s2
+	selb		s3, f3, ma3, s3
+
+	// clamp and convert to unsigned 
+	EDGEPOST_CLAMP_FLOAT( s0 )
+	EDGEPOST_CLAMP_FLOAT( s1 )
+	EDGEPOST_CLAMP_FLOAT( s2 )
+	EDGEPOST_CLAMP_FLOAT( s3 )
+	EDGEPOST_FLOAT_TO_U8( s0, s0 )
+	EDGEPOST_FLOAT_TO_U8( s1, s1 )
+	EDGEPOST_FLOAT_TO_U8( s2, s2 )
+	EDGEPOST_FLOAT_TO_U8( s3, s3 )
+	
+	// pack into a single qword
+	.reg		mask, mask0, mask1
+	shufb		mask0, s0, s1, kShuf0
+	shufb		mask1, s2, s3, kShuf1
+	or			mask, mask0, mask1
+	
+	// Store
+	stqd		mask, -0x10( output )
+	brnz		count, loop
+.endfunc

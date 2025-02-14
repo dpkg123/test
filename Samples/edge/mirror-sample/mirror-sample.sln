@@ -1,0 +1,51 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mirror-sample", "mirror-sample.vcproj", "{51599C60-78A3-4BFD-8BF3-24638EC9C3CE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{752BE45B-B89B-467E-8736-2881A95E5AF9} = {752BE45B-B89B-467E-8736-2881A95E5AF9}
+		{8C2B369E-A293-4B8D-A48A-5F90262FBBBA} = {8C2B369E-A293-4B8D-A48A-5F90262FBBBA}
+		{6D45D504-A8A0-4AF4-9680-3AA0FE12B9BC} = {6D45D504-A8A0-4AF4-9680-3AA0FE12B9BC}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "edgeanim_spu", "..\..\..\target\spu\src\edge\anim\edgeanim_spu.vcproj", "{3771E822-9BA9-4FE5-9B40-7B4F2C524B0A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "edgeanim_ppu", "..\..\..\target\ppu\src\edge\anim\edgeanim_ppu.vcproj", "{8C2B369E-A293-4B8D-A48A-5F90262FBBBA}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "job_anim", "spu\job_anim.vcproj", "{6D45D504-A8A0-4AF4-9680-3AA0FE12B9BC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{3771E822-9BA9-4FE5-9B40-7B4F2C524B0A} = {3771E822-9BA9-4FE5-9B40-7B4F2C524B0A}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "job_send_event", "..\common\spu\job_send_event.vcproj", "{752BE45B-B89B-467E-8736-2881A95E5AF9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		PS3 Debug|Win32 = PS3 Debug|Win32
+		PS3 Release|Win32 = PS3 Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{51599C60-78A3-4BFD-8BF3-24638EC9C3CE}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{51599C60-78A3-4BFD-8BF3-24638EC9C3CE}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{51599C60-78A3-4BFD-8BF3-24638EC9C3CE}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{51599C60-78A3-4BFD-8BF3-24638EC9C3CE}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+		{3771E822-9BA9-4FE5-9B40-7B4F2C524B0A}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{3771E822-9BA9-4FE5-9B40-7B4F2C524B0A}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{3771E822-9BA9-4FE5-9B40-7B4F2C524B0A}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{3771E822-9BA9-4FE5-9B40-7B4F2C524B0A}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+		{8C2B369E-A293-4B8D-A48A-5F90262FBBBA}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{8C2B369E-A293-4B8D-A48A-5F90262FBBBA}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{8C2B369E-A293-4B8D-A48A-5F90262FBBBA}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{8C2B369E-A293-4B8D-A48A-5F90262FBBBA}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+		{6D45D504-A8A0-4AF4-9680-3AA0FE12B9BC}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{6D45D504-A8A0-4AF4-9680-3AA0FE12B9BC}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{6D45D504-A8A0-4AF4-9680-3AA0FE12B9BC}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{6D45D504-A8A0-4AF4-9680-3AA0FE12B9BC}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+		{752BE45B-B89B-467E-8736-2881A95E5AF9}.PS3 Debug|Win32.ActiveCfg = PS3 Debug|Win32
+		{752BE45B-B89B-467E-8736-2881A95E5AF9}.PS3 Debug|Win32.Build.0 = PS3 Debug|Win32
+		{752BE45B-B89B-467E-8736-2881A95E5AF9}.PS3 Release|Win32.ActiveCfg = PS3 Release|Win32
+		{752BE45B-B89B-467E-8736-2881A95E5AF9}.PS3 Release|Win32.Build.0 = PS3 Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,21 @@
+/* SCE CONFIDENTIAL
+ * PlayStation(R)Edge 1.2.0
+ * Copyright (C) 2009 Sony Computer Entertainment Inc.
+ * All Rights Reserved.
+ */
+ 
+ void main
+	(
+		in float2 in_uv : TEXCOORD0,
+		in float3 position : WPOS,
+		uniform sampler2D sourceImage : TEXUNIT0,
+		uniform sampler2D accumulator : TEXUNIT1,
+		out half4 out_color : COLOR
+	)
+{
+	half4 source = h4tex2D( sourceImage, in_uv );
+	half4 acc = h4tex2D( accumulator, in_uv );
+	
+	//	blend
+	out_color = half4( source.xyz * ( 1.f - acc.w) + acc.xyz, acc.w );
+}

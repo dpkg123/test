@@ -1,0 +1,74 @@
+Assembly StandaloneSymbolParser, Version=1.0.*, Culture=Idioma indiferente (país indiferente): 
+	hash=SHA1, flags=PublicKey
+Assembly mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=SHA1, flags=None
+Assembly System, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=SHA1, flags=None
+Assembly System.Data, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=SHA1, flags=None
+Assembly System.Xml, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=SHA1, flags=None
+Assembly System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089: 
+	hash=SHA1, flags=None
+Assembly Microsoft.VisualC, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a: 
+	hash=SHA1, flags=None
+Class StandaloneSymbolParser.SymbolParser: AutoLayout, AnsiClass, Class, Public, Abstract, BeforeFieldInit
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Interfaces:
+    System.IDisposable
+  Properties:
+    System.String SymbolServer 'get set' : 
+  Methods:
+    get_SymbolServer(): PrivateScope, Public, HideBySig, SpecialName
+    set_SymbolServer(String): PrivateScope, Public, HideBySig, SpecialName
+    LoadSymbols(String, ModuleInfo[]): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    UnloadSymbols(): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    ResolveAddressToSymboInfo(UInt64, String&, String&, Int32&): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask, Abstract
+    FormatCallstackLine(String, String, Int32): PrivateScope, Public, Virtual, HideBySig, VtableLayoutMask
+    Dispose(): PrivateScope, Public, Final, Virtual, HideBySig
+Class StandaloneSymbolParser.AndroidSymbolParser: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :StandaloneSymbolParser.SymbolParser
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Methods:
+    LoadSymbols(String, ModuleInfo[]): PrivateScope, Public, Virtual, HideBySig
+    UnloadSymbols(): PrivateScope, Public, Virtual, HideBySig
+    ResolveAddressToSymboInfo(UInt64, String&, String&, Int32&): PrivateScope, Public, Virtual, HideBySig
+    FormatCallstackLine(String, String, Int32): PrivateScope, Public, Virtual, HideBySig
+Class StandaloneSymbolParser.ModuleInfo: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+    Void .ctor(UInt64, UInt32, UInt32, System.Guid, System.String): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+    Void .ctor(System.IO.BinaryReader): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Fields:
+    UInt64 BaseOfImage : Public
+    UInt32 ImageSize : Public
+    UInt32 TimeDateStamp : Public
+    System.String ModuleName : Public
+    System.String ImageName : Public
+    System.String LoadedImageName : Public
+    UInt32 PdbSig : Public
+    System.Guid PdbSig70 : Public
+    UInt32 PdbAge : Public
+Class StandaloneSymbolParser.ModuleSymbolSession: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+    Void .ctor(IDiaSession*, StandaloneSymbolParser.ModuleInfo): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Interfaces:
+    System.IDisposable
+  Properties:
+    StandaloneSymbolParser.ModuleInfo ModuleInformation 'get ' : 
+  Methods:
+    get_ModuleInformation(): PrivateScope, Public, HideBySig, SpecialName
+    GetSymbolInformation(UInt64, String&, String&, Int32&): PrivateScope, Public, HideBySig
+    Dispose(): PrivateScope, Public, Final, Virtual, HideBySig
+Class StandaloneSymbolParser.PS3SymbolParser: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :StandaloneSymbolParser.SymbolParser
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Methods:
+    LoadSymbols(String, ModuleInfo[]): PrivateScope, Public, Virtual, HideBySig
+    UnloadSymbols(): PrivateScope, Public, Virtual, HideBySig
+    ResolveAddressToSymboInfo(UInt64, String&, String&, Int32&): PrivateScope, Public, Virtual, HideBySig
+    FormatCallstackLine(String, String, Int32): PrivateScope, Public, Virtual, HideBySig
+Class StandaloneSymbolParser.XenonSymbolParser: AutoLayout, AnsiClass, Class, Public, BeforeFieldInit
+  :StandaloneSymbolParser.SymbolParser
+    Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
+  Methods:
+    LoadSymbols(String, ModuleInfo[]): PrivateScope, Public, Virtual, HideBySig
+    UnloadSymbols(): PrivateScope, Public, Virtual, HideBySig
+    ResolveAddressToSymboInfo(UInt64, String&, String&, Int32&): PrivateScope, Public, Virtual, HideBySig

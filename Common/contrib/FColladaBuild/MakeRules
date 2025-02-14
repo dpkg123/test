@@ -1,0 +1,27 @@
+CURR_SRC_DIR = $(SRC_DIR)$(DIR)
+PPU_DIR_SRCS = $(addprefix $(CURR_SRC_DIR), $(PPU_SRCS))
+CPP_OBJS = $(PPU_DIR_SRCS:.cpp=.o)
+OBJS = $(CPP_OBJS:.c=.o)
+
+CPP       = g++
+CC        = gcc
+LINK	  = ar
+CCFLAGS   = -c -O3 $(INCDIR) $(INCFILES)
+#$(MYINCFILES)
+LINKFLAGS = r
+
+all: $(PPU_LIB_TARGET)
+
+$(PPU_LIB_TARGET): $(OBJS)
+	$(LINK) $(LINKFLAGS) $@ $(OBJS)
+
+%.o:%.cpp
+	$(CPP) $(CCFLAGS) $< -o $@
+
+%.o:%.c
+	$(CC) $(CCFLAGS) $< -o $@
+
+clean: 
+	rm -f $(OBJS) $(PPU_LIB_TARGET)
+
+install:
