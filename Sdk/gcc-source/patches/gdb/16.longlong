@@ -1,0 +1,59 @@
+PRINTF_HAS_LONG_LONG can be true when CC_HAS_LONG_LONG isn't, 
+because the symbol for 64-bit integer isn't "long long" 
+(__int64 on MSVC).  (CC_HAS_LONG_LONG seems to have more to
+do with the spelling of the symbol than the presence of the 
+abstract type.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* expprint.c(dump_expression): Use PRINTF_HAS_LONG_LONG appropriately.
+	* printcmd.c(print_command): Likewise.
+	* valprint.c(print_longest): Likewise.
+
+Index: src/gdb/printcmd.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/printcmd.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 printcmd.c
+--- src/gdb/printcmd.c	2001/12/23 00:34:52	1.1.1.1
++++ src/gdb/printcmd.c	2001/12/24 00:58:14
+@@ -2274,9 +2274,9 @@ printf_command (char *arg, int from_tty)
+ 	      break;
+ 	    }
+ 	  case long_long_arg:
+-#if defined (CC_HAS_LONG_LONG) && defined (PRINTF_HAS_LONG_LONG)
++#if defined (PRINTF_HAS_LONG_LONG)
+ 	    {
+-	      long long val = value_as_long (val_args[i]);
++	      LONGEST val = value_as_long (val_args[i]);
+ 	      printf_filtered (current_substring, val);
+ 	      break;
+ 	    }
+Index: src/gdb/valprint.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/valprint.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 valprint.c
+--- src/gdb/valprint.c	2001/12/23 00:34:57	1.1.1.1
++++ src/gdb/valprint.c	2001/12/24 00:58:14
+@@ -325,7 +325,9 @@ print_longest (struct ui_file *stream, i
+     }
+ #endif
+ 
+-#if defined (CC_HAS_LONG_LONG) && defined (PRINTF_HAS_LONG_LONG)
++#if defined (PRINTF_HAS_LONG_LONG) 
++  /* which implies cc has SOME form of 64-bit integer, but not necessary
++     spelled "long long". */
+   switch (format)
+     {
+     case 'd':
+@@ -364,7 +366,9 @@ print_longest (struct ui_file *stream, i
+     default:
+       internal_error (__FILE__, __LINE__, "failed internal consistency check");
+     }
+-#else /* !CC_HAS_LONG_LONG || !PRINTF_HAS_LONG_LONG */
++#endif
++
++#if !defined (CC_HAS_LONG_LONG) && !defined (PRINTF_HAS_LONG_LONG)
+   /* In the following it is important to coerce (val_long) to a long. It does
+      nothing if !LONG_LONG, but it will chop off the top half (which we know
+      we can ignore) if the host supports long longs.  */

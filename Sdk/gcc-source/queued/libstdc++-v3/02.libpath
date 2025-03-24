@@ -1,0 +1,17 @@
+If the user knows where LD_LIBRARY_PATH should point, we should at least
+honor that as well.
+
+--- /C/CVS/egcs.baseline/gcc/libstdc++-v3/testsuite/lib/libstdc++-v3-dg.exp	Wed Feb  6 20:55:24 2002
++++ testsuite/lib/libstdc++-v3-dg.exp	Fri Feb 15 14:04:46 2002
+@@ -81,6 +81,11 @@ proc libstdc++-v3-init { args } {
+ 	}
+       }
+     }
++    # Be sure to include any the caller gave us.
++    if { [ getenv LD_LIBRARY_PATH ] != "" } {
++	append ld_library_path ":"
++	append ld_library_path [ getenv LD_LIBRARY_PATH ];
++    }
+     append ld_library_path ":${blddir}/src/.libs"
+ 
+     # On IRIX 6, we have to set variables akin to LD_LIBRARY_PATH, but

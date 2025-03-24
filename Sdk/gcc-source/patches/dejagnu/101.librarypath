@@ -1,0 +1,62 @@
+This is a fix for the LD_LIBRARY_PATH stomping problem from
+Anthony green of Cygnus, green@cygnus.com
+
+Anthony Green                                               Cygnus Solutions
+                                                       Sunnyvale, California
+
+diff -drup dejagnu-19981026/dejagnu/config/unix.exp dejagnu/dejagnu/config/unix.exp
+*** dejagnu-19981026dejagnu/config/unix.exp    1998/10/02 06:17:30     1.11
+--- dejagnu/dejagnu/config/unix.exp    1999/06/08 12:12:14
+@@ -35,6 +35,7 @@ load_lib remote.exp
+ 
+ proc unix_load { dest prog args } {
+     global ld_library_path
++    global env
+     set output "";
+ 
+     if { [llength $args] > 0 } {
+@@ -55,6 +56,7 @@ proc unix_load { dest prog args } {
+ 	verbose -log "$prog does not exist." 3
+ 	return "untested"
+     }
++
+     verbose "loading to $dest" 2
+     if ![is_remote $dest] {
+ 	if { "$inp" != "" } {
+@@ -63,6 +65,13 @@ proc unix_load { dest prog args } {
+ 	    set command "$prog $parg";
+ 	}
+ 
++	if [info exists env(LD_LIBRARY_PATH)] {
++	    set saved_LD_LIBRARY_PATH [getenv LD_LIBRARY_PATH]
++	}
++	if [info exists env(SHLIB_PATH)] {
++	    set saved_SHLIB_PATH [getenv SHLIB_PATH]
++	}
++
+         if [info exists ld_library_path] {
+             setenv LD_LIBRARY_PATH $ld_library_path                 
+             setenv SHLIB_PATH $ld_library_path
+@@ -77,13 +86,21 @@ proc unix_load { dest prog args } {
+ 	    set output [lindex $status 1];
+ 	    set status [lindex $status 0];
+ 	}
+-	# Unset them so we don't potentially get hosed when we try to run a
++
++
++	# Restore them so we don't potentially get hosed when we try to run a
+ 	# non-testcase executable. (Setting LD_LIBRARY_PATH is the wrong
+ 	# fix in the first place; this just tries to minimize the resulting
+ 	# crap.)
+ 	if [info exists ld_library_path] {
+ 	    unsetenv LD_LIBRARY_PATH
++	    if [info exists saved_LD_LIBRARY_PATH] {
++		setenv LD_LIBRARY_PATH $saved_LD_LIBRARY_PATH
++	    }
+ 	    unsetenv SHLIB_PATH
++	    if [info exists saved_SHLIB_PATH] {
++		setenv SHLIB_PATH $saved_SHLIB_PATH
++	    }
+ 	}
+     } else { 
+ 	set remotefile "/tmp/[file tail $prog].[pid]"

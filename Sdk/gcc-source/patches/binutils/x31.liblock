@@ -1,0 +1,135 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/binutils/Makefile.in //D/home/donn.intel/gnu.intel/binutils/Makefile.in
+--- //Q/Gnusrc/cygwin.18/binutils/Makefile.in	Mon Mar 15 18:10:37 1999
++++ //D/home/donn.intel/gnu.intel/binutils/Makefile.in	Sun May 23 00:22:30 1999
+@@ -105,12 +111,13 @@ ADDR2LINE_PROG=addr2line
+ 
+ NLMCONV_PROG=nlmconv
+ DLLTOOL_PROG=dlltool
++LIBLOCK_PROG=liblock
+ 
+ SRCONV_PROG=srconv sysdump coffdump 
+ 
+ MANPAGES= ar nm objdump ranlib size strings strip objcopy addr2line nlmconv
+ 
+-PROGS = $(SIZE_PROG) $(OBJDUMP_PROG) $(NM_PROG) $(AR_PROG) $(STRINGS_PROG) $(STRIP_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) $(ADDR2LINE_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@
++PROGS = $(SIZE_PROG) $(OBJDUMP_PROG) $(NM_PROG) $(AR_PROG) $(STRINGS_PROG) $(STRIP_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) $(ADDR2LINE_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_LIBLOCK@
+ STAGESTUFF = $(PROGS) *.o
+ # Files that can be generated, but should be in the distribution.
+ # Don't build $(DEMANGLER_PROG).1, since its name may vary with the
+@@ -119,7 +126,7 @@ DISTSTUFF=arparse.c arparse.h arlex.c nl
+ 	syslex.c deflex.c
+ 
+ # Stuff that goes in tooldir/ if appropriate
+-TOOL_PROGS = nm.new strip.new ar ranlib $(DLLTOOL_PROG)
++TOOL_PROGS = nm.new strip.new ar ranlib $(DLLTOOL_PROG) $(LIBLOCK_PROG)
+ 
+ BASEDIR = $(srcdir)/..
+ BFDDIR = $(BASEDIR)/bfd
+@@ -137,7 +144,7 @@ CFILES = addr2line.c ar.c arsup.c bucomm
+ 	dlltool.c filemode.c ieee.c is-ranlib.c is-strip.c maybe-ranlib.c \
+ 	maybe-strip.c nlmconv.c nm.c not-ranlib.c not-strip.c \
+ 	objcopy.c objdump.c prdbg.c rdcoff.c rddbg.c size.c srconv.c \
+-	stabs.c strings.c sysdump.c version.c wrstabs.c
++	stabs.c strings.c sysdump.c version.c wrstabs.c liblock.c
+ 
+ GENERATED_CFILES = \
+ 	underscore.c arparse.c arlex.c sysroff.c sysinfo.c syslex.c \
+@@ -372,6 +379,9 @@ srconv: srconv.o coffgrok.o $(ADDL_DEPS)
+ dlltool: dlltool.o defparse.o deflex.o cplus-dem.o $(ADDL_DEPS)
+ 	$(HLDENV) $(CC) $(HLDFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ dlltool.o defparse.o deflex.o $(ADDL_LIBS) $(EXTRALIBS)
+ 
++liblock: liblock.o
++	$(HLDENV) $(CC) $(HLDFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ liblock.o 
++
+ defparse.c:defparse.y
+ 	$(BISON)  $(BISONFLAGS)  $(srcdir)/defparse.y
+ 	mv -f y.tab.c defparse.c
+@@ -385,6 +395,9 @@ deflex.c:deflex.l
+ 
+ dlltool.o:dlltool.c
+ 	$(CC) -c @DLLTOOL_DEFS@ $(ALL_CFLAGS) $(srcdir)/dlltool.c
++
++liblock.o:liblock.c
++	$(CC) -c $(ALL_CFLAGS) $(srcdir)/liblock.c
+ 
+ coffdump: coffdump.o coffgrok.o $(ADDL_DEPS)
+ 	$(HLDENV) $(CC) $(HLDFLAGS) $(CFLAGS) $(LDFLAGS) -o $@  coffdump.o coffgrok.o $(ADDL_LIBS) $(EXTRALIBS)
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/binutils/liblock.c //D/home/donn.intel/gnu.intel/binutils/liblock.c
+--- //Q/Gnusrc/cygwin.18/binutils/liblock.c	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/gnu.intel/binutils/liblock.c	Sun May 23 00:22:30 1999
+@@ -0,0 +1,75 @@
++#include <stdio.h>
++#include <unistd.h>
++#include <fcntl.h>
++main(int argc, char **argv)
++{
++	int offset = 0xde;
++	char buf[4];
++	long res;
++	long fd;
++
++	if (argc != 2) {
++	   fprintf(stderr, "Usage: locklib <lib.so>\n");
++	   exit(1);
++	}
++
++	fd = open(argv[1], O_RDWR);
++
++	if (fd < 0) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	lseek (fd, 0, SEEK_SET);
++	res = read(fd, buf, 2);
++
++	if (res != 2) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	if (buf[0] != 'M' || buf[1] != 'Z') {
++	   fprintf(stderr, "File is not PE\n");
++	   exit(1);
++	}
++
++	lseek (fd, 0x80, SEEK_SET);
++
++	res = read(fd, buf, 2);
++
++	if (res != 2) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	if (buf[0] != 'P' || buf[1] != 'E') {
++	   fprintf(stderr, "File is not PEI\n");
++	   exit(1);
++	}
++
++	lseek (fd, offset, SEEK_SET);
++
++	res = read(fd, buf, 1);
++
++	if (res != 1) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	if (buf[0] != 1) {
++	   fprintf(stderr, "File is not unlocked shared lib\n");
++	   exit(1);
++	}
++
++	lseek (fd, offset, SEEK_SET);
++
++	buf[0] = 3;
++	res = write(fd, buf, 1);
++
++	if (res != 1) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	exit(0);
++}

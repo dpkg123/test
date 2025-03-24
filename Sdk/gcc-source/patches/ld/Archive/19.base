@@ -1,0 +1,67 @@
+This is un-broken-up stuff.  Currently being applied.
+
+The following group of patches, when applied along with the associated
+testsuite patches, and corresponding bfd patch group, cleans up the PE/i386 
+interface so it passes all expected regressions(*), and is more compatible 
+with MSVC-generated .obj files.
+
+(*) - no attempt was made to make S-records work
+    - my compiler doesn't yet have -fdata-sections, so that's as yet 
+      untested by me.
+    - see the 04.constructor patch for discussion of cdtest.
+
+Notes:
+
+(There are a few alpha-specific minor changes that are just easier to deal
+with now; there will be a set of alpha patches to follow this up.)
+
+
+bfd defines a new symbol class "section".  This needs to be honored;
+in most cases it's the same as defined, but not in bfd.
+
+MSVC does string pooling by hashing in a way that can cause conflicting
+sections upon occasion (when the same string ends up in both .data
+and .rdata); handle that.  Detailed comments in the code.
+
+Reorder .bss and .reloc for better layout of the executable (matches
+MSVC more).
+
+The testsuite tries to pick itens out of the output of configure.host.
+These are in "make" syntax (w.r.t quoting of $'s anyway).  If the
+resulting value contains a substitution or environment variable, it
+should be handled as intended.  Because the output is in make syntax,
+$$ becomes the PID of the current process rather than a single $.
+Use sed to clean this up.
+
+Handle the possibility of date-stamped executables for the binary
+compare of executables in the ld bootstrap tests.
+
+When testing nm, extract the value of ImageBase (if present) and use
+it to correct the printed values to the expected ones.
+
+ChangeLog
+
+	* Makefile.am (LEX, YACC): Use what configure found as the last resort.
+	* Makefile.am (RUNTESTFLAGS): Remove null value.
+	* Makefile.am (interix): Add
+
+	* configure.host (interix): Add
+
+	* configure.tgt (interix): Add
+
+	* emulparams/i386pe.sh (ENTRY): Make settable.
+	* scripttempl/pe.sc:  Use
+
+	* emulparams/i386pe.sh (SUBSYSTEM): Make settable.
+
+	* emulparams/i386pe.sh (INITIAL_SYMBOL_CHAR): Define
+
+	* emulparams/i386pei.sh: New file.
+
+	* emultempl/stringify.set: make smaller chunks.
+
+
+	* lexsup.c (parse_args): Respond to -? usefully.
+
+
+

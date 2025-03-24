@@ -1,0 +1,94 @@
+The attached testcase ends up causing the emission of an aux entry
+for an undefined function, causing various asserts to trip, specifically
+
+    /* The m68k-motorola-sysv assembler will sometimes
+    generate two symbols with the same name, but only one
+    will have aux entries.  */
+     BFD_ASSERT (isymp->n_numaux == 0
+		 || h->numaux == isymp->n_numaux);
+and
+
+    {
+      BFD_ASSERT(isym.n_sclass == C_NT_WEAK)
+      /* C_NT_WEAK needs to propigate the change in the AUX
+	 entry.   We already have h_real from above. */
+      auxp->x_sym.x_tagndx.l = h_real->indx;
+    }
+
+--- config/obj-coff.c.saved	Mon Apr  8 17:14:54 2002
++++ config/obj-coff.c	Mon Apr  8 17:00:12 2002
+@@ -1233,7 +1233,8 @@ coff_frob_symbol (symp, punt)
+ 	  /* Add symbols to the function chain, bug function symbols which 
+ 	     are external (undefined) don't get added to the function chain. */
+ 
+-	  if (coff_last_function == 0 && SF_GET_FUNCTION (symp))
++	  if (coff_last_function == 0 && SF_GET_FUNCTION (symp) 
++	      && S_IS_DEFINED (symp))
+ 	    {
+ 	      union internal_auxent *auxp;
+ 
+@@ -1245,7 +1246,8 @@ coff_frob_symbol (symp, punt)
+ 		      sizeof (auxp->x_sym.x_fcnary.x_ary.x_dimen));
+ 	    }
+ 
+-	  if (S_GET_STORAGE_CLASS (symp) == C_EFCN)
++	  if (S_GET_STORAGE_CLASS (symp) == C_EFCN
++	      && S_IS_DEFINED (symp))
+ 	    {
+ 	      if (coff_last_function == 0)
+ 		as_fatal (_("C_EFCN symbol out of scope"));
+
+
+Testcase: this is assembler output from a compilation of groff/assert.c
+(unmodified except for a filename name change).  Note the duplication
+of the .def for __Z16assertion_failediPKc.  This causes the "first
+function" logic above to see _abort as the first function.  (coff_obj_endef
+moves the definition of __Z16assertion_failediPKc down to the second
+instance, thus causing the first object of type function to be abort,
+but abort is an external, and doesn't count.)
+
+Whether gcc should generate the .def twice is an open issue, but in
+any case gas shouldn't make a bad assembler file.
+
+        .file   "assert.2.i"
+.global __fltused
+        .section        .rdata,"r"
+LC0:
+        .ascii "%s: \0"
+        .balign 32
+LC1:
+        .ascii "Failed assertion at line %d, file `%s'.\12\0"
+        .text
+        .balign 2
+.globl __Z16assertion_failediPKc
+        .def    __Z16assertion_failediPKc;      .scl    2;      .type   32;
+.endef
+__Z16assertion_failediPKc:
+        pushl   %ebp
+        movl    %esp, %ebp
+        subl    $8, %esp
+        cmpl    $0, _program_name
+        je      L2
+        subl    $4, %esp
+        pushl   _program_name
+        pushl   $LC0
+        pushl   $___sF+168
+        call    _fprintf
+        addl    $16, %esp
+L2:
+        pushl   12(%ebp)
+        pushl   8(%ebp)
+        pushl   $LC1
+        pushl   $___sF+168
+        call    _fprintf
+        addl    $16, %esp
+        subl    $12, %esp
+        pushl   $___sF+168
+        call    _fflush
+        addl    $16, %esp
+        call    _abort
+        .def    _abort; .scl    2;      .type   32;     .endef
+        .def    _fflush;        .scl    3;      .type   32;     .endef
+        .def    _fprintf;       .scl    2;      .type   32;     .endef
+        .def    __Z16assertion_failediPKc;      .scl    3;      .type   32;
+.endef

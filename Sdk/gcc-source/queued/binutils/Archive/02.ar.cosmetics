@@ -1,0 +1,17 @@
+Claimed not needed.
+
+	* ar.c (string.h): Include.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/ar.c binutils/ar.c
+--- binutils.nil/ar.c	Wed Jul  7 16:58:49 1999
++++ binutils/ar.c	Wed Jul  7 16:59:21 1999
+@@ -33,6 +33,9 @@ Foundation, Inc., 59 Temple Place - Suit
+ #include "libbfd.h"
+ #include "arsup.h"
+ #include <sys/stat.h>
++#ifdef HAVE_STRING_H
++#include <string.h>
++#endif
+ 
+ #ifdef __GO32___
+ #define EXT_NAME_LEN 3		/* bufflen of addition to name if it's MS-DOS */

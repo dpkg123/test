@@ -1,0 +1,214 @@
+Test additional conditions for signal vs. backtrace command.  All
+architectures should pass, but it may find a bug in some implementations.
+(Nested handlers, e.g.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* gdb.base/signals.c: add more possible test cases.
+	* gdb.base/signals.exp: Use them.
+
+Index: src/gdb/testsuite/gdb.base/signals.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/signals.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 signals.c
+--- src/gdb/testsuite/gdb.base/signals.c	2001/12/23 00:35:18	1.1.1.1
++++ src/gdb/testsuite/gdb.base/signals.c	2001/12/24 02:38:40
+@@ -9,6 +9,7 @@
+ #endif
+ 
+ static int count = 0;
++static int i, quit;
+ 
+ #ifdef PROTOTYPES
+ static void
+@@ -24,6 +25,14 @@ handler (sig)
+ }
+ 
+ static void
++handler2 (sig)
++     int sig;
++{
++  signal (sig, handler2);
++  quit = 1;
++}
++
++static void
+ func1 ()
+ {
+   ++count;
+@@ -55,5 +64,35 @@ main ()
+   func1 ();
+   alarm (1);
+   func2 ();
++  alarm (0);   /* Just to be sure */
++
++  /* Now test strange unwind cases: make sure we can unwind over all
++     these conditions */
++
++  quit = 0;  /* This way, so if alarm(2) ever takes 0 time */
++#ifdef SIGALRM
++  signal (SIGALRM, handler2);
++#endif
++  /* while computing */
++  alarm (2);
++  for (i=1;i>0 && quit==0;i++);
++
++  alarm(0);  /* Just to be sure */
++
++  /* while paused */
++  alarm (2);
++  pause();
++
++  alarm(0);  /* Just to be sure */
++
++  quit=0;  /* This way, so if signal occurs too early... */
++  /* SIGINT while computing, paused; gdb will "see" the signal */
++#ifdef SIGINT
++  signal (SIGINT, handler2);
++#endif
++
++  for (i=1;i>0 && quit==0;i++);
++  pause();
++
+   return count;
+ }
+Index: src/gdb/testsuite/gdb.base/signals.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/signals.exp,v
+retrieving revision 1.2
+diff -p -u -r1.2 signals.exp
+--- src/gdb/testsuite/gdb.base/signals.exp	2001/12/24 01:44:44	1.2
++++ src/gdb/testsuite/gdb.base/signals.exp	2001/12/24 02:38:40
+@@ -158,6 +158,9 @@ proc signal_tests_1 {} {
+ 	}
+ 
+ 	gdb_test "break handler" "Breakpoint \[0-9\]+ .*"
++	# We don't need handler2 until later, but it's convienient to do
++	# it now.
++	gdb_test "break handler2" "Breakpoint \[0-9\]+ .*"
+ 	gdb_test "next" "\\+\\+count; /\\* second \\*/" \
+ 	    "next to 2nd ++count in signals_tests_1"
+ 	# An alarm has been signaled, give the signal time to get delivered.
+@@ -297,6 +300,106 @@ proc signal_tests_1 {} {
+ 	if {$bash_bug} then {
+ 	     clear_xfail "m68*-*-sunos4*"
+ 	}
++
++	# Now test some more exotic backtrace cases that might even have
++	# a chance of failing on only some machines.
++
++	# This test could fail on a blindingly fast machine, or one
++	# with default optimizations that remove null loops.  Adjust
++	# signals.c accordingly to make the loop actually loop long enough.
++
++	# We handle getting re-synced here, too.
++	send_gdb "continue\n"
++	gdb_expect {
++	    -re "Breakpoint.*func2.*$gdb_prompt $" {
++	    	fail "first continue to handler2"
++		gdb_test "continue" "Breakpoint.*handler2.*" \
++		    "extra first continue to handler2"
++	    }
++	    -re "Breakpoint.*handler2.*$gdb_prompt $" { pass "continue to first handler2" }
++	    default { fail "continue to first handler2" }
++	}
++
++	# This doesn't test that main is frame #2, just that main is frame
++	# #2, #3, or higher.  At some point this should be fixed (but
++	# it quite possibly would introduce new FAILs on some systems).
++	setup_xfail "i*86-pc-linux-gnu" "i*86-*-bsdi2.0"
++	gdb_test "backtrace" "#0.*handler2.*#1.*#2.*main.*" \
++	    "backtrace from computing in signals_tests_1"
++
++	gdb_test "continue" "Breakpoint.*handler2.*"  \
++	    "continue to handler2 while pause()d"
++
++	# This doesn't test that main is frame #2, just that main is frame
++	# #2, #3, or higher.  At some point this should be fixed (but
++	# it quite possibly would introduce new FAILs on some systems).
++	setup_xfail "i*86-pc-linux-gnu" "i*86-*-bsdi2.0"
++	gdb_test "backtrace" "#0.*handler2.*#1.*#2.*main.*" \
++	    "ALARM: backtrace from pause() in signals_tests_1"
++
++	# Now test keyboard interrupts
++	# enter a compute bound loop
++	send_gdb "continue\n"
++	sleep 2
++
++	# interrupt it.
++	send_gdb "\003"
++	gdb_expect {
++	    -re ".*Program received signal SIGINT, Interrupt.*$gdb_prompt $" {
++	       pass "Interrupt while computing"
++	    }
++	    default { fail "Interrupt while computing" }
++	}
++
++	# This test could fail on a blindingly fast machine, or one
++	# with default optimizations that remove null loops.  Adjust
++	# signals.c accordingly to make the loop actually loop long enough.
++
++	# This doesn't test that main is frame #0, just that main is 
++	# on the stack at all.
++	setup_xfail "i*86-pc-linux-gnu" "i*86-*-bsdi2.0"
++	gdb_test "backtrace" ".*#0.*main.*" \
++	    "backtrace #1 from SIGINT while computing in signals_tests_1"
++
++	gdb_test "signal SIGINT" "Breakpoint.*handler2.*"  \
++	    "signal SIGINT into handler2 after SIGINT of computing."
++
++	# This doesn't test that main is frame #2, just that main is frame
++	# #2, #3, or higher.  At some point this should be fixed (but
++	# it quite possibly would introduce new FAILs on some systems).
++	setup_xfail "i*86-pc-linux-gnu" "i*86-*-bsdi2.0"
++	gdb_test "backtrace" "#0.*handler2.*#1.*#2.*main.*" \
++	    "INT: backtrace from compute in signals_tests_1"
++
++	# enter a pause() call
++	send_gdb "continue\n"
++	sleep 2
++
++	# interrupt it.
++	send_gdb "\003"
++	gdb_expect {
++	    -re ".*Program received signal SIGINT, Interrupt.*$gdb_prompt $" {
++	       pass "Interrupt while pause()d"
++	    }
++	    default { fail "Interrupt while pause()d" }
++	}
++
++	# This doesn't test that main is frame #0, just that main is 
++	# on the stack at all.
++	setup_xfail "i*86-pc-linux-gnu" "i*86-*-bsdi2.0"
++	gdb_test "backtrace" ".*#0.*main.*" \
++	    "backtrace #2 from SIGINT while computing in signals_tests_1"
++
++	gdb_test "signal SIGINT" "Breakpoint.*handler2.*"  \
++	    "signal SIGINT into handler2 after SIGINT of pause()."
++
++	# This doesn't test that main is frame #2, just that main is frame
++	# #2, #3, or higher.  At some point this should be fixed (but
++	# it quite possibly would introduce new FAILs on some systems).
++	setup_xfail "i*86-pc-linux-gnu" "i*86-*-bsdi2.0"
++	gdb_test "backtrace" "#0.*handler2.*#1.*#2.*main.*" \
++	    "backtrace from pause() in signals_tests_1"
++
+ 	gdb_test "continue" "Program exited with code 010\\." \
+ 	    "continue to exit in signals_tests_1 "
+     }
+@@ -437,6 +540,15 @@ The program being debugged stopped while
+     # But we should be able to backtrace...
+     # On alpha-*-osf2.0 this test works when run manually but sometime fails when
+     # run under dejagnu, making it very hard to debug the problem.  Weird...
++    #
++    # Part of the problem is that we can end up having not completed the
++    # prolog of func1, thus causing unwind to quit/fail.  This will occur
++    # when the signal is delivered during the execution of the first
++    # instruction of func1.
++    #
++    # The above failure mode is pretty much guaranteed on alpha-pc-interix,
++    # and seems an unavoidable corner case.
++    #
+     gdb_test "bt 10" "#0.*handler.*#1.*#2.*main.*" "bt in signals.exp"
+     # ...and continue...
+     gdb_test "continue" "Continuing\\." "continue in signals.exp"

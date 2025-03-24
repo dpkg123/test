@@ -1,0 +1,164 @@
+Patches for the Alpha.  See the bfd alpha patches. 
+Have not been applied recently.
+
+diff -urpPd --exclude-from=exclude.files //D/donn.intel/gnu.intel/binutils/configure.in //D/donn.intel/gnu.intel/binutils.with.alpha/configure.in
+--- //D/donn.intel/gnu.intel/binutils/configure.in	Fri Apr  2 16:57:20 1999
++++ //D/donn.intel/gnu.intel/binutils.with.alpha/configure.in	Fri Apr  2 17:39:23 1999
+@@ -179,6 +179,10 @@ changequote([,])dnl
+    	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
+  	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
+ 	 ;;
++ 	alpha32-*-interix)
++   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
++ 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ALPHA32"
++         ;;
+ changequote(,)dnl
+ 	i[3-6]86-*pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+ changequote([,])dnl
+diff -urpPd --exclude-from=exclude.files //D/donn.intel/gnu.intel/binutils/objcopy.c //D/donn.intel/gnu.intel/binutils.with.alpha/objcopy.c
+--- //D/donn.intel/gnu.intel/binutils/objcopy.c	Fri Apr  2 16:57:20 1999
++++ //D/donn.intel/gnu.intel/binutils.with.alpha/objcopy.c	Fri Apr  2 17:39:23 1999
+@@ -1455,7 +1455,9 @@ mark_symbols_used_in_relocations (ibfd, 
+      special bfd section symbols, then mark it with BSF_KEEP.  */
+   for (i = 0; i < relcount; i++)
+     {
+-      if (*relpp[i]->sym_ptr_ptr != bfd_com_section_ptr->symbol
++      /* Not all relocations have symbols (e.g. Alpha PAIR) */
++      if (relpp[i]->sym_ptr_ptr != NULL 
++          && *relpp[i]->sym_ptr_ptr != bfd_com_section_ptr->symbol
+ 	  && *relpp[i]->sym_ptr_ptr != bfd_abs_section_ptr->symbol
+ 	  && *relpp[i]->sym_ptr_ptr != bfd_und_section_ptr->symbol)
+ 	(*relpp[i]->sym_ptr_ptr)->flags |= BSF_KEEP;
+diff -urpPd --exclude-from=exclude.files //D/donn.intel/gnu.intel/binutils/objdump.c //D/donn.intel/gnu.intel/binutils.with.alpha/objdump.c
+--- //D/donn.intel/gnu.intel/binutils/objdump.c	Fri Apr  2 16:57:20 1999
++++ //D/donn.intel/gnu.intel/binutils.with.alpha/objdump.c	Fri Apr  2 17:39:23 1999
+@@ -1454,9 +1454,18 @@ disassemble_bytes (info, disassemble_fn,
+ 
+ 	      objdump_print_value (section->vma + q->address, info, true);
+ 
++	      if (q->howto == NULL) {
++		  printf(": Unrecognised relocation\n");
++		  continue;
++	      }
++
+ 	      printf (": %s\t", q->howto->name);
+ 
+-	      if (q->sym_ptr_ptr == NULL || *q->sym_ptr_ptr == NULL)
++	      if (q->howto->symndx_is_value)
++		{
++		    printf("0x%x", q->addend);
++		}
++	      else if (q->sym_ptr_ptr == NULL || *q->sym_ptr_ptr == NULL)
+ 		printf ("*unknown*");
+ 	      else
+ 		{
+@@ -1477,12 +1486,23 @@ disassemble_bytes (info, disassemble_fn,
+ 		    }
+ 		}
+ 
+-	      if (q->addend)
++
++	      /* for purposes of dumping, coff doesn't have an addend */
++	      if (aux->abfd->xvec->flavour != bfd_target_coff_flavour 
++		  && q->addend != 0)
+ 		{
+ 		  printf ("+0x");
+ 		  objdump_print_value (q->addend, info, true);
+ 		}
+ 
++	      if (q->howto->has_offset)
++		{
++		    if ((long)q->addend < 0)
++		        printf(" -@0x%x", -(long)q->addend);
++		    else
++		        printf(" +@0x%x", q->addend);
++		}
++
+ 	      printf ("\n");
+ 	      need_nl = false;
+ 	      ++(*relppp);
+@@ -2472,36 +2492,57 @@ dump_reloc_set (abfd, sec, relpp, relcou
+ 	    }
+ 	}
+ 
+-      if (q->sym_ptr_ptr && *q->sym_ptr_ptr)
+-	{
+-	  sym_name = (*(q->sym_ptr_ptr))->name;
+-	  section_name = (*(q->sym_ptr_ptr))->section->name;
+-	}
+-      else
+-	{
+-	  sym_name = NULL;
+-	  section_name = NULL;
+-	}
+-      if (sym_name)
+-	{
+-	  printf_vma (q->address);
+-	  printf (" %-16s  ", q->howto->name);
+-	  objdump_print_symname (abfd, (struct disassemble_info *) NULL,
+-				 *q->sym_ptr_ptr);
+-	}
+-      else
++      printf_vma (q->address);
++
++      if (q->howto == NULL) {
++	  printf("Unrecognised relocation\n");
++	  continue;
++      }
++
++      printf (" %-16s  ", q->howto->name);
++
++      if (q->howto->symndx_is_value)
+ 	{
+-	  if (section_name == (CONST char *) NULL)
+-	    section_name = "*unknown*";
+-	  printf_vma (q->address);
+-	  printf (" %-16s  [%s]",
+-		  q->howto->name,
+-		  section_name);
++	  printf("0x%x", q->addend);
+ 	}
+-      if (q->addend)
++      else 
+ 	{
+-	  printf ("+0x");
+-	  printf_vma (q->addend);
++	  if (q->sym_ptr_ptr == NULL || *q->sym_ptr_ptr == NULL)
++	    {
++	      printf ("*unknown*");
++	    }
++	  else 
++	    {
++	      sym_name = (*(q->sym_ptr_ptr))->name;
++	      section_name = (*(q->sym_ptr_ptr))->section->name;
++
++	      if (sym_name)
++		{
++		  objdump_print_symname (abfd, (struct disassemble_info *) NULL,
++					 *q->sym_ptr_ptr);
++		}
++	      else
++		{
++		  if (section_name == (CONST char *) NULL)
++		    section_name = "*unknown*";
++		  printf ("[%s]", section_name);
++		}
++	    }
++	/* for purposes of dumping, coff doesn't have an addend */
++	if (abfd->xvec->flavour != bfd_target_coff_flavour 
++	    && q->addend != 0)
++	    {
++	      printf ("+0x");
++	      printf_vma (q->addend);
++	    }
++
++	if (q->howto->has_offset)
++	  {
++	    if ((long)q->addend < 0)
++		printf(" -@0x%x", -(long)q->addend);
++	    else
++		printf(" +@0x%x", q->addend);
++	  }
+ 	}
+       printf ("\n");
+     }

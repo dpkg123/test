@@ -1,0 +1,239 @@
+The recent (Feb '02) application of the original patch to handle
+MS bitfield layout did not handle alignment of whole structures to
+match the MSVC rules (when bitfields are involved).  (The original
+submittal of several years ago did handle that correctly.) This
+modifies the recent applicaiton slightly to make it conform to
+reality.  (The statements about this in the documentation are in
+fact correct and do not need to be modified.)
+
+The patch from Danny Smith that adds command line options for
+Cygwin and Mingw contains a testcase that covers the older parts
+of this.  I have included a patch to that testcase that covers a bit
+more; since that hasn't been checked into the tree yet, I left it
+as a "location unknown" patch.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/stor-layout.c gcc/stor-layout.c
+--- gcc.bak/stor-layout.c	Thu Apr  4 09:33:13 2002
++++ gcc/stor-layout.c	Wed Apr  3 21:14:47 2002
+@@ -794,14 +796,20 @@ place_field (rli, field)
+   if ((* targetm.ms_bitfield_layout_p) (rli->t)
+       && type != error_mark_node
+       && DECL_BIT_FIELD_TYPE (field)
+-      && ! integer_zerop (TYPE_SIZE (type))
+-      && integer_zerop (DECL_SIZE (field)))
++      && ! integer_zerop (TYPE_SIZE (type)))
+     {
+-      if (rli->prev_field
+-	  && DECL_BIT_FIELD_TYPE (rli->prev_field)
+-	  && ! integer_zerop (DECL_SIZE (rli->prev_field)))
++      /* Here, the alignment of the underlying type of a bitfield can
++	 affect the alignment of a record; even a zero-sized field
++	 can do this.  The alignment should be to the alignment of
++	 the type, except that for zero-size bitfields this only
++	 applies if there was an immediately prior, non-zero-size
++	 bitfield.  (That's the way it is, experimentally.) */
++      if (! integer_zerop (DECL_SIZE (field))
++	  || (rli->prev_field
++	      && DECL_BIT_FIELD_TYPE (rli->prev_field)
++	      && ! integer_zerop (DECL_SIZE (rli->prev_field))))
+ 	{
+-	  rli->record_align = MAX (rli->record_align, desired_align);
++	  rli->record_align = MAX (rli->record_align, TYPE_ALIGN(type));
+ 	  rli->unpacked_align = MAX (rli->unpacked_align, TYPE_ALIGN (type));
+ 	}
+       else
+==================NOT SURE OF LOCATION-----------------------------------
+Rightshift 4 to avoid recognition as patch by patch program
+#    --- bf-ms-layout.c.orig	Thu Apr  4 11:28:45 2002
+#    +++ bf-ms-layout.c	Thu Apr  4 14:18:49 2002
+#    @@ -67,36 +67,74 @@ struct seven {
+#       char c;
+#     };
+#     
+#    -struct eight { /* ms size 4? */
+#    +struct eight { /* ms size 4 */
+#       short b:3;  
+#       char  c;
+#     };
+#     
+#    +#ifdef _MSC_VER
+#    +#define LONGLONG __int64
+#    +#else
+#    +#define LONGLONG long long
+#    +#endif
+#    +
+#    +union nine {   /* ms size 8 */
+#    +   LONGLONG a:3;
+#    +   char  c;
+#    +};
+#    +
+#    +struct ten {   /* ms size 16 */
+#    +   LONGLONG a:3;
+#    +   LONGLONG b:3;
+#    +   char  c;
+#    +};
+#     
+#     #define val(s,f) (s.f)
+#     
+#     #define check_struct(_X) \
+#     { \
+#       if (sizeof (struct _X) != exp_sizeof_##_X )	\
+#	 abort();				\
+#       memcpy(&test_##_X, filler, sizeof(test_##_X));\
+#       if (val(test_##_X,c) != exp_##_X##_c) 	\
+#    -    abort(); 					\
+#    -}
+#    -
+#    -#define check_size(_X) \
+#    +    fprintf(stderr, "content of " #_X " %d != %d\n", val(test_##_X,c), exp_##_X##_c); \
+#    +}
+#    +
+#    +#define check_union(_X) \
+#    +{ \
+#    +  if (sizeof (union _X) != exp_sizeof_##_X )	\
+#    +    abort();                                    \
+#    +  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+#    +  if (val(test_##_X,c) != exp_##_X##_c) 	\
+#    +    abort();                                    \
+#    +}
+#    +
+#    +#define check_struct_size(_X) \
+#     { \
+#       if (sizeof (struct _X) != exp_sizeof_##_X )	\
+#    -    abort(); 					\
+#    -}
+#    -
+#    -#define check_off(_X) \
+#    +    abort();                                    \
+#    +}
+#    +
+#    +#define check_struct_off(_X) \
+#     { \
+#       memcpy(&test_##_X, filler, sizeof(test_##_X));\
+#       if (val(test_##_X,c) != exp_##_X##_c) 	\
+#    -    abort(); 					\
+#    -}
+#    -
+#    +    abort();                                    \
+#    +}
+#    +
+#    +#define check_union_size(_X) \
+#    +{ \
+#    +  if (sizeof (union _X) != exp_sizeof_##_X )	\
+#    +    abort();                                    \
+#    +}
+#    +
+#    +#define check_union_off(_X) \
+#    +{ \
+#    +  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+#    +  if (val(test_##_X,c) != exp_##_X##_c) 	\
+#    +    abort();                                    \
+#    +}
+#    +
+#     int main(){
+#     
+#       unsigned char filler[16];
+#    @@ -108,17 +146,21 @@ int main(){
+#       struct six test_six;
+#       struct seven test_seven;
+#       struct eight test_eight;
+#    -
+#    +  union nine test_nine;
+#    +  struct ten test_ten;
+#    +
+#     #if defined (_TEST_MS_LAYOUT) || defined (_MSC_VER)
+#       size_t exp_sizeof_one = 12;
+#       size_t exp_sizeof_two = 16;
+#       size_t exp_sizeof_three =6;
+#    -  size_t exp_sizeof_four = 8;	/* error: gcc with ms_bitfields = 5 */
+#    +  size_t exp_sizeof_four = 8;
+#       size_t exp_sizeof_five = 3;
+#    -  size_t exp_sizeof_six = 8;	/* error: gcc with ms_bitfields = 6 */
+#    +  size_t exp_sizeof_six = 8;
+#       size_t exp_sizeof_seven = 3;
+#    -  size_t exp_sizeof_eight = 4;	/* error: gcc with ms_bitfields = 3 */
+#    - 
+#    +  size_t exp_sizeof_eight = 4;
+#    +  size_t exp_sizeof_nine = 8;
+#    +  size_t exp_sizeof_ten = 16;
+#    + 
+#       unsigned char exp_one_c = 8;
+#       unsigned char exp_two_c  = 12;
+#       unsigned char exp_three_c = 4;
+#    @@ -127,7 +169,9 @@ int main(){
+#       char exp_six_c = 5;
+#       char exp_seven_c = 2;
+#       char exp_eight_c = 2;
+#    -
+#    +  char exp_nine_c = 0;
+#    +  char exp_ten_c = 8;
+#    +
+#     #else /* testing -mno-ms-bitfields */
+#     
+#       size_t exp_sizeof_one = 8;
+#    @@ -138,7 +182,9 @@ int main(){
+#       size_t exp_sizeof_six = 6;
+#       size_t exp_sizeof_seven = 6;
+#       size_t exp_sizeof_eight = 2;
+#    -
+#    +  size_t exp_sizeof_nine = 8;
+#    +  size_t exp_sizeof_ten = 8;
+#    +
+#       unsigned short exp_one_c = 6;
+#       unsigned int exp_two_c  = 6;
+#       unsigned char exp_three_c = 64;
+#    @@ -147,30 +193,36 @@ int main(){
+#       char exp_six_c = 5;
+#       char exp_seven_c = 5;
+#       char exp_eight_c = 1;
+#    -
+#    +  char exp_nine_c = 0;
+#    +  char exp_ten_c = 1;
+#    +
+#     #endif
+#     
+#       unsigned char i; 
+#       for ( i = 0; i < 16; i++ )
+#	 filler[i] = i;
+#     
+#    -  check_off (one);
+#    -  check_off (two);  
+#    -  check_off (three);
+#    -  check_off (four);
+#    -  check_off (five);
+#    -  check_off (six);
+#    -  check_off (seven);
+#    -  check_off (eight);
+#    -
+#    -  check_size (one);
+#    -  check_size (two);  
+#    -  check_size (three);
+#    -  check_size (four);
+#    -  check_size (five);
+#    -  check_size (six);
+#    -  check_size (seven);
+#    -  check_size (eight);
+#    +  check_struct_off (one);
+#    +  check_struct_off (two);  
+#    +  check_struct_off (three);
+#    +  check_struct_off (four);
+#    +  check_struct_off (five);
+#    +  check_struct_off (six);
+#    +  check_struct_off (seven);
+#    +  check_struct_off (eight);
+#    +  check_union_off (nine);
+#    +  check_struct_off (ten);
+#    +
+#    +  check_struct_size (one);
+#    +  check_struct_size (two);  
+#    +  check_struct_size (three);
+#    +  check_struct_size (four);
+#    +  check_struct_size (five);
+#    +  check_struct_size (six);
+#    +  check_struct_size (seven);
+#    +  check_struct_size (eight);
+#    +  check_union_size (nine);
+#    +  check_struct_size (ten);
+#     
+#       return 0;
+#     };

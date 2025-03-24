@@ -1,0 +1,131 @@
+I got this from ACT at one point; one minor mod to it to make it
+apply to a changed i386.c (now a unified diff).
+
+Index: gcc/gcc/config/i386/aix386.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/aix386.h,v
+retrieving revision 1.4
+diff -p -c -r1.4 aix386.h
+*** aix386.h	2001/08/09 22:33:23	1.4
+--- gcc/config/i386/aix386.h	2002/02/06 22:55:53
+*************** Boston, MA 02111-1307, USA.  */
+*** 60,64 ****
+    asm ("pushl $0")
+  #define CTOR_LIST_END CTOR_LIST_BEGIN
+  
+- #undef TARGET_ASM_CONSTRUCTOR
+- #define TARGET_ASM_CONSTRUCTOR  ix86_svr3_asm_out_constructor
+--- 60,62 ----
+Index: gcc/gcc/config/i386/i386-interix.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/i386-interix.h,v
+retrieving revision 1.23
+diff -p -c -r1.23 i386-interix.h
+*** i386-interix.h	2001/12/16 15:43:40	1.23
+--- gcc/config/i386/i386-interix.h	2002/02/06 22:55:55
+*************** Boston, MA 02111-1307, USA.  */
+*** 30,35 ****
+--- 30,37 ----
+  #include <i386/gas.h>
+  /* The rest must follow.  */
+  
++ #undef TARGET_ASM_CONSTRUCTOR
++ 
+  #define DBX_DEBUGGING_INFO
+  #define SDB_DEBUGGING_INFO
+  #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+Index: gcc/gcc/config/i386/i386.c
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/i386.c,v
+retrieving revision 1.359
+diff -p -c -r1.359 i386.c
+--- gcc/config/i386/i386.c.orig	Wed Feb 27 12:47:26 2002
++++ gcc/config/i386/i386.c	Wed Feb 27 13:22:07 2002
+@@ -724,10 +724,6 @@ const struct attribute_spec ix86_attribu
+ static tree ix86_handle_cdecl_attribute PARAMS ((tree *, tree, tree, int, bool *));
+ static tree ix86_handle_regparm_attribute PARAMS ((tree *, tree, tree, int, bool *));
+ 
+-#ifdef DO_GLOBAL_CTORS_BODY
+-static void ix86_svr3_asm_out_constructor PARAMS ((rtx, int));
+-#endif
+-
+ /* Register class used for passing given 64bit part of the argument.
+    These represent classes as documented by the PS ABI, with the exception
+    of SSESF, SSEDF classes, that are basically SSE class, just gcc will
+@@ -12379,19 +12375,6 @@ ix86_memory_move_cost (mode, class, in)
+ 		* (int) GET_MODE_SIZE (mode) / 4);
+     }
+ }
+-
+-#ifdef DO_GLOBAL_CTORS_BODY
+-static void
+-ix86_svr3_asm_out_constructor (symbol, priority)
+-     rtx symbol;
+-     int priority ATTRIBUTE_UNUSED;
+-{
+-  init_section ();
+-  fputs ("\tpushl $", asm_out_file);
+-  assemble_name (asm_out_file, XSTR (symbol, 0));
+-  fputc ('\n', asm_out_file);
+-}
+-#endif
+ 
+ /* Order the registers for register allocator.  */
+ 
+Index: gcc/gcc/config/i386/i386.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/i386.h,v
+retrieving revision 1.241
+diff -p -c -r1.241 i386.h
+*** i386.h	2002/02/02 00:05:11	1.241
+--- gcc/config/i386/i386.h	2002/02/06 22:56:31
+*************** enum fp_cw_mode {FP_CW_STORED, FP_CW_UNI
+*** 3209,3214 ****
+--- 3209,3222 ----
+  #define HARD_REGNO_RENAME_OK(SRC, TARGET)  \
+     ((SRC) < FIRST_STACK_REG || (SRC) > LAST_STACK_REG)
+  
++ #define TARGET_ASM_CONSTRUCTOR(SYMBOL,PRIORITY)         \
++ do {                                                    \
++       init_section ();                                  \
++       fputs ("\tpushl $", asm_out_file);                \
++       assemble_name (asm_out_file, XSTR ((SYMBOL), 0)); \
++       fputc ('\n', asm_out_file);                       \
++    } while (0)
++ 
+  
+  /*
+  Local variables:
+Index: gcc/gcc/config/i386/svr3gas.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/svr3gas.h,v
+retrieving revision 1.9
+diff -p -c -r1.9 svr3gas.h
+*** svr3gas.h	2001/09/11 16:49:58	1.9
+--- gcc/config/i386/svr3gas.h	2002/02/06 22:56:32
+*************** const_section ()							\
+*** 170,177 ****
+      }									\
+  }
+  
+- #define TARGET_ASM_CONSTRUCTOR  ix86_svr3_asm_out_constructor
+- 
+  /* A C statement or statements to switch to the appropriate
+     section for output of DECL.  DECL is either a `VAR_DECL' node
+     or a constant of some sort.  RELOC indicates whether forming
+--- 170,175 ----
+Index: gcc/gcc/config/i386/sysv3.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/sysv3.h,v
+retrieving revision 1.7
+diff -p -c -r1.7 sysv3.h
+*** sysv3.h	2001/08/09 22:33:24	1.7
+--- gcc/config/i386/sysv3.h	2002/02/06 22:56:32
+*************** Boston, MA 02111-1307, USA.  */
+*** 111,115 ****
+    asm (INIT_SECTION_ASM_OP);			\
+    asm ("pushl $0")
+  #define CTOR_LIST_END CTOR_LIST_BEGIN
+- 
+- #define TARGET_ASM_CONSTRUCTOR  ix86_svr3_asm_out_constructor
+--- 111,113 ----

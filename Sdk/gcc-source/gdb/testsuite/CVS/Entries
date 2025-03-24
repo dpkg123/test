@@ -1,0 +1,24 @@
+/.gdbinit/1.1.1.1/Fri Apr 16 01:34:28 1999/-ko/
+/ChangeLog/1.414/Fri Nov  8 20:37:49 2002/-ko/
+/Makefile.in/1.4/Thu Aug  1 17:18:35 2002/-ko/
+/TODO/1.1.1.1/Fri Apr 16 01:34:28 1999/-ko/
+/aclocal.m4/1.1.1.1/Fri Apr 16 01:34:28 1999/-ko/
+/configure/1.6/Thu Aug  1 17:18:35 2002/-ko/
+/configure.in/1.6/Thu Aug  1 17:18:35 2002/-ko/
+D/config////
+D/gdb.arch////
+D/gdb.asm////
+D/gdb.base////
+D/gdb.c++////
+D/gdb.chill////
+D/gdb.disasm////
+D/gdb.fortran////
+D/gdb.gdb////
+D/gdb.gdbtk////
+D/gdb.hp////
+D/gdb.java////
+D/gdb.mi////
+D/gdb.stabs////
+D/gdb.threads////
+D/gdb.trace////
+D/lib////

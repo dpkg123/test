@@ -1,0 +1,24 @@
+The value that appears residually in an "empty" floating point
+register can sometimes be a help in intuiting the nature of a bug,
+so print it even if the register is empty.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* i387-tdep.c (i387_float_info): Remove condition.
+
+Index: src/gdb/i387-tdep.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/i387-tdep.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 i387-tdep.c
+--- src/gdb/i387-tdep.c	2001/12/23 00:34:48	1.1.1.1
++++ src/gdb/i387-tdep.c	2001/12/24 01:39:44
+@@ -372,8 +372,7 @@ i387_print_float_info (struct gdbarch *g
+       for (i = 9; i >= 0; i--)
+ 	fprintf_filtered (file, "%02x", raw[i]);
+ 
+-      if (tag != 3)
+-	print_i387_ext (raw, file);
++      print_i387_ext (raw, file);
+ 
+       fputs_filtered ("\n", file);
+     }

@@ -1,0 +1,137 @@
+This fixes the problem identified in test g++.old-deja/g++.ext/attrib3.C
+where a stdcall function causes name mismatch on the section in which
+the function appears.  (For a template.)  (Also factors out a few constant
+expressions.)
+
+--- coffcode.h.orig	Thu May 23 11:48:34 2002
++++ coffcode.h	Thu May 23 11:49:40 2002
+@@ -727,8 +727,18 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+   struct internal_scnhdr *internal_s = (struct internal_scnhdr *) hdr;
+   bfd_byte *esymstart, *esym, *esymend;
+   int seen_state = 0;
+-  char *target_name = NULL;
+-
++  int namelen = strlen(name);
++  char *target_name;
++  int target_len = 0;
++
++  target_name = strchr (name, '$');
++  if (target_name != NULL)
++    {
++      /* Skip the `$'.  */
++      target_name += 1;
++      target_len = strlen(target_name);
++    }
++
+   sec_flags |= SEC_LINK_ONCE;
+ 
+   /* Unfortunately, the PE format stores essential information in
+@@ -759,7 +769,9 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+       struct internal_syment isym;
+       char buf[SYMNMLEN + 1];
+       const char *symname;
+-
++      char *t;
++      int len;
++
+       bfd_coff_swap_sym_in (abfd, (PTR) esym, (PTR) &isym);
+ 
+       if (sizeof (internal_s->s_name) > SYMNMLEN)
+@@ -784,7 +796,7 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 	     second one.  It may be some other later symbol.
+ 
+ 	     Since gas also doesn't follow MS conventions and
+-	     emits the section similar to .text$<name>, where
++	     emits the section similar to .text$<something>, where
+ 	     <something> is the name we're looking for, we
+ 	     distinguish the two as follows:
+ 
+@@ -801,6 +813,21 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 	  if (symname == NULL)
+ 	    abort ();
+ 
++	  /* MSVC decorated names don't appear in the section name, but
++	     there are also @s in MSVC ?? string pooling symbols.
++	     To forestall other oddities, since we know that we're
++	     dealing with MSVC if we're here at all, only investigate
++	     symbols not beginning with _. */
++	  t = strchr(symname, '@');
++	  if (strncmp(symname,"__real@",7) != 0 && symname[0] == '_' && t != NULL) 
++	    {
++	      len = t-symname;
++	    }
++	  else
++	    {
++	      len = strlen(symname);
++	    }
++
+ 	  switch (seen_state)
+ 	    {
+ 	    case 0:
+@@ -836,7 +863,8 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 		   names like .text$foo__Fv (in the case of a
+ 		   function).  See comment above for more.  */
+ 
+-		if (strcmp (name, symname) != 0)
++		if (namelen != len ||
++		    strncmp (name, symname, len) != 0)
+ 		  abort ();
+ 
+ 		/* This is the section symbol.  */
+@@ -844,7 +872,6 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 				      isym.n_type, isym.n_sclass,
+ 				      0, isym.n_numaux, (PTR) &aux);
+ 
+-		target_name = strchr (name, '$');
+ 		/* Since this is a heuristic, it can be ugly...
+ 		   don't let .idata pass this test.  (Otherwise
+ 		   .idata$5 would! */
+@@ -853,8 +880,6 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 		  {
+ 		    /* Gas mode.  */
+ 		    seen_state = 2;
+-		    /* Skip the `$'.  */
+-		    target_name += 1;
+ 		  }
+ 
+ 		/* FIXME: Microsoft uses NODUPLICATES and
+@@ -950,8 +975,10 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ #define TARGET_UNDERSCORE 0
+ #endif
+ 	      /* Is this the name we're looking for? */
+-	      if (strcmp (target_name,
+-			  symname + (TARGET_UNDERSCORE ? 1 : 0)) != 0)
++	      if (len - (TARGET_UNDERSCORE ? 1 : 0) != target_len 
++	          || strncmp (target_name,
++			  symname + (TARGET_UNDERSCORE ? 1 : 0), 
++			  len - (TARGET_UNDERSCORE ? 1 : 0)) != 0)
+ 		{
+ 		  /* Not the name we're looking for */
+ 		  esym += (isym.n_numaux + 1) * bfd_coff_symesz (abfd);
+@@ -993,12 +1020,13 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 		    section->comdat->symbol =
+ 		      (esym - esymstart) / bfd_coff_symesz (abfd);
+ 
+-		    amt = strlen (symname) + 1;
++		    amt = len + 1;
+ 		    newname = bfd_alloc (abfd, amt);
+ 		    if (newname == NULL)
+ 		      abort ();
+ 
+-		    strcpy (newname, symname);
++		    strncpy (newname, symname, len);
++		    newname[len] = '\0';
+ 		  }
+ 	        section->comdat->name = newname;
+ 	      }
+@@ -1017,7 +1045,9 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+     but it could, and we don't know how to recover gracefully
+     (or for that matter, at all) until we see an example. */
+   if (section->comdat != NULL && section->comdat->name == NULL)
+-     abort ();
++      (*_bfd_error_handler)
++	(_("%s (%s): matching COMDAT symbol name not found"),
++	 bfd_archive_filename (abfd), name);
+ 
+   return sec_flags;
+ }

@@ -1,0 +1,24 @@
+#
+# sep/2002:  we need to add -Dnm=${PWD}/nm.Interix.
+#            This is our own nm script because Configure wants to 
+#            do "nm libc.so"  but libc.so is a plain text file 
+#            and not a symlink.
+#            Thus, our script looks into the text file and finds
+#            the appropriate libraries and nm(1)'s them.
+#
+#
+./Configure -Dusethreads -Duse5005threads -dOes  \
+-Ddosuid=undef -Dprefix=/usr/local \
+-Dd_bincompat3=undef -Dcc=gcc \
+-Dcflags="-D_ALL_SOURCE -I${PWD}/gdbm-1.8.0" -Dd_poll=undef \
+-Dldflags="-Wl,-E -L${PWD}/gdbm-1.8.0/.libs" \
+-Dusenm=define -Dnm=${PWD}/nm.Interix \
+-Dld="gcc" \
+-Dlddlflags="--shared" -Ddont_use_nlink=define -Dusemymalloc="undef" \
+-Dcccdlflags="none" \
+-Dcf_email='support@microsoft.com' -Dperladmin='support@microsoft.com' \
+-Dlibpth="/usr/local/lib ${PWD}/gdbm-1.8.0/.libs /usr/lib" \
+-Dinstallusrbinperl=undef -Dcf_email="support@microsoft.com" \
+-Dlibs='-ldb -lm -lcrypt -lgdbm -ldl' \
+-Dperllibs='-ldb -lm -lcrypt -lgdbm -ldl' \
+| tee config.out 

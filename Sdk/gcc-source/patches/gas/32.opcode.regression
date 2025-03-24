@@ -1,0 +1,49 @@
+For PE, the relocations/offsets of certain instructions is different
+(to match MSVC assumptions about relocations).  Have the pattern
+matching agree with that.
+
+	* gas/i386/general.l: Allow PE style relocation notations.
+	* gas/i386/jump.d: Likewise.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas/testsuite/gas/i386/general.l //S/Gnusrc/cygwin.0211/gas/testsuite/gas/i386/general.l
+--- //S/Gnusrc/cygwin.0211/gas/testsuite/gas/i386/general.l	Fri Jan 21 14:58:04 2000
++++ gas/testsuite/gas/i386/general.l	Tue Feb 15 15:09:28 2000
+@@ -39,7 +39,7 @@
+    2                       	.text
+    3                       	#test jumps and calls
+    4 0000 EBFE              	1:	jmp	1b
+-   5 0002 E9F(CF|9F)FFF FF       		jmp	xxx
++   5 0002 E9((FCFF|79FE)FF FF|000000 00)       		jmp	xxx
+    6 0007 FF250000 0000     		jmp	\*xxx
+    7 000d FF250000 0000     		jmp	xxx\(,1\)
+ .*Warning:.*
+@@ -58,7 +58,7 @@
+   16 0035 EA000000 003412   		ljmp	\$0x1234,\$xxx
+   17                       	
+   18 003c E8BFFFFF FF       		call	1b
+-  19 0041 E8(FC|BA)FFFF FF       		call	xxx
++  19 0041 E8((FCFF|3AFE)FF FF|000000 00)       		call	xxx
+   20 0046 FF150000 0000     		call	\*xxx
+   21 004c FF150000 0000     		call	xxx\(,1\)
+ .*Warning:.*
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas/testsuite/gas/i386/jump.d //S/Gnusrc/cygwin.0211/gas/testsuite/gas/i386/jump.d
+--- //S/Gnusrc/cygwin.0211/gas/testsuite/gas/i386/jump.d	Fri Jan 21 14:58:04 2000
++++ gas/testsuite/gas/i386/jump.d	Tue Feb 15 16:09:25 2000
+@@ -7,7 +7,7 @@ Disassembly of section .text:
+ 
+ 0+000 <.text>:
+    0:	eb fe [ 	]*jmp    (0x0|0 <.text>)
+-   2:	e9 (fc|f9) ff ff ff [ 	]*jmp    (0x3|0x0|0 <.text>)	3: (R_386_PC)?(DISP)?32	xxx
++   2:	e9 ((fc|f9) ff ff ff|00 00 00 00) [ 	]*jmp    ((0x3|0x0|0 <.text>)|7 <.text\+0x7>)	3: (R_386_PC)?(DISP)?32	xxx
+    7:	ff 25 00 00 00 00 [ 	]*jmp    \*0x0	9: (R_386_)?(dir)?32	xxx
+    d:	ff e7 [ 	]*jmp    \*%edi
+    f:	ff 27 [ 	]*jmp    \*\(%edi\)
+@@ -15,7 +15,7 @@ Disassembly of section .text:
+   18:	ff 2d 00 00 00 00 [ 	]*ljmp   \*0x0	1a: (R_386_)?(dir)?32	xxx
+   1e:	ea 00 00 00 00 34 12 [ 	]*ljmp   \$0x1234,\$0x0	1f: (R_386_)?(dir)?32	xxx
+   25:	e8 d6 ff ff ff [ 	]*call   (0x0|0 <.text>)
+-  2a:	e8 (fc|d1) ff ff ff [ 	]*call   (0x2b|0x0|0 <.text>)	2b: (R_386_PC)?(DISP)?32	xxx
++  2a:	e8 ((fc|d1) ff ff ff|00 00 00 00) [ 	]*call   ((0x2b|0x0|0 <.text>)|2f <.text\+0x2f>)	2b: (R_386_PC)?(DISP)?32	xxx
+   2f:	ff 15 00 00 00 00 [ 	]*call   \*0x0	31: (R_386_)?(dir)?32	xxx
+   35:	ff d7 [ 	]*call   \*%edi
+   37:	ff 17 [ 	]*call   \*\(%edi\)

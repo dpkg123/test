@@ -1,0 +1,1098 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/emultempl/pe.em //D/home/donn.intel/gnu.intel/ld/emultempl/pe.em
+--- //Q/Gnusrc/cygwin.18/ld/emultempl/pe.em	Mon Mar 15 18:19:52 1999
++++ //D/home/donn.intel/gnu.intel/ld/emultempl/pe.em	Sun May 23 00:32:54 1999
+@@ -42,12 +43,22 @@ Foundation, Inc., 59 Temple Place - Suit #1
+ 
+ #define TARGET_IS_${EMULATION_NAME}
+ 
+ static void gld_${EMULATION_NAME}_set_symbols PARAMS ((void));
+ static void gld_${EMULATION_NAME}_after_open PARAMS ((void));
+ static void gld_${EMULATION_NAME}_before_parse PARAMS ((void));
++static void gld_${EMULATION_NAME}_after_parse PARAMS ((void));
+ static void gld_${EMULATION_NAME}_before_allocation PARAMS ((void));
+ static boolean gld${EMULATION_NAME}_place_orphan
+   PARAMS ((lang_input_statement_type *, asection *));
+ static char *gld_${EMULATION_NAME}_get_script PARAMS ((int *));
+ static int gld_${EMULATION_NAME}_parse_args PARAMS ((int, char **));
++static boolean gld${EMULATION_NAME}_open_dynamic_archive
++  PARAMS ((const char *, search_dirs_type *, lang_input_statement_type *));
++static void gld${EMULATION_NAME}_check_needed
++  PARAMS ((lang_input_statement_type *));
++static void gld${EMULATION_NAME}_stat_needed
++  PARAMS ((lang_input_statement_type *));
++static boolean gld${EMULATION_NAME}_search_needed
++  PARAMS ((const char *, const char *));
++static boolean gld${EMULATION_NAME}_try_needed PARAMS ((const char *));
+ 
+@@ -69,11 +86,12 @@ static int dll; #2
+ extern const char *output_filename;
+ 
+ static void
+-gld_${EMULATION_NAME}_before_parse()
++gld_${EMULATION_NAME}_before_parse(PARAMS(void))
+ {
+-  output_filename = "a.exe";
++  output_filename = "${EXECUTABLE_NAME:-a.exe}";
+   ldfile_output_architecture = bfd_arch_${ARCH};
++  config.dynamic_link = ${DYNAMIC_LINK-true};
+ }
+ 
+ /* PE format extra command line options.  */
+     {
+@@ -299,12 +317,22 @@ gld_${EMULATION_NAME}_parse_args(argc, a #3
+ 
+   lastoptind = optind;
+ 
+-  optc = getopt_long_only (argc, argv, "-", longopts, &longind);
++  /* don't allow single-character abbreviations of any of these; too
++     likely to conflict with "real" single character options.  (It
++     really happens with -d.) */
++  optc = getopt_long_only (argc, argv, "-bdfhims", longopts, &longind);
+   opterr = prevopterr;
+ 
+   switch (optc)
+     {
+     default:
++    case 'b':
++    case 'd':
++    case 'f':
++    case 'h':
++    case 'i':
++    case 'm':
++    case 's':
+       if (wanterror)
+ 	xexit (1);
+       optind =  prevoptind;
+@@ -363,16 +391,171 @@ gld_${EMULATION_NAME}_parse_args(argc, a #4
+     }
+   return 1;
+ }
++
++/* Try to open a dynamic archive.  This is where we know that 
++   dynamic libraries have an extension of .so.  */
++
++static boolean
++gld${EMULATION_NAME}_open_dynamic_archive (arch, search, entry)
++     const char *arch;
++     search_dirs_type *search;
++     lang_input_statement_type *entry;
++{
++  const char *filename;
++  char *string;
++
++  if (! entry->is_archive)
++    return false;
++
++  filename = entry->filename;
++
++  string = (char *) xmalloc (strlen (search->name)
++			     + strlen (filename)
++			     + strlen (arch)
++			     + sizeof "/lib.so");
++
++  sprintf (string, "%s/lib%s%s.so", search->name, filename, arch);
++
++  if (! ldfile_try_open_bfd (string, entry))
++    {
++      free (string);
++      return false;
++    }
++
++  entry->filename = string;
++
++  /* We have found a dynamic object to include in the link.  The 
++     backend linker will create a DT_NEEDED entry in the .dynamic
++     section naming this file.  If this file includes a DT_SONAME
++     entry, it will be used.  Otherwise, the linker will just use
++     the name of the file.  For an archive found by searching, like
++     this one, the DT_NEEDED entry should consist of just the name of
++     the file, without the path information used to find it.  Note
++     that we only need to do this if we have a dynamic object; an
++     archive will never be referenced by a DT_NEEDED entry.
++
++     FIXME: This approach--using bfd_coff_set_dt_needed_name--is not
++     very pretty.  I haven't been able to think of anything that is
++     pretty, though.  */
++  if (bfd_check_format (entry->the_bfd, bfd_object)
++      && (entry->the_bfd->file_flags & DYNAMIC) != 0)
++    {
++      char *needed_name;
++
++      ASSERT (entry->is_archive && entry->search_dirs_flag);
++      needed_name = (char *) xmalloc (strlen (filename)
++				      + strlen (arch)
++				      + sizeof "lib.so");
++      sprintf (needed_name, "lib%s%s.so", filename, arch);
++      bfd_coff_set_dt_needed_name (entry->the_bfd, needed_name);
++    }
++
++  return true;
++}
++
++EOF
++if [ "x${host}" = "x${target}" ] ; then
++  if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
++cat >>e${EMULATION_NAME}.c <<EOF
++
++/* For a native linker, check the file /etc/ld.so.conf for directories
++   in which we may find shared libraries.  /etc/ld.so.conf is really
++   only meaningful on Linux, but we check it on other systems anyhow.  */
++
++static boolean gld${EMULATION_NAME}_check_ld_so_conf PARAMS ((const char *));
++
++static boolean
++gld${EMULATION_NAME}_check_ld_so_conf (name)
++     const char *name;
++{
++  static boolean initialized;
++  static char *ld_so_conf;
++
++  if (! initialized)
++    {
++      FILE *f;
++      char *fname;
++
++      fname = _prefixInstallPath("/etc/ld.so.conf", NULL, 0);
++      f = fopen (fname, FOPEN_RT);
++      if (f != NULL)
++	{
++	  char *b;
++	  size_t len, alloc;
++	  int c;
++
++	  len = 0;
++	  alloc = 100;
++	  b = (char *) xmalloc (alloc);
++
++	  while ((c = getc (f)) != EOF)
++	    {
++	      if (len + 1 >= alloc)
++		{
++		  alloc *= 2;
++		  b = (char *) xrealloc (b, alloc);
++		}
++	      if (c != ':'
++		  && c != ' '
++		  && c != '\t'
++		  && c != '\n'
++		  && c != ',')
++		{
++		  b[len] = c;
++		  ++len;
++		}
++	      else
++		{
++		  if (len > 0 && b[len - 1] != ':')
++		    {
++		      b[len] = ':';
++		      ++len;
++		    }
++		}
++	    }
++
++	  if (len > 0 && b[len - 1] == ':')
++	    --len;
++
++	  if (len > 0)
++	    b[len] = '\0';
++	  else
++	    {
++	      free (b);
++	      b = NULL;
++	    }
++
++	  fclose (f);
++
++	  ld_so_conf = b;
++	}
++
++      initialized = true;
++    }
++
++  if (ld_so_conf == NULL)
++    return false;
++
++  return gld${EMULATION_NAME}_search_needed (ld_so_conf, name);
++}
++
++EOF
++  fi
++fi
++cat >>e${EMULATION_NAME}.c <<EOF
+ 
+ static void
+-gld_${EMULATION_NAME}_set_symbols()
++gld_${EMULATION_NAME}_set_symbols(PARAMS(void))
+ {
+   /* Run through and invent symbols for all the
+      names and insert the defaults. */
+   int j;
+   lang_statement_list_type *save;
+ 
+-  if (!init[IMAGEBASEOFF].inited)
++  /* Don't apply image base to relocateable links */
++  if (link_info.relocateable)
++    init[IMAGEBASEOFF].value = 0;
++  else if (!init[IMAGEBASEOFF].inited)
+     init[IMAGEBASEOFF].value = init[DLLOFF].value
+       ? NT_DLL_IMAGE_BASE : NT_EXE_IMAGE_BASE;
+ 
+@@ -406,9 +591,18 @@ gld_${EMULATION_NAME}_set_symbols() #5
+     }
+ }
+ 
++/* These variables are required to pass information back and forth
++   between after_open and check_needed and stat_needed.  */
++
++static struct bfd_link_needed_list *global_needed;
++static struct stat global_stat;
++static boolean global_found;
++
+ static void
+-gld_${EMULATION_NAME}_after_open()
++gld_${EMULATION_NAME}_after_open(PARAMS(void))
+ {
++  struct bfd_link_needed_list *needed, *l;
++
+   /* Pass the wacky PE command line options into the output bfd.
+      FIXME: This should be done via a function, rather than by
+      including an internal BFD header.  */
+@@ -420,21 +614,308 @@ gld_${EMULATION_NAME}_after_open() #6
+   pe_data(output_bfd)->pe_opthdr = pe;
+   pe_data(output_bfd)->dll = init[DLLOFF].value;
+ 
++  /* We only need to worry about this when doing a final link.  */
++  if (link_info.relocateable || link_info.shared)
++    return;
++
++  /* Get the list of files which appear in DT_NEEDED entries in
++     dynamic objects included in the link (often there will be none).
++     For each such file, we want to track down the corresponding
++     library, and include the symbol table in the link.  This is what
++     the runtime dynamic linker will do.  Tracking the files down here
++     permits one dynamic object to include another without requiring
++     special action by the person doing the link.  Note that the
++     needed list can actually grow while we are stepping through this
++     loop.  */
++  needed = bfd_coff_get_needed_list (output_bfd, &link_info);
++  for (l = needed; l != NULL; l = l->next)
++    {
++      struct bfd_link_needed_list *ll;
++      const char *lib_path;
++      size_t len;
++      search_dirs_type *search;
++
++      /* If we've already seen this file, skip it.  */
++      for (ll = needed; ll != l; ll = ll->next)
++	if (strcmp (ll->name, l->name) == 0)
++	  break;
++      if (ll != l)
++	continue;
++
++      /* See if this file was included in the link explicitly.  */
++      global_needed = l;
++      global_found = false;
++      lang_for_each_input_file (gld${EMULATION_NAME}_check_needed);
++      if (global_found)
++	continue;
++
++      /* We need to find this file and include the symbol table.  We
++	 want to search for the file in the same way that the dynamic
++	 linker will search.  That means that we want to use
++	 rpath_link, rpath, then the environment variable
++	 LD_LIBRARY_PATH (native only), then the linker script
++	 LIB_SEARCH_DIRS.  We do not search using the -L arguments.  */
++      if (gld${EMULATION_NAME}_search_needed (command_line.rpath_link,
++					      l->name))
++	continue;
++      if (gld${EMULATION_NAME}_search_needed (command_line.rpath, l->name))
++	continue;
++      if (command_line.rpath_link == NULL
++	  && command_line.rpath == NULL)
++	{
++	  lib_path = (const char *) getenv ("LD_RUN_PATH");
++	  if (gld${EMULATION_NAME}_search_needed (lib_path, l->name))
++	    continue;
++	}
++EOF
++if [ "x${host}" = "x${target}" ] ; then
++  if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
++cat >>e${EMULATION_NAME}.c <<EOF
++      lib_path = (const char *) getenv ("LD_LIBRARY_PATH");
++      if (gld${EMULATION_NAME}_search_needed (lib_path, l->name))
++	continue;
++EOF
++  fi
++fi
++cat >>e${EMULATION_NAME}.c <<EOF
++      len = strlen (l->name);
++      for (search = search_head; search != NULL; search = search->next)
++	{
++	  char *filename;
++
++	  if (search->cmdline)
++	    continue;
++	  filename = (char *) xmalloc (strlen (search->name) + len + 2);
++	  sprintf (filename, "%s/%s", search->name, l->name);
++	  if (gld${EMULATION_NAME}_try_needed (filename))
++	    break;
++	  free (filename);
++	}
++      if (search != NULL)
++	continue;
++EOF
++if [ "x${host}" = "x${target}" ] ; then
++  if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
++cat >>e${EMULATION_NAME}.c <<EOF
++      if (gld${EMULATION_NAME}_check_ld_so_conf (l->name))
++	continue;
++EOF
++  fi
++fi
++cat >>e${EMULATION_NAME}.c <<EOF
++
++      einfo ("%P: warning: %s, needed by %B, not found (try using --rpath)\n",
++	     l->name, l->by);
++    }
+ }
+-
+-/* Callback functions for qsort in sort_sections. */
+ 
+-static int
+-sort_by_file_name (a, b)
+-     void *a;
+-     void *b;
++/* Search for a needed file in a path.  */
++
++static boolean
++gld${EMULATION_NAME}_search_needed (path, name)
++     const char *path;
++     const char *name;
+ {
+-  lang_statement_union_type **ra = a;
+-  lang_statement_union_type **rb = b;
+-  return strcmp ((*ra)->input_section.ifile->filename,
+-		 (*rb)->input_section.ifile->filename);
++  const char *s;
++  size_t len;
++
++  if (path == NULL || *path == '\0')
++    return false;
++  len = strlen (name);
++  while (1)
++    {
++      char *filename, *sset;
++
++      s = strchr (path, ':');
++      if (s == NULL)
++	s = path + strlen (path);
++
++      filename = (char *) xmalloc (s - path + len + 2);
++      if (s == path)
++	sset = filename;
++      else
++	{
++	  memcpy (filename, path, s - path);
++	  filename[s - path] = '/';
++	  sset = filename + (s - path) + 1;
++	}
++      strcpy (sset, name);
++
++      if (gld${EMULATION_NAME}_try_needed (filename))
++	return true;
++
++      free (filename);
++
++      if (*s == '\0')
++	break;
++      path = s + 1;
++    }
++
++  return false;	  
+ }
+ 
++/* This function is called for each possible name for a dynamic object
++   named by a DT_NEEDED entry.  */
++
++static boolean
++gld${EMULATION_NAME}_try_needed (name)
++     const char *name;
++{
++  bfd *abfd;
++
++  abfd = bfd_openr (name, bfd_get_target (output_bfd));
++  if (abfd == NULL)
++    return false;
++  if (! bfd_check_format (abfd, bfd_object))
++    {
++      (void) bfd_close (abfd);
++      return false;
++    }
++  if ((bfd_get_file_flags (abfd) & DYNAMIC) == 0)
++    {
++      (void) bfd_close (abfd);
++      return false;
++    }
++
++  /* We've found a dynamic object matching the DT_NEEDED entry.  */
++
++  /* We have already checked that there is no other input file of the
++     same name.  We must now check again that we are not including the
++     same file twice.  We need to do this because on many systems
++     libc.so is a symlink to, e.g., libc.so.1.  The SONAME entry will
++     reference libc.so.1.  If we have already included libc.so, we
++     don't want to include libc.so.1 if they are the same file, and we
++     can only check that using stat.  */
++
++  if (bfd_stat (abfd, &global_stat) != 0)
++    einfo ("%F%P:%B: bfd_stat failed: %E\n", abfd);
++  global_found = false;
++  lang_for_each_input_file (gld${EMULATION_NAME}_stat_needed);
++  if (global_found)
++    {
++      /* Return true to indicate that we found the file, even though
++         we aren't going to do anything with it.  */
++      return true;
++    }
++
++  /* Tell the backend that don't want the output file to have a
++     DT_NEEDED entry for this file.  */
++  bfd_coff_set_dt_needed_name (abfd, "");
++
++  /* Add this file into the symbol table.  */
++  if (! bfd_link_add_symbols (abfd, &link_info))
++    einfo ("%F%B: could not read symbols: %E\n", abfd);
++
++  return true;
++}
++
++/* See if an input file matches a DT_NEEDED entry by name.  */
++
++static void
++gld${EMULATION_NAME}_check_needed (s)
++     lang_input_statement_type *s;
++{
++  if (global_found)
++    return;
++
++  if (s->filename != NULL
++      && strcmp (s->filename, global_needed->name) == 0)
++    {
++      global_found = true;
++      return;
++    }
++
++  if (s->the_bfd != NULL)
++    {
++      const char *soname;
++
++      soname = bfd_coff_get_dt_soname (s->the_bfd);
++      if (soname != NULL
++	  && strcmp (soname, global_needed->name) == 0)
++	{
++	  global_found = true;
++	  return;
++	}
++    }
++	  
++  if (s->search_dirs_flag
++      && s->filename != NULL
++      && strchr (global_needed->name, '/') == NULL)
++    {
++      const char *f;
++
++      f = strrchr (s->filename, '/');
++      if (f != NULL
++	  && strcmp (f + 1, global_needed->name) == 0)
++	{
++	  global_found = true;
++	  return;
++	}
++    }
++}
++
++/* See if an input file matches a DT_NEEDED entry by running stat on
++   the file.  */
++
++static void
++gld${EMULATION_NAME}_stat_needed (s)
++     lang_input_statement_type *s;
++{
++  struct stat st;
++  const char *suffix;
++  const char *soname;
++  const char *f;
++
++  if (global_found)
++    return;
++  if (s->the_bfd == NULL)
++    return;
++
++  if (bfd_stat (s->the_bfd, &st) != 0)
++    {
++      einfo ("%P:%B: bfd_stat failed: %E\n", s->the_bfd);
++      return;
++    }
++
++  if (st.st_dev == global_stat.st_dev
++      && st.st_ino == global_stat.st_ino)
++    {
++      global_found = true;
++      return;
++    }
++
++  /* We issue a warning if it looks like we are including two
++     different versions of the same shared library.  For example,
++     there may be a problem if -lc picks up libc.so.6 but some other
++     shared library has a DT_NEEDED entry of libc.so.5.  This is a
++     hueristic test, and it will only work if the name looks like
++     NAME.so.VERSION.  FIXME: Depending on file names is error-prone.
++     If we really want to issue warnings about mixing version numbers
++     of shared libraries, we need to find a better way.  */
++
++  if (strchr (global_needed->name, '/') != NULL)
++    return;
++  suffix = strstr (global_needed->name, ".so.");
++  if (suffix == NULL)
++    return;
++  suffix += sizeof ".so." - 1;
++
++  soname = bfd_coff_get_dt_soname (s->the_bfd);
++  if (soname == NULL)
++    soname = s->filename;
++
++  f = strrchr (soname, '/');
++  if (f != NULL)
++    ++f;
++  else
++    f = soname;
++
++  if (strncmp (f, global_needed->name, suffix - global_needed->name) == 0)
++    einfo ("%P: warning: %s, needed by %B, may conflict with %s\n",
++	   global_needed->name, global_needed->by, f);
++}
++
++/* Callback functions for qsort in sort_sections. */
+ static int
+ sort_by_section_name (a, b)
+      void *a;
+@@ -443,7 +924,7 @@ sort_by_section_name (a, b) #7
+   lang_statement_union_type **ra = a;
+   lang_statement_union_type **rb = b;
+   return strcmp ((*ra)->input_section.section->name,
+-		 (*rb)->input_section.section->name);
++               (*rb)->input_section.section->name);
+ }
+ 
+ /* Subroutine of sort_sections to a contiguous subset of a list of sections.
+@@ -482,66 +963,105 @@ sort_sections_1 (startptr, next_after, c #8
+   return ret;
+ }
+ 
+-/* Sort the .idata\$foo input sections of archives into filename order.
+-   The reason is so dlltool can arrange to have the pe dll import information
+-   generated correctly - the head of the list goes into dh.o, the tail into
+-   dt.o, and the guts into ds[nnnn].o.  Note that this is only needed for the
+-   .idata section.
+-   FIXME: This may no longer be necessary with grouped sections.  Instead of
+-   sorting on dh.o, ds[nnnn].o, dt.o, one could, for example, have dh.o use
+-   .idata\$4h, have ds[nnnn].o use .idata\$4s[nnnn], and have dt.o use .idata\$4t.
+-   This would have to be elaborated upon to handle multiple dll's
+-   [assuming such an eloboration is possible of course].
++/* This routine originally sorted .idata sections into filename order;
++   later adding general sorting of names with $ in them:
++     We also sort sections in '\$' wild statements.  These are created by the
++     place_orphans routine to implement grouped sections.  
+ 
+-   We also sort sections in '\$' wild statements.  These are created by the
+-   place_orphans routine to implement grouped sections.  */
++   The goal for most sections using \$ is to simply sort them into the
++   order implied by the part after the \$.  For .idata, things are
++   trickier:
++
++      All .idata\$2 sections (one per DLL library).
++      One .idata\$3 (from any one DLL library (NULL_IMPORT_DESCRIPTOR)).
++      All .idata\$4 sections (many per DLL library, but grouped by library
++	 and terminated by a null entry per group. (<name>_NULL_THUNK_DATA)
++      All .idata\$5 sections (many per DLL library, but grouped by library
++	 and terminated by a null entry per group.)
++      All .idata\$6 sections (many per DLL library, any order.)
++
++   The order within .idata\$4 and .idata\$5 is irrelevant as long as the null
++   entry is last.  Sorting LIB.EXE-generated DLLs by archive member name
++   ("file name") is wrong because all member names are the same; sorting
++   by member order is also wrong, because <name>_NULL_THUNK_DATA comes
++   early in the archive.  Given the way the references work, sorting
++   by the order they were added to the executable IS **CURRENTLY** correct,
++   because the library is constructed so <name>_NULL_THUNK_DATA will be
++   loaded after any of the actual thunks.  (That's equivalent to not
++   sorting them at all.)  However, if the library search algorithm is
++   changed in bfd, that could all break.
++
++   For DLLTOOL-generated archives (where the member names are unique)
++   sorting by file name is just fine.
++
++   An old comment:
++     The reason is so dlltool can arrange to have the pe dll import information
++     generated correctly - the head of the list goes into dh.o, the tail into
++     dt.o, and the guts into ds[nnnn].o.  Note that this is only needed for the
++     .idata section.
++     FIXME: This may no longer be necessary with grouped sections.  Instead of
++     sorting on dh.o, ds[nnnn].o, dt.o, one could, for example, have dh.o use
++     .idata\$4h, have ds[nnnn].o use .idata\$4s[nnnn], and have dt.o use .idata\$4t.
++     This would have to be elaborated upon to handle multiple dll's
++     [assuming such an eloboration is possible of course].
++
++   Having dlltool converge toward LIB.EXE on the means by which order is
++   determined would be a good idea.
++
++   Other sections are not nearly as critical on sort order */
++
++   
+ 
+ static void
+-sort_sections (s)
++sort_sections (s, info)
+      lang_statement_union_type *s;
++     struct bfd_link_info *info;
+ {
+   for (; s ; s = s->next)
+     switch (s->header.type)
+       {
+       case lang_output_section_statement_enum:
+-	sort_sections (s->output_section_statement.children.head);
++	sort_sections (s->output_section_statement.children.head, info);
+ 	break;
+       case lang_wild_statement_enum:
+ 	{
++          struct bfd_link_hash_entry *h1;
+ 	  lang_statement_union_type **p = &s->wild_statement.children.head;
++	  lang_statement_union_type **newp;
+ 
+ 	  /* Is this the .idata section?  */
+ 	  if (s->wild_statement.section_name != NULL
+ 	      && strncmp (s->wild_statement.section_name, ".idata", 6) == 0)
+ 	    {
+-	      /* Sort any children in the same archive.  Run through all
+-		 the children of this wild statement, when an
+-		 input_section in an archive is found, scan forward to
+-		 find all input_sections which are in the same archive.
+-		 Sort them by their filename and then re-thread the
+-		 pointer chain. */
+-
+-	      while (*p)
+-		{
+-		  lang_statement_union_type *start = *p;
+-		  if (start->header.type != lang_input_section_enum
+-		      || !start->input_section.ifile->the_bfd->my_archive)
+-		    p = &(start->header.next);
+-		  else
+-		    {
+-		      lang_statement_union_type *end;
+-		      int count;
+-
+-		      for (end = start, count = 0;
+-			   end && end->header.type == lang_input_section_enum
+-			   && (end->input_section.ifile->the_bfd->my_archive
+-			       == start->input_section.ifile->the_bfd->my_archive);
+-			   end = end->next)
+-			count++;
++	      /* In prior versions of this code, there were attempts to
++		 sort the .idata* sections.  Using wild matching to group
++		 them is enough, and further attemts at sorting them are
++		 either unnecessary or wrong.  The sections must come in
++		 the order below:
++		   .idata\$2: any order whatsoever is fine; the symbol
++		      .idata\$2 must point to the first instance.
++		      (Note... a naive sort doesn't move the symbol
++		      after a sort; a smarter sort might, but see below.)
++		   .idata\$3: only one should be loaded (the DLL libraries
++		      ensure that) so sorting is irrelevant.
++		   .idata\$4: must be grouped by the archive from which
++		      it came, but order within archive is irrelevant,
++		      so encounter order (unordered) is fine. If it is
++		      sorted, the sort must be grouped by archive.  The symbol
++		      .idata\$4 must refer to the first of each archive group 
++		      when used in the .idata\$2 entry from the same archive 
++		      (that is, it has archive scope, a truly odd scope.)
++		   .idata\$5: must be in exactly the same order as .idata\$4,
++		      so any sorting must be done carefully.  It has the
++		      same scope as .idata\$4.  This (for both symbols) is
++		      handled in cofflink.c where the symbols are renamed.
++		   .idata\$6: unordered.
++		A sort smart enough to do the archive scope requirement of
++		.idata\$4 and .idata\$5 messes up .idata\$2 unless it's made
++		smarter yet.  However, since encounter order works, that's
++		far simpler.
+ 
+-		      p = sort_sections_1 (p, end, count, sort_by_file_name);
+-		    }
+-		}
++		*/
+ 	      break;
+ 	    }
+ 
+@@ -565,7 +1085,18 @@ sort_sections (s) #9
+ 			abort ();
+ 		      count++;
+ 		    }
+-		  (void) sort_sections_1 (p, end, count, sort_by_section_name);
++		  newp = sort_sections_1 (p, end, count, sort_by_section_name);
++		  /* The sort changed the order, and thus the location
++		     of the section symbol.  By definition, the section
++		     symbol is at offset zero of the section, so if we
++		     change the section to which the symbol points, we're
++		     done */
++		  h1 = bfd_link_hash_lookup (info->hash,
++		     s->wild_statement.section_name, false, false, true);
++		  if (h1 != NULL)
++		    {
++		      h1->u.def.section = (*p)->input_section.section;
++		    }
+ 		}
+ 	      break;
+ 	    }
+@@ -577,9 +1108,11 @@ sort_sections (s) #10
+ }
+ 
+ static void  
+-gld_${EMULATION_NAME}_before_allocation()
++gld_${EMULATION_NAME}_before_allocation(PARAMS(void))
+ {
+   extern lang_statement_list_type *stat_ptr;
++  const char *rpath;
++  asection *sinterp;
+ 
+ #ifdef TARGET_IS_ppcpe
+   /* Here we rummage through the found bfds to collect toc information */
+@@ -597,7 +1130,73 @@ gld_${EMULATION_NAME}_before_allocation( #11
+   ppc_allocate_toc_section (&link_info);
+ #endif
+ 
+-  sort_sections (stat_ptr->head);
++  rpath = command_line.rpath;
++  if (rpath == NULL)
++    rpath = (const char *) getenv ("LD_RUN_PATH");
++
++  /* Let the backend work out the sizes of any sections required
++     by dynamic linking.  */
++  /* Let the backend set up the dynamic sections */
++  if (! bfd_coff_size_dynamic_sections (output_bfd, 
++			command_line.soname, 
++			rpath,
++			command_line.export_dynamic,
++			command_line.filter_shlib,
++			(const char * const *) command_line.auxiliary_filters,
++			&link_info,
++			&sinterp,
++			lang_elf_version_info /* just use the elf one */
++			 ))
++      einfo ("%P%F: failed to set dynamic section sizes: %E\n");
++
++  /* Let the user override the dynamic linker we are using.  */
++  if (command_line.interpreter != NULL
++      && sinterp != NULL)
++    {
++      sinterp->contents = (bfd_byte *) command_line.interpreter;
++      sinterp->_raw_size = strlen (command_line.interpreter) + 1;
++    }
++
++  /* Look for any sections named .gnu.warning.  As a GNU extensions,
++     we treat such sections as containing warning messages.  We print
++     out the warning message, and then zero out the section size so
++     that it does not get copied into the output file.  */
++
++  {
++    LANG_FOR_EACH_INPUT_STATEMENT (is)
++      {
++	asection *s;
++	bfd_size_type sz;
++	char *msg;
++	boolean ret;
++
++	if (is->just_syms_flag)
++	  continue;
++
++	s = bfd_get_section_by_name (is->the_bfd, ".gnu.warning");
++	if (s == NULL)
++	  continue;
++
++	sz = bfd_section_size (is->the_bfd, s);
++	msg = xmalloc ((size_t) sz + 1);
++	if (! bfd_get_section_contents (is->the_bfd, s, msg, (file_ptr) 0, sz))
++	  einfo ("%F%B: Can't read contents of section .gnu.warning: %E\n",
++		 is->the_bfd);
++	msg[sz] = '\0';
++	ret = link_info.callbacks->warning (&link_info, msg,
++					    (const char *) NULL,
++					    is->the_bfd, (asection *) NULL,
++					    (bfd_vma) 0);
++	ASSERT (ret);
++	free (msg);
++
++	/* Clobber the section size, so that we don't waste copying the
++	   warning into the output file.  */
++	s->_raw_size = 0;
++      }
++  }
++
++  sort_sections (stat_ptr->head, &link_info);
+ }
+ 
+ /* Place an orphan section.  We use this to put sections with a '\$' in them
+@@ -707,6 +1306,8 @@ echo '  ; else if (!config.text_read_onl #12
+ sed $sc ldscripts/${EMULATION_NAME}.xbn                    >> e${EMULATION_NAME}.c
+ echo '  ; else if (!config.magic_demand_paged) return'     >> e${EMULATION_NAME}.c
+ sed $sc ldscripts/${EMULATION_NAME}.xn                     >> e${EMULATION_NAME}.c
++echo '  ; else if (link_info.shared) return'               >> e${EMULATION_NAME}.c
++sed $sc ldscripts/${EMULATION_NAME}.xs                     >> e${EMULATION_NAME}.c
+ echo '  ; else return'                                     >> e${EMULATION_NAME}.c
+ sed $sc ldscripts/${EMULATION_NAME}.x                      >> e${EMULATION_NAME}.c
+ echo '; }'                                                 >> e${EMULATION_NAME}.c
+@@ -730,7 +1331,7 @@ struct ld_emulation_xfer_struct ld_${EMU #13
+   "${OUTPUT_FORMAT}",
+   NULL, /* finish */
+   NULL, /* create output section statements */
+-  NULL, /* open dynamic archive */
++  gld${EMULATION_NAME}_open_dynamic_archive,
+   gld${EMULATION_NAME}_place_orphan,
+   gld_${EMULATION_NAME}_set_symbols,
+   gld_${EMULATION_NAME}_parse_args
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/lexsup.c //D/home/donn.intel/gnu.intel/ld/lexsup.c
+--- //Q/Gnusrc/cygwin.18/ld/lexsup.c	Mon Mar 15 18:19:55 1999
++++ //D/home/donn.intel/gnu.intel/ld/lexsup.c	Sun May 23 00:32:45 1999
+@@ -212,14 +213,18 @@ static const struct ld_option ld_options
+       '\0', "KEYWORD", "Ignored for SunOS compatibility", ONE_DASH },
+   { {"Bdynamic", no_argument, NULL, OPTION_CALL_SHARED},
+       '\0', NULL, "Link against shared libraries", ONE_DASH },
++/* conflicts with dynamic-linker below... suppressed (use specs?)
+   { {"dy", no_argument, NULL, OPTION_CALL_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
++*/
+   { {"call_shared", no_argument, NULL, OPTION_CALL_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
+   { {"Bstatic", no_argument, NULL, OPTION_NON_SHARED},
+       '\0', NULL, "Do not link against shared libraries", ONE_DASH },
++/* for symmetry
+   { {"dn", no_argument, NULL, OPTION_NON_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
++*/
+   { {"non_shared", no_argument, NULL, OPTION_NON_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
+   { {"static", no_argument, NULL, OPTION_NON_SHARED},
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/scripttempl/pe.sc //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc
+--- //Q/Gnusrc/cygwin.18/ld/scripttempl/pe.sc	Mon Mar 15 18:19:48 1999
++++ //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc	Sun May 23 00:32:57 1999
+@@ -1,21 +1,47 @@
+ # Linker script for PE.
++if [ "x${RELOCATING}" = x ]
++then
++   OUTPUT_FORMAT=${LINK_FORMAT} :
++fi
++
++LINKERSECTS="${RELOCATING-0} ${RELOCATXXX+\(NOLOAD\)} ${RELOCATING+ BLOCK(__section_alignment__) }"
+ 
+ cat <<EOF
+ OUTPUT_FORMAT(${OUTPUT_FORMAT})
+ ${LIB_SEARCH_DIRS}
+ 
+-ENTRY(_mainCRTStartup)
++ENTRY(${ENTRY})
++
++/* if DYNAMIC_LINKING [ */
++/* Not sure yet */
++${RELOCATING+/* Do we need any of these for elf?
++   __DYNAMIC = 0; ${STACKZERO+${STACKZERO}} ${SHLIB_PATH+${SHLIB_PATH}}  */}
++${RELOCATING+${EXECUTABLE_SYMBOLS}}
++/* end DYNAMIC_LINKING ] */
+ 
+ SECTIONS
+ {
+-  .text ${RELOCATING+ __image_base__ + __section_alignment__ } : 
++  .text ${RELOCATING+ __section_alignment__ } : 
+   {
+     ${RELOCATING+ *(.init)}
+     *(.text)
+-    ${CONSTRUCTING+ ___CTOR_LIST__ = .; __CTOR_LIST__ = . ; 
+-			LONG (-1); *(.ctors); *(.ctor); LONG (0); }
+-    ${CONSTRUCTING+ ___DTOR_LIST__ = .; __DTOR_LIST__ = . ; 
+-			LONG (-1); *(.dtors); *(.dtor);  LONG (0); }
++    ${RELOCATING+. = ALIGN(4);}
++
++    /* collect constructors only for final links */
++    ${RELOCATING+ 
++	*(.ctor_head);
++	*(.ctors);
++	*(.ctor);
++	LONG (0);
++
++	*(.dtor_head);
++	*(.dtors);
++	*(.dtor);
++	LONG (0);
++    }
++
++    /* .gnu.warning sections are handled specially by elf32.em.  */
++    *(.gnu.warning)
+     ${RELOCATING+ *(.fini)}
+     /* ??? Why is .gcc_exc here?  */
+     ${RELOCATING+ *(.gcc_exc)}
+@@ -26,46 +52,44 @@ SECTIONS
+     *(.gcc_except_table)
+   }
+ 
+-  .bss BLOCK(__section_alignment__)  :
+-  {
+-    __bss_start__ = . ;
+-    *(.bss)
+-    *(COMMON)
+-    __bss_end__ = . ;
+-  }
+-  .data BLOCK(__section_alignment__) : 
++  .plt $LINKERSECTS : { *(.plt)	}
++
++  .data ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+-    __data_start__ = . ; 
++    ${RELOCATING+ __data_start__ = . }; 
+     *(.data)
+     *(.data2)
+-    __data_end__ = . ; 
++    ${RELOCATING+ __data_end__ = . }; 
+     /* Grouped section support currently must be explicitly provided for
+ 	in the linker script.  */
+     *(.data\$)
+   }
+ 
+-  .rdata BLOCK(__section_alignment__) :
++  .rdata ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+     *(.rdata)
+     /* Grouped section support currently must be explicitly provided for
+ 	in the linker script.  */
+     *(.rdata\$)
++    /* DYNAMIC_LINKING [ */
++    *(.hash)
++    *(.interp)
++    /* ] */
+   }
+ 
+-  .edata BLOCK(__section_alignment__) :
++  .pdata ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+-    *(.edata)
++    *(.pdata)
++    ;
+   }
+ 
+-  /DISCARD/ BLOCK(__section_alignment__) :
+-  {
+-    *(.debug\$S)
+-    *(.debug\$T)
+-    *(.debug\$F)
+-    *(.drectve)
+-  }
++/* if DYNAMIC_LINKING [ */
++  .got         ${RELOCATING-0} ${RELOCATING+ BLOCK(__section_alignment__) } : { *(.got.plt) *(.got) }
++/* end DYNAMIC_LINKING ] */
+ 
+-  .idata BLOCK(__section_alignment__) :
++/* .idata must precede bss so file and code offsets remain the same for .sos */
++/* (At least for now... using Ldr* routines may fix.) */
++  .idata ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+     /* This cannot currently be handled with grouped sections.
+ 	See pe.em:sort_sections.  */
+@@ -76,37 +100,83 @@ SECTIONS
+     *(.idata\$6)
+     *(.idata\$7)
+   }
+-  .CRT BLOCK(__section_alignment__) :
++
++  .bss ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    ${RELOCATING+ __bss_start__ = . };
++/* DYNAMIC_LINKING */
++    *(.dynbss)
++/* end DYNAMIC_LINKING */
++    *(.bss)
++    *(COMMON)
++    ${RELOCATING+ __bss_end__ = . };
++  }
++
++  .edata ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    *(.edata)
++  }
++
++  /DISCARD/ ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    *(.debug\$S)
++    *(.debug\$T)
++    *(.debug\$F)
++    *(.drectve)
++  }
++
++  .CRT ${RELOCATING+ BLOCK(__section_alignment__) } :
+   { 					
+     /* Grouped sections are used to handle .CRT\$foo.  */
+     *(.CRT\$)
+   }
+-  .rsrc BLOCK(__section_alignment__) :
++  .rsrc ${RELOCATING+ BLOCK(__section_alignment__) } :
+   { 					
+     /* Grouped sections are used to handle .rsrc\$0[12].  */
+     *(.rsrc\$)
+   }
+ 
+-  .endjunk BLOCK(__section_alignment__) :
++  .endjunk ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+     /* end is deprecated, don't use it */
+     ${RELOCATING+ end = .;}
+     ${RELOCATING+ __end__ = .;}
+   }
+ 
+-  .stab BLOCK(__section_alignment__)  ${RELOCATING+(NOLOAD)} : 
++/* DYNAMIC_LINKING [ */
++  .dynamic     ${RELOCATING-0} ${RELOCATXXX+"(NOLOAD)"} : { *(.dynamic) }
++
++  .dynsym $LINKERSECTS : { *(.dynsym)	}
++  .dynstr $LINKERSECTS : { *(.dynstr)	}
++  .gnu.version $LINKERSECTS : { *(.gnu.version)	}
++  .gnu.version_d $LINKERSECTS : { *(.gnu.version_d)	}
++  .gnu.version_r $LINKERSECTS : { *(.gnu.version_r)	}
++
++  .rel.dyn    $LINKERSECTS :
++  { 
++    *(.rel.internal)
++    *(.rel.got)
++    *(.rel.plt)
++  }
++  .rela.dynamic   $LINKERSECTS :
++    { *(.rela.*) }
++  .init        $LINKERSECTS : { *(.init)	} =${NOP-0}
++/* end DYNAMIC_LINKING ] */
++
++  .reloc ${RELOCATING+ BLOCK(__section_alignment__) } :
++  { 					
++    *(.reloc)
++  }
++
++  .stab ${RELOCATING+ BLOCK(__section_alignment__) } ${RELOCATING+"(NOLOAD)"} : 
+   {
+     [ .stab ]
+   }
+ 
+-  .stabstr BLOCK(__section_alignment__) ${RELOCATING+(NOLOAD)} :
++  .stabstr ${RELOCATING+ BLOCK(__section_alignment__) } ${RELOCATING+"(NOLOAD)"} : 
+   {
+     [ .stabstr ]
+   }
+ 
+-  .reloc BLOCK(__section_alignment__) :
+-  { 					
+-    *(.reloc)
+-  }
+ }
+ EOF

@@ -1,0 +1,120 @@
+REEVALUATE corelow changes for neccessity; changes to interix-nat are
+definitely needed.
+
+Core file support for Interix (assumes corresponding BFD patches
+have been applied).  In core_open, we need to get to the magic
+pstatus info for the unwind stuff.
+
+Is there a better place to put the include?
+
+Is this all corefile support or is some of it trampoline fixes???
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* corelow.c: include procfs.h for Interix.
+	(core_open): for Interix only, get signal trampoline address
+
+
+Index: corelow.c
+===================================================================
+RCS file: /cvs/src/src/gdb/corelow.c,v
+retrieving revision 1.22
+diff -u -3 -p -r1.22 corelow.c
+--- corelow.c	17 May 2002 23:06:10 -0000	1.22
++++ corelow.c	6 Nov 2002 00:36:45 -0000
+@@ -38,6 +38,9 @@
+ #include "gdbthread.h"
+ #include "regcache.h"
+ #include "symfile.h"
++#ifdef HAVE_SYS_PROCFS_H
++#include <sys/procfs.h>
++#endif
+ 
+ #ifndef O_BINARY
+ #define O_BINARY 0
+@@ -308,6 +311,47 @@ core_open (char *filename, int from_tty)
+   discard_cleanups (old_chain);	/* Don't free filename any more */
+   unpush_target (&core_ops);
+   core_bfd = temp_bfd;
++
++#ifdef __INTERIX
++  {
++    /* FIXME: brobecker 2002-07-15: Haven't I seen the exact same code
++       about a hundred lines below??? I actually implemented
++       i386_interix_cache_trampoline_addresses but it is not activated
++       yet, because I want to test it just by itself (ie have a clean
++       gdb bugs run, activate the code, then redo a test run). */
++    /* This is painful, but there doesn't seem to be a better way.
++       See interix tm.h, IN_SIGTRAMP, and procfs.c for more details. */
++    extern CORE_ADDR tramp_start;
++    extern CORE_ADDR tramp_end;
++    extern CORE_ADDR null_start;
++    extern CORE_ADDR null_end;
++    asection *section;
++    pstatus_t *p;
++    
++    section = bfd_get_section_by_name (core_bfd, ".pstatus");
++    if (section != NULL)
++      {
++        p = (pstatus_t *)section->contents;
++    
++        if (p == NULL)
++          {
++    	    p = (pstatus_t *)bfd_alloc(core_bfd, section->_raw_size);
++    	    bfd_get_section_contents (core_bfd, section, p, 0, 
++    	                              section->_raw_size);
++          }
++        tramp_start = (CORE_ADDR)p->pr_signaldeliverer;
++        tramp_end = (CORE_ADDR)p->pr_endsignaldeliverer;
++        null_start = (CORE_ADDR)p->pr_nullapi;
++        null_end = (CORE_ADDR)p->pr_endnullapi;
++    }
++    /* else, just ignore it; it shouldn't ever happen. */
++
++    /* The stack unwind stuff needs to know this; presumably it's always
++       true for a corefile. */
++    stopped_by_random_signal = 1;
++  }
++#endif
++
+   old_chain = make_cleanup (core_close_cleanup, 0 /*ignore*/);
+ 
+   /* Find a suitable core file handler to munch on core_bfd */
+@@ -373,6 +417,38 @@ core_open (char *filename, int from_tty)
+ 		"you won't be able to access this core file until you terminate\n\
+ your %s; do ``info files''", target_longname);
+     }
++
++#ifdef __INTERIX
++    {
++      /* This is painful, but there doesn't seem to be a better way.
++         See interix tm.h, IN_SIGTRAMP, and procfs.c for more details. */
++      /* FIXME: Replace by call to i386_interix_cache_trampoline_addresses */
++      extern CORE_ADDR tramp_start;
++      extern CORE_ADDR tramp_end;
++      extern CORE_ADDR null_start;
++      extern CORE_ADDR null_end;
++      asection *section;
++      pstatus_t *p;
++      
++      section = bfd_get_section_by_name (core_bfd, ".pstatus");
++      if (section != NULL)
++        {
++          p = (pstatus_t *)section->contents;
++      
++          if (p == NULL)
++            {
++      	      p = (pstatus_t *)bfd_alloc(core_bfd, section->_raw_size);
++      	      bfd_get_section_contents (core_bfd, section, p, 0, 
++      	                                section->_raw_size);
++            }
++          tramp_start = (CORE_ADDR)p->pr_signaldeliverer;
++          tramp_end = (CORE_ADDR)p->pr_endsignaldeliverer;
++          null_start = (CORE_ADDR)p->pr_nullapi;
++          null_end = (CORE_ADDR)p->pr_endnullapi;
++        }
++      /* else, just ignore it; it shouldn't ever happen. */
++    }
++#endif
+ }
+ 
+ static void

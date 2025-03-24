@@ -1,0 +1,33 @@
+q-patch ld 01 1  # remove derived files
+q-patch ld 02 1  # sysdep.h
+q-patch ld 08 1  # script... image base stuff; residual; pending 39
+# q-patch ld 20 5  # version numbers -- should I???
+q-patch ld 22 5  # simple constructor
+q-patch ld 23 5  # 0 base
+q-patch ld 24 5  # Current Interix constructor
+# q-patch ld 25 0  # idata hack: no longer needed; pe.sc covers it.
+q-patch ld 26 5  # Constructor sort (combind with 24?)
+
+if [ "$NODYN" != 1 ]
+then
+    q-patch ld 30 1  # dynamic link
+fi
+q-patch ld 31 0  # relocation count
+q-patch ld 40 5  # regressions
+q-patch ld 41 0  # regressions
+q-patch ld 42 0  # regressions
+q-patch ld 43 1  # ld -r and (MSVC) COMDATs
+q-patch ld 44 0  # entry on command line
+
+if [ "$ALPHA" = 1 ]
+then
+  q-patch ld 50 5  # Alpha: to make configure happy.
+fi
+
+q-patch ld 51 0  # isNULL test in ldlang.c
+q-patch ld 52 0  # Add x86 to NATIVE libpath to support setuid binaries on amd64
+exit
+
+I'm a little nervous about INITIAL_SYMBOL_CHAR in 02.
+04... should work, but watch it.
+05... prove his conjecture (or not).  If fail, try my alternative.

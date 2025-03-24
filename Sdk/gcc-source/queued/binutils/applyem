@@ -1,0 +1,28 @@
+q-patch binutils 08 1  # nm -f ... sent exact reference; pending
+q-patch binutils 11 1  # Find another way... alternative in BFD?
+# q-patch binutils 13 1  # Find a variant; suppress for now, and test.
+q-patch binutils 15 1
+q-patch binutils 16 0  # Change section size
+q-patch binutils 17 0  # Write only sections
+# q-patch binutils 18 0  # dyn-string got moved to libiberty in some cases
+q-patch binutils 19 0  # strip shouldn't write non-writeable files.
+q-patch binutils 20 0  # don't print reloc offsets for coff
+
+if [ "$NODYN" != 1 ]
+then
+    q-patch binutils 30 2
+    q-patch binutils 31 1
+fi
+q-patch binutils 40 5
+
+if [ "$ALPHA" = 1 ]
+then
+    q-patch binutils 50 5
+fi
+
+# q-patch binutils 101 0
+
+exit
+
+Check that 03 works right, but assume it does.
+12... I suspect he introduced a bug.  His fix taken, for now.

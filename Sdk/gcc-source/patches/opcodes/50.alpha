@@ -1,0 +1,81 @@
+Not currently being applied, alpha only.
+
+This patch is submitted for consideration; it's currently dead code,
+but I've found it useful in the past to have the disassembler and the
+compiler agree on register mnemonics, and this allows others to turn
+it on if they wish.
+
+ChangeLog:
+	* alpha-dis.c(NT_regnames): alternate names like used by compiler.
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/opcodes/alpha-dis.c //D/home/donn.intel/gnu.intel/opcodes/alpha-dis.c
+--- //Q/Gnusrc/cygwin.0325/opcodes/alpha-dis.c	Thu Mar 25 02:13:29 1999
++++ //D/home/donn.intel/gnu.intel/opcodes/alpha-dis.c	Mon Mar 29 09:55:18 1999
+@@ -27,6 +27,8 @@ Software Foundation, 59 Temple Place - S
+ #include "dis-asm.h"
+ #include "opcode/alpha.h"
+ 
++#define use_boring_regnames 0
++
+ /* OSF register names.  */
+ 
+ static const char * const osf_regnames[64] =
+@@ -55,6 +57,31 @@ static const char * const vms_regnames[6
+   "F24", "F25", "F26", "F27", "F28", "F29", "F30", "FZ"
+ };
+ 
++static const char * const NT_regnames[64] =
++{
++  "$V0", "$T0", "$T1", "$T2", "$T3", "$T4", "$T5", "$T6",
++  "$T7", "$S0", "$S1", "$S2", "$S3", "$S4", "$S5", "$FP",
++  "$A0", "$A1", "$A2", "$A3", "$A4", "$A5", "$T8", "$T9",
++  "$T10", "$T11", "$RA", "$T12", "$AT", "$T13", "$SP", "$RZ",
++  "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7",
++  "$f8", "$f9", "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
++  "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
++  "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$fZ"
++};
++
++#if use_boring_regnames==1
++static const char * const boring_regnames[64] =
++{
++  "$r0V0", "$r1T0", "$r2T1", "$r3T2", "$r4T3", "$r5T4", "$r6T5", "$r7T6",
++  "$r8T7", "$r9S0", "$r10S1", "$r11S2", "$r12S3", "$r13S4", "$r14S5", "$r15FP",
++  "$r16A0", "$r17A1", "$r18A2", "$r19A3", "$r20A4", "$r21A5", "$r22T8", "$r23T9",
++  "$r24T10", "$r25T11", "$r26RA", "$r27T12", "$r28AT", "$r29T13", "$r30SP", "$r31RZ",
++  "$f0", "$f1", "$f2", "$f3", "$f4", "$f5", "$f6", "$f7",
++  "$f8", "$f9", "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
++  "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
++  "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$fZ"
++};
++#endif
+ /* Disassemble Alpha instructions.  */
+ 
+ int
+@@ -84,8 +111,15 @@ print_insn_alpha (memaddr, info)
+       opcode_index[op] = opcode;
+     }
+ 
++#if use_boring_regnames == 1
++  if (use_boring_regnames) 
++    regnames = boring_regnames;
++  else 
++#endif
+   if (info->flavour == bfd_target_evax_flavour)
+     regnames = vms_regnames;
++  else if (info->flavour == bfd_target_coff_flavour)
++    regnames = NT_regnames;
+   else
+     regnames = osf_regnames;
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/opcodes/configure.in //D/home/donn.intel/gnu.intel/opcodes/configure.in
+--- //Q/Gnusrc/cygwin.0325/opcodes/configure.in	Thu Mar 25 02:25:49 1999
++++ //D/home/donn.intel/gnu.intel/opcodes/configure.in	Mon Mar 29 09:55:18 1999
+@@ -131,6 +131,7 @@ if test x${all_targets} = xfalse ; then
+ 	bfd_a29k_arch)		ta="$ta a29k-dis.lo" ;;
+ 	bfd_alliant_arch)	;;
+ 	bfd_alpha_arch)		ta="$ta alpha-dis.lo alpha-opc.lo" ;;
++ 	bfd_alpha32_arch)	ta="$ta alpha-dis.lo alpha-opc.lo" ;;
+ 	bfd_arc_arch)		ta="$ta arc-dis.lo arc-opc.lo" ;;
+ 	bfd_arm_arch)		ta="$ta arm-dis.lo" ;;
+ 	bfd_convex_arch)	;;

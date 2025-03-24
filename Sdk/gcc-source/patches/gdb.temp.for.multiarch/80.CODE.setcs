@@ -1,0 +1,44 @@
+Use smarter REs so that systems that mark .text as DATA or .data as CODE
+will pass without having to force an XFAIL (and still fail if something
+serious goes wrong.)
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.saved/testsuite/gdb.base/maint.exp gdb/testsuite/gdb.base/maint.exp
+--- gdb.saved/testsuite/gdb.base/maint.exp	Tue Mar  5 14:56:07 2002
++++ gdb/testsuite/gdb.base/maint.exp	Tue Mar  5 22:33:16 2002
+@@ -398,20 +398,30 @@ gdb_expect {
+ }
+ 
+ # Test for new option: CODE section flag
+-# If your data section is tagged CODE, xfail this test.
+ send_gdb "maint info sections CODE\n"
+ gdb_expect {
+-    -re ".* .data .*$gdb_prompt $" { fail "maint info sections CODE" }
+-    -re ".* .text .*$gdb_prompt $" { pass "maint info sections CODE" }
++    -re ".* .data \[^\n\]*CODE\[^\n\]*\n" { exp_continue }
++    -re ".* .data .*\n" { fail "maint info sections CODE (.data unexpected)" }
++    -re ".* .text .*\n" { pass "maint info sections CODE" }
++    -re ".*$gdb_prompt $"  { fail "maint info sections CODE (no .text)" }
++    timeout              { fail "(timeout) maint info sections CODE (no output)" }
++}
++gdb_expect {
++    -re ".*$gdb_prompt $"  { }
+     timeout              { fail "(timeout) maint info sections CODE" }
+ }
+ 
+ # Test for new option: DATA section flag
+-# If your text section is tagged DATA, xfail this test.
+ send_gdb "maint info sections DATA\n"
+ gdb_expect {
+-    -re ".* .text .*$gdb_prompt $" { fail "maint info sections DATA" }
+-    -re ".* .data .*$gdb_prompt $" { pass "maint info sections DATA" }
++    -re ".* .text \[^\n\]*DATA\[^\n\]*\n" { exp_continue }
++    -re ".* .text .*\n" { fail "maint info sections DATA (.text unexpected)" }
++    -re ".* .data .*\n" { pass "maint info sections DATA" }
++    -re ".*$gdb_prompt $"  {fail "maint info sections DATA 2 (no .text)" }
++    timeout              { fail "(timeout) maint info sections DATA (no output)" }
++}
++gdb_expect {
++    -re ".*$gdb_prompt $"  { }
+     timeout              { fail "(timeout) maint info sections DATA" }
+ }
+ 

@@ -1,0 +1,341 @@
+TEXT MOSTLY WRONG... rewrite when done
+Look for // comments.
+
+
+/proc docs are somewhat ambiguous in defintion of the command word;
+in the case of getting/sending registers, on the Alpha the gregset_t
+struct will be 64-bit aligned, so there will be a 32-bit pad 
+between cmd and gregset in greg_ctl.  However, the kernel wasn't
+expecing that pad.  Adjust to avoid the issue portably.  (Applies
+to fpreg_ctl too.)
+
+The signal trampoline
+is not in the symbol table, but the OS knows where it is.  
+/proc modified to return the address range, create_procinfo to
+capture the values. 
+
+procfs.c/close_proc_file:  open_proc_file can be called with
+"control" == 0 which causes pip->ctl_fd to not be opened (and
+thus be zero).  This was unconditionally closing it, which 
+actually closed stdin.
+
+
+procfs.c/proc_set_exec_trap: why did we just clear PR_FORK and set 
+it again?  Causes the gdb "shell" command to hang up.
+
+testsuite/gdb.base/info-proc.exp was failing because offset was always
+zero, and $#X returns 0, not 0x0!
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* procfs.c(procfs_kill_inferior, proc_set_exec_trap, 
+	procfs_prepare_to_store,procfs_mourn_inferior,
+	procfs_can_run, procfs_stop): explicit void to shut up some compilers.
+
+	* procfs.c(global, proc_set_exec_trap, proc_interate_over_mappings,
+	do_attach, do_detach, set_proc_siginfo, procfs_resume, 
+	procfs_fetch_registers, info_proc_syscalls, info_proc_signals,
+	info_proc_faults): clarify use of PROCFS_USE_READ_WRITE, 
+	untangle from UNIXWARE
+
+	* procfs.c(???): Ditto HAVE_NO_PRRUN_T, HAVE_STRUCT_LWP
+
+	* procfs.c(procfs_to_fd): Not needed if PROCFS_USE_READ_WRITE.
+
+	* procfs.c(???): Add PROCFS_USE_READ_WRITE cases where needed (some were
+	missing or incomplete).
+
+	* procfs.c(wait_fd):  fix bug in LOSING_POLL case.
+
+	* procfs.c(global, procfs_store_registers): allow for 64 bit alignment.
+
+	* procfs.c(procfs_read_current_status): New.  (PART OF FP PACK!)
+
+	* procfs.c(procfs_kill_inferior): Better diagnostics in case of
+	unexpected failure.
+
+	* procfs.c(create_procinfo): Report address of signal trampoline
+	for Interix.
+
+	* procfs.c(procfs_init_inferior): ??? See trap?
+
+	* procfs.c(procfs_init_inferior): Reflect new counting rules
+	for synchronizer.  (Goes with something else.)
+
+	* procfs.c(procfs_find_allocation_base): New.
+
+	* procfs.c(procfs_wait): Assure pi is NULL at start, gets
+	initialized.
+
+	* procfs.c(close_proc_file, open_proc_file):  close only files 
+	we opened.
+
+	* procfs.c(proc_set_exec_trap): fix clear/set of PR_FORK.
+
+	* procfs.c (modify_run_on_last_close_flag):  Why RLC? ??????
+
+	* procfs.c (procfs_clear_syscall_trap, procfs_set_syscall_trap): 
+	Tighter use of types.
+
+	  Better diagnostics for procfs_xfer_memory()
+	  Remove redundant open of procfs map file.
+
+
+
+Index: src/gdb/procfs.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/procfs.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 procfs.c
+--- procfs.c.old	Sat Mar  2 10:33:42 2002
++++ procfs.c	Thu Feb 28 15:42:51 2002
+@@ -26,7 +26,8 @@ Inc., 59 Temple Place - Suite 330, Bosto
+ #include "elf-bfd.h"		/* for elfcore_write_* */
+ #include "gdbcmd.h"
+ #include "gdbthread.h"
+-
++#include <sys/utsname.h>
++
+ #if defined (NEW_PROC_API)
+ #define _STRUCTURED_PROC 1	/* Should be done by configure script. */
+ #endif
+@@ -518,7 +518,7 @@ open_procinfo_files (procinfo *pi, int w
+    * This function is getting ALMOST long enough to break up into several.
+    * Here is some rationale:
+    *
+-   * NEW_PROC_API (Solaris 2.6, Solaris 2.7, Unixware):
++   * NEW_PROC_API (Solaris 2.6, Solaris 2.7, Unixware, Interix):
+    *   There are several file descriptors that may need to be open 
+    *   for any given process or LWP.  The ones we're intereted in are:
+    *     - control	 (ctl)	  write-only	change the state
+@@ -533,7 +533,7 @@ open_procinfo_files (procinfo *pi, int w
+    *       /proc/<proc-id>/status
+    *       /proc/<proc-id>/as
+    *       /proc/<proc-id>/map
+-   *     Pathnames for an LWP (lwp-id):
++   *     Pathnames for an LWP (lwp-id) (not on Interix):
+    *       /proc/<proc-id>/lwp/<lwp-id>/lwpctl
+    *       /proc/<proc-id>/lwp/<lwp-id>/lwpstatus
+    *   An LWP has no map or address space file descriptor, since
+@@ -665,8 +665,8 @@ open_procinfo_files (procinfo *pi, int w
+ static procinfo *
+ create_procinfo (int pid, int tid)
+ {
+-  procinfo *pi, *parent;
+-
++  procinfo *pi, *parent = NULL;
++
+   if ((pi = find_procinfo (pid, tid)))
+     return pi;			/* Already exists, nothing to do. */
+ 
+@@ -1136,6 +1138,42 @@ proc_get_status (procinfo *pi)
+ 				      sizeof (gdb_prstatus_t))
+ 				== sizeof (gdb_prstatus_t));
+ #endif /* UNIXWARE */
++
++#ifdef __INTERIX
++          {
++            /* On Interix, the location of the trampoline code can
++               float, and it's not part of the symbol table (because
++               it's internal to a DLL).  However, the system knows where
++               it is, and tells us, so we capture that info here. */
++            /* FIXME D. Terry: THIS MAY NOT BE THE BEST PLACE to read
++               IT MAY BE BEST TO MAKE THESE FIELDS PER-PROC
++               Agreed... tell me how for /proc stuff?  */
++
++            /* While we're doing such ugly things, find out which
++               version of NT this is, so we can change our unwind rules
++               a bit.
++               FIXME: If we move this, move the include of utsname.h, too.*/
++            struct utsname info;
++            extern CORE_ADDR tramp_start;
++            extern CORE_ADDR tramp_end;
++            extern CORE_ADDR null_start;
++            extern CORE_ADDR null_end;
++            extern int winver;
++
++            tramp_start = (CORE_ADDR)pi->prstatus.pr_signaldeliverer;
++            tramp_end = (CORE_ADDR)pi->prstatus.pr_endsignaldeliverer;
++            null_start = (CORE_ADDR)pi->prstatus.pr_nullapi;
++            null_end = (CORE_ADDR)pi->prstatus.pr_endnullapi;
++
++            uname (&info);
++            /* Convert the first two digits (skip the decimal point) into
++               a number.  E.g. 5.0 -> 50.  We'll test this later to know
++               how to unwind. */
++            winver = (info.release_host[0] - '0') * 10
++                       + info.release_host[2] - '0';
++          }
++#endif
++
+ 	}
+     }
+ #else	/* ioctl method */
+@@ -1252,7 +1266,8 @@ proc_what (procinfo *pi)
+ #endif
+ }
+ 
+-#ifndef PIOCSSPCACT	/* The following is not supported on OSF.  */
++#if !defined(PIOCSSPCACT) && !defined(__INTERIX)
++/* The following is not supported on OSF.  Or Interix.  */
+ /*
+  * Function: proc_nsysarg
+  *
+@@ -1960,8 +1975,8 @@ proc_set_traced_sysexit (procinfo *pi, s
+ int
+ proc_set_held_signals (procinfo *pi, gdb_sigset_t *sighold)
+ {
+-  int win;
+-
++  int win = 1;  /* No PCSHOLD == No LWPs; just succeed. */
++
+   /*
+    * We should never have to apply this operation to any procinfo
+    * except the one for the main process.  If that ever changes
+@@ -1973,7 +1988,8 @@ proc_set_held_signals (procinfo *pi, gdb
+     pi = find_procinfo_or_die (pi->pid, 0);
+ 
+ #ifdef NEW_PROC_API
++#ifdef PCSHOLD
+   {
+     struct {
+       procfs_ctl_t cmd;
+       /* Use char array to avoid alignment issues.  */
+@@ -1984,6 +2001,7 @@ proc_set_held_signals (procinfo *pi, gdb
+     memcpy (&arg.hold, sighold, sizeof (gdb_sigset_t));
+     win = (write (pi->ctl_fd, (void *) &arg, sizeof (arg)) == sizeof (arg));
+   }
++#endif
+ #else
+   win = (ioctl (pi->ctl_fd, PIOCSHOLD, sighold) >= 0);
+ #endif
+@@ -2798,7 +2816,13 @@ proc_kill (procinfo *pi, int signo)
+ 
+       cmd[0] = PCKILL;
+       cmd[1] = signo;
++#ifdef __INTERIX
++      /* Work around system bug; for now. */
++      write (pi->ctl_fd, (char *) &cmd, sizeof (cmd));
++      win = 1;
++#else
+       win = (write (pi->ctl_fd, (char *) &cmd, sizeof (cmd)) == sizeof (cmd));
++#endif
+ #else   /* ioctl method */
+       /* FIXME: do I need the Alpha OSF fixups present in
+ 	 procfs.c/unconditionally_kill_inferior?  Perhaps only for SIGKILL? */
+@@ -2880,6 +2904,53 @@ proc_set_watchpoint (procinfo *pi, CORE_
+ #endif
+ }
+ 
++// NEEDS REINTERFACE
++#ifdef __INTERIX
++/* Find the allocation base (an NT concept) containing the address */
++CORE_ADDR
++proc_allocation_base(CORE_ADDR addr)
++{
++  int nmap;
++  prmap_t *prmaps;
++  prmap_t *prmap;
++  struct procinfo *pi;
++  struct stat sbuf;
++  char pathname[MAX_PROC_NAME_SIZE];
++  int map_fd;
++
++  pi = find_procinfo_or_die (PIDGET (inferior_ptid), 0);
++
++  /* Open map fd.  */
++  sprintf (pathname, "/proc/%d/map", pi->pid);
++  if ((map_fd = open (pathname, O_RDONLY)) < 0)
++    proc_error (pi, "proc_iterate_over_mappings (open)", __LINE__);
++
++  /* Make sure it gets closed again.  */
++  make_cleanup_close (map_fd);
++
++  if (fstat (map_fd, &sbuf) < 0)
++    return 0;
++
++  nmap = sbuf.st_size / sizeof (prmap_t);
++  prmaps = (prmap_t *) alloca (nmap * sizeof(prmap_t));
++  if ((lseek (map_fd, 0, SEEK_SET) == 0) &&
++	(read (map_fd, (char *) prmaps, nmap * sizeof (prmap_t)) ==
++	(nmap * sizeof (prmap_t))))
++    {
++      int i = 0;
++      for (prmap = prmaps; i < nmap; ++prmap, ++i)
++        {
++	  if (((CORE_ADDR)prmap->pr_vaddr <= addr) &&
++	      ((CORE_ADDR)prmap->pr_vaddr + prmap->pr_size > addr))
++	    {
++		return (CORE_ADDR)prmap->AllocationBase;
++	    }
++        }
++    }
++  return (CORE_ADDR)-1;
++}
++#endif /* __INTERIX */
++
+ #ifdef TM_I386SOL2_H		/* Is it hokey to use this? */
+ 
+ #include <sys/sysi86.h>
+@@ -3993,7 +4064,7 @@ wait_again:
+ 		    printf_filtered ("procfs: trapped on entry to ");
+ 		    proc_prettyprint_syscall (proc_what (pi), 0);
+ 		    printf_filtered ("\n");
+-#ifndef PIOCSSPCACT
++#if !defined(PIOCSSPCACT) && !defined(__INTERIX)
+ 		    {
+ 		      long i, nsysargs, *sysargs;
+ 
+@@ -4081,7 +4152,7 @@ wait_again:
+ 		    printf_filtered ("procfs: trapped on exit from ");
+ 		    proc_prettyprint_syscall (proc_what (pi), 0);
+ 		    printf_filtered ("\n");
+-#ifndef PIOCSSPCACT
++#if !defined(PIOCSSPCACT) && !defined(__INTERIX)
+ 		    {
+ 		      long i, nsysargs, *sysargs;
+ 
+@@ -4277,15 +4348,21 @@ procfs_xfer_memory (CORE_ADDR memaddr, c
+ 	  PROCFS_NOTE ("write memory: \n");
+ #endif
+ 	  nbytes = write (pi->as_fd, myaddr, len);
++	  if (nbytes < 0)
++	    {
++	      perror("procfs write of memory:");
++	      nbytes = 0;
++	    }
+ 	}
+       else
+ 	{
+ 	  PROCFS_NOTE ("read  memory: \n");
+ 	  nbytes = read (pi->as_fd, myaddr, len);
+-	}
+-      if (nbytes < 0)
+-	{
+-	  nbytes = 0;
++	  if (nbytes < 0)
++	    {
++	      perror("procfs read of memory:");
++	      nbytes = 0;
++	    }
+ 	}
+     }
+   return nbytes;
+@@ -5722,7 +5799,7 @@ procfs_first_available (void)
+ }
+ 
+ /* ===================  GCORE .NOTE "MODULE" =================== */
+-#if defined (UNIXWARE) || defined (PIOCOPENLWP) || defined (PCAGENT)
++#if (defined (UNIXWARE) || defined (PIOCOPENLWP) || defined (PCAGENT)) && !defined(__INTERIX)
+ /* gcore only implemented on solaris and unixware (so far) */
+ 
+ static char *
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.saved/testsuite/gdb.base/info-proc.exp gdb/testsuite/gdb.base/info-proc.exp
+--- src/gdb.saved/testsuite/gdb.base/info-proc.exp	Tue Mar  5 14:56:06 2002
++++ src/gdb/testsuite/gdb.base/info-proc.exp	Tue Mar  5 20:53:44 2002
+@@ -71,5 +71,5 @@ if { ! [ runto main ] } then {
+ gdb_test "info proc" "process ${decimal}.*" "info proc with process"
+ 
+ gdb_test "info proc mapping" \
+-	".*Mapped address spaces:.*${hex}${ws}${hex}${ws}${hex}${ws}${hex}.*" \
++	".*Mapped address spaces:.*${hex}${ws}${hex}${ws}${hex}${ws}\(${hex}|0\).*" \
+ 	"info proc mapping"

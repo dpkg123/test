@@ -1,0 +1,89 @@
+One more alignment rule is needed for structure values 
+(not in their fixes, yet).
+
+Also, fix bug with BLOCK_GCC_COMPILED: it simply doesn't work
+right at this point and breaks some systems.  See comment below.
+
+Index: src/gdb/valops.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/valops.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 valops.c
+--- src/gdb/valops.c	2001/12/23 00:34:57	1.1.1.1
++++ src/gdb/valops.c	2001/12/23 23:58:39
+@@ -1356,11 +1356,20 @@ hand_function_call (value_ptr function, 
+   funaddr = find_function_addr (function, &value_type);
+   CHECK_TYPEDEF (value_type);
+ 
++#ifdef CARE_IF_GCC
+   {
+     struct block *b = block_for_pc (funaddr);
+     /* If compiled without -g, assume GCC 2.  */
+     using_gcc = (b == NULL ? 2 : BLOCK_GCC_COMPILED (b));
+   }
++#else
++  /* If we don't care if we're using gcc or not on this system,
++     then default to 2.  Note that there appears to be NO code
++     that actually sets up BLOCK_GCC_COMPILED (gcc_compile_flag)
++     so this is all pretty much meaningless anyway, but it
++     breaks the regressions (callfunc).  */
++  using_gcc = 2;
++#endif
+ 
+   /* Are we returning a value using a structure return or a normal
+      value return? */
+@@ -1557,6 +1566,7 @@ You must use a pointer to function type 
+   /* Reserve space for the return structure to be written on the
+      stack, if necessary */
+ 
++#if 0
+   if (struct_return)
+     {
+       int len = TYPE_LENGTH (value_type);
+@@ -1578,6 +1588,46 @@ You must use a pointer to function type 
+ 	  sp += len;
+ 	}
+     }
++#else
++  if (struct_return)
++    {
++      register int len = TYPE_LENGTH (value_type);
++      register int container_len = len;
++      register int offset;
++
++      /* How big is the container we're going to put this value in?  */
++      if (PARM_BOUNDARY)
++        container_len = ((len + PARM_BOUNDARY / TARGET_CHAR_BIT - 1)
++                        & ~(PARM_BOUNDARY / TARGET_CHAR_BIT - 1));
++
++      /* Are we going to put it at the high or low end of the container?  */
++      if (TARGET_BYTE_ORDER == BFD_ENDIAN_BIG)
++        offset = container_len - len;
++      else
++        offset = 0;
++
++      if (INNER_THAN (1, 2))
++        {
++          /* Stack grows downward.  Align STRUCT_ADDR and SP after
++             making space for the return value.  */
++          sp -= container_len;
++          if (gdbarch_frame_align_p (current_gdbarch))
++            sp = gdbarch_frame_align (current_gdbarch, sp);
++          struct_addr = sp;
++        }
++      else
++        {
++          /* Stack grows upward.  Align the frame, allocate space, and
++             then again, re-align the frame??? */
++          if (gdbarch_frame_align_p (current_gdbarch))
++            sp = gdbarch_frame_align (current_gdbarch, sp);
++          struct_addr = sp;
++          sp += container_len;
++          if (gdbarch_frame_align_p (current_gdbarch))
++            sp = gdbarch_frame_align (current_gdbarch, sp);
++        }
++    }
++#endif
+ 
+   /* elz: on HPPA no need for this extra alignment, maybe it is needed
+      on other architectures. This is because all the alignment is

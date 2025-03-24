@@ -1,0 +1,23 @@
+This is the other place that needs to be changed to make the bfd
+changes I submitted earlier for ImageBase work right.  The use here
+is too broad a brush, and by making the changes in bfd, the code there
+is simplified (removes a lot of PE special cases) and allows a lot of
+other code to either "just work" or be easily fixed so it will.
+
+
+	* scripttempl/pe.sc: Delete Image base from script
+	to bfd patches.
+
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/scripttempl/pe.sc ld/scripttempl/pe.sc
+--- ld.nil/scripttempl/pe.sc	Wed Jul  7 14:17:23 1999
++++ ld/scripttempl/pe.sc	Wed Jul  7 14:17:45 1999
+@@ -46,7 +46,7 @@ ENTRY(${ENTRY})
+ 
+ SECTIONS
+ {
+-  .text ${RELOCATING+ __image_base__ + __section_alignment__ } : 
++  .text ${RELOCATING+ __section_alignment__ } :
+   {
+     ${RELOCATING+ *(.init)}
+     *(.text)

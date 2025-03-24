@@ -1,0 +1,69 @@
+Generate "small" sections (cribbing from mingw and cygwin) rather than
+big ones that work so badly on PE environments.  Take care of little
+details like leading *s in the symbols as well.
+
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files i386.save/i386-interix.h i386/i386-interix.h
+--- gcc/config/i386.save/i386-interix.h	Fri Feb 22 19:37:20 2002
++++ gcc/config/i386/i386-interix.h	Fri Feb 22 19:43:27 2002
+@@ -387,7 +387,7 @@ while (0)
+ #define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME)				\
+ do {									\
+   const char *_p;							\
+-  const char *_name = SYMBOL_NAME;					\
++  const char *const _name = ((SYMBOL_NAME) + ((SYMBOL_NAME)[0] == '*'));\
+   for (_p = _name; *_p && *_p != '@'; ++_p)				\
+     ;									\
+   if (*_p == '@')							\
+@@ -402,11 +402,6 @@ do {									\
+     (VAR) = _name;							\
+ } while (0)
+       
+-#if 0	
+-/* Turn this back on when the linker is updated to handle grouped
+-   .data$ sections correctly. See corresponding note in i386/interix.c. 
+-   MK.  */
+-
+ /* Define this macro if in some cases global symbols from one translation
+    unit may not be bound to undefined symbols in another translation unit
+    without user intervention.  For instance, under Microsoft Windows
+@@ -413,11 +412,16 @@ do {									\
+    symbols must be explicitly imported from shared libraries (DLLs).  */
+ #define MULTIPLE_SYMBOL_SPACES
+ 
+-extern void i386_pe_unique_section ();
++/* Enable parsing of #pragma pack(push,<n>) and #pragma pack(pop).  */
++#define HANDLE_PRAGMA_PACK_PUSH_POP 1
++
++union tree_node;
++#define TREE union tree_node *
++
++extern void i386_pe_unique_section PARAMS ((TREE, int));
+ #define UNIQUE_SECTION(DECL,RELOC) i386_pe_unique_section (DECL, RELOC)
+ 
+ #define SUPPORTS_ONE_ONLY 1
+-#endif /* 0 */
+ 
+ /* Switch into a generic section.  */
+ #define TARGET_ASM_NAMED_SECTION  default_pe_asm_named_section
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files i386.save/interix.c i386/interix.c
+--- gcc/config/i386.save/interix.c	Fri Feb 22 19:37:20 2002
++++ gcc/config/i386/interix.c	Fri Feb 22 19:38:19 2002
+@@ -65,11 +65,6 @@ gen_stdcall_suffix (decl)
+   return IDENTIFIER_POINTER (get_identifier (newsym));
+ }
+ 
+-#if 0	
+-/* Turn this back on when the linker is updated to handle grouped
+-   .data$ sections correctly. See corresponding note in i386/interix.h. 
+-   MK.  */
+-
+ /* Cover function for UNIQUE_SECTION.  */
+ 
+ void
+@@ -110,5 +109,3 @@ i386_pe_unique_section (decl, reloc)
+ 
+   DECL_SECTION_NAME (decl) = build_string (len, string);
+ }
+-
+-#endif /* 0 */

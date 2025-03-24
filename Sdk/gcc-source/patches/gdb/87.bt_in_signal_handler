@@ -1,0 +1,166 @@
+This patch provides the code to handle to handle the stack traces in signal handlers after changes to signal mechanism in interix (ie; shift to user mode apcs as as signal delivery mechanism)
+
+--- /dev/fs/C/gnu2.intel.old.kiran/egcs.source/gdb/i386-interix-tdep.c	Fri Aug  1 22:44:53 2003
++++ ./i386-interix-tdep.c	Sat Aug 30 12:07:43 2003
+@@ -134,6 +134,55 @@ i386_interix_frame_chain_valid (CORE_ADD
+             && !inside_entry_file (FRAME_SAVED_PC (fi)));
+ }
+ 
++CORE_ADDR
++interix_get_calling_frame(frame, bp, pc)
++	struct frame_info *frame;
++	CORE_ADDR *bp;
++	CORE_ADDR *pc;
++{
++  CORE_ADDR ra;
++  CORE_ADDR fm;
++  CORE_ADDR context;
++  int InHandler;
++	
++  ra = frame->next->pc;
++  fm = frame->frame;
++
++    if (frame->next->next == NULL && stopped_by_random_signal) 
++    {
++      /* We're pointing at the frame FOR PdxNullApi */
++  	fm = read_memory_integer (frame->frame, 4);  /* an Arg */
++
++    } else {
++  	context = read_memory_integer (frame->frame, 4);  /* an Arg */
++	ra = (CORE_ADDR)read_memory_integer(frame->frame+4, 4);
++
++	/*extract a frame that may be either PdxNullPosixApi or PsxCall*/
++	fm = (CORE_ADDR)read_memory_integer(context, 4); 
++	if(!(ra>=null_start	&& ra < null_end)){
++	       context=fm;
++	       fm = (CORE_ADDR)read_memory_integer(context, 4); 
++	       ra = (CORE_ADDR)read_memory_integer(context+4, 4);
++	       goto end;
++	}
++	
++    }
++
++  context=(CORE_ADDR)read_memory_integer(fm+8, 4);
++
++  fm = (CORE_ADDR)read_memory_integer
++     (context + mcontext_EBP_greg_offset, 4); 
++  ra = (CORE_ADDR)read_memory_integer
++     (context + mcontext_EIP_greg_offset, 4);
++  
++end:
++  *bp = fm;
++  *pc = ra;
++
++  return ra;
++}
++  
++
+ /* We want to find the previous frame, which on Interix is tricky when signals
+    are involved; set frame->frame appropriately, and also get the pc
+    and tweak signal_handler_caller; this replaces a boatload of nested
+@@ -210,6 +259,13 @@ i386_interix_back_one_frame (int fromlea
+ 
+      For gdb's purposes, we can pile all this into one frame.  */
+ 
++     interix_get_calling_frame(frame, &fm, &ra);
++     frame->pc = ra;
++     frame->frame = fm;
++     return;
++ 
++#if 0
++   
+   ra = frame->next->pc;
+   /* Are we already pointing at PdxNullPosixApi?  We are if
+      this is a signal frame, we're at next-to-top, and were stopped
+@@ -304,8 +360,25 @@ i386_interix_back_one_frame (int fromlea
+   frame->pc = ra;
+ 
+   return;
++#endif
+ }
+ 
++CORE_ADDR
++get_next_pc_in_handler(CORE_ADDR NullPosixApiFrame)
++{
++    CORE_ADDR NullApiApcFrame;
++    CORE_ADDR SavedFrame;
++    CORE_ADDR NextPc;
++
++    NullApiApcFrame = read_memory_integer (NullPosixApiFrame, 4);
++    SavedFrame = read_memory_integer (NullApiApcFrame+8, 4);
++
++    NextPc = read_memory_integer(SavedFrame + mcontext_EIP_greg_offset, 4);
++
++    return NextPc;
++}
++
++
+ static CORE_ADDR
+ i386_interix_frame_saved_pc (struct frame_info *fi)
+ {
+@@ -325,9 +398,20 @@ i386_interix_frame_saved_pc (struct fram
+      the case, then we're probably not yet into the handler body;
+      return the current PC.  */
+   if (fi->signal_handler_caller)
+-    return fi->next ? fi->next->pc : fi->pc;
++    return fi->next ? fi->next->pc : get_next_pc_in_handler(fi->frame);
+   else
+     return read_memory_integer (fi->frame + 4, 4);
++}
++
++/* Immediately after a function call, return the saved pc.  */
++
++CORE_ADDR
++i386_interix_saved_pc_after_call (struct frame_info *frame)
++{
++  if (frame->signal_handler_caller)
++    return 0;
++
++  return read_memory_unsigned_integer ((CORE_ADDR)read_register (SP_REGNUM), 4);
+ }
+ 
+ static void
+--- /dev/fs/C/gnu2.intel.old.kiran/egcs.source/gdb/i386-tdep.c	Fri Aug  1 22:44:50 2003
++++ ./i386-tdep.c	Sat Aug 30 11:57:21 2003
+@@ -1700,7 +1700,7 @@ i386_gdbarch_init (struct gdbarch_info i
+   set_gdbarch_frame_saved_pc (gdbarch, i386_frame_saved_pc);
+   set_gdbarch_frame_args_address (gdbarch, default_frame_address);
+   set_gdbarch_frame_locals_address (gdbarch, default_frame_address);
+-  set_gdbarch_saved_pc_after_call (gdbarch, i386_saved_pc_after_call);
++  set_gdbarch_saved_pc_after_call (gdbarch, i386_interix_saved_pc_after_call);
+   set_gdbarch_frame_num_args (gdbarch, i386_frame_num_args);
+   set_gdbarch_pc_in_sigtramp (gdbarch, i386_pc_in_sigtramp);
+ 
+--- /dev/fs/C/gnu2.intel.old.kiran/egcs.source/gdb/i386-tdep.h	Fri Aug  1 22:43:27 2003
++++ ./i386-tdep.h	Sat Aug 30 11:58:53 2003
+@@ -181,5 +181,6 @@ extern void i386_svr4_init_abi (struct g
+ 
+ extern CORE_ADDR i386bsd_sigcontext_addr (struct frame_info *frame);
+ extern void i386bsd_init_abi (struct gdbarch_info, struct gdbarch *);
++CORE_ADDR i386_interix_saved_pc_after_call (struct frame_info *frame);
+ 
+ #endif /* i386-tdep.h */
+--- /dev/fs/C/gnu2.intel.old.kiran/egcs.source/gdb/testsuite/gdb.base/signals.c	Fri Aug  1 22:44:53 2003
++++ ./testsuite/gdb.base/signals.c	Sat Aug 30 11:56:38 2003
+@@ -66,6 +66,10 @@ main ()
+   func2 ();
+   alarm (0);   /* Just to be sure */
+ 
++  /*A bug to hit a breakpoint causes many other bugs. Till that is fixed*/
++  alarm (1);
++  sleep(2);
++  
+   /* Now test strange unwind cases: make sure we can unwind over all
+      these conditions */
+ 
+--- /dev/fs/C/gnu2.intel.old.kiran/egcs.source/gdb/testsuite/gdb.base/signals.exp	Fri Aug  1 22:44:53 2003
++++ ./testsuite/gdb.base/signals.exp	Sat Aug 30 12:43:10 2003
+@@ -400,7 +400,7 @@ proc signal_tests_1 {} {
+ 	gdb_test "backtrace" "#0.*handler2.*#1.*#2.*main.*" \
+ 	    "backtrace from pause() in signals_tests_1"
+ 
+-	gdb_test "continue" "Program exited with code 010\\." \
++	gdb_test "continue" "Program exited with code 011\\." \
+ 	    "continue to exit in signals_tests_1 "
+     }
+ }

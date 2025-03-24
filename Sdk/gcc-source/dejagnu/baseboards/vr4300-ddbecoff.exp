@@ -1,0 +1,5 @@
+# We use a slightly different linker script.
+set_board_info ldscript "-Wl,-Tddbecoff.ld"
+
+# But otherwise we're the same as the standard vr4300-ddb config.
+load_base_board_description "vr4300-ddb";

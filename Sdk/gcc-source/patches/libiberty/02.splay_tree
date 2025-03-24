@@ -1,0 +1,28 @@
+Only to allow sharing of libiberty between gcc and binutils.
+DO NOT SUBMIT.  (But maybe ask later.)
+
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files //Q/Gnusrc/cygwin.1022/libiberty/splay-tree.c //D/CVS/egcs.baseline/libiberty/splay-tree.c
+--- //Q/Gnusrc/cygwin.1022/libiberty/splay-tree.c	Sun Jul 11 12:13:51 1999
++++ //D/CVS/egcs.baseline/libiberty/splay-tree.c	Sun Aug  1 22:54:50 1999
+@@ -256,9 +256,9 @@ splay_tree_delete (sp)
+ 
+ /* Insert a new node (associating KEY with DATA) into SP.  If a
+    previous node with the indicated KEY exists, its data is replaced
+-   with the new value.  */
++   with the new value.  Returns the new node.  */
+ 
+-void 
++splay_tree_node
+ splay_tree_insert (sp, key, value)
+      splay_tree sp;
+      splay_tree_key key;
+@@ -305,6 +305,8 @@ splay_tree_insert (sp, key, value)
+ 
+     sp->root = node;
+   }
++
++  return sp->root;
+ }
+ 
+ /* Lookup KEY in SP, returning VALUE if present, and NULL 

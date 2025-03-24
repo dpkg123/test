@@ -1,0 +1,57 @@
+Tests assume defaults that aren't always assumable.
+For Interix we need to turn off ms-bitfields, too.
+
+--- gcc/testsuite/gcc.dg/i386-bitfield1.c.bak	Fri Nov  8 11:32:04 2002
++++ gcc/testsuite/gcc.dg/i386-bitfield1.c	Fri Nov  8 11:39:00 2002
+@@ -1,6 +1,7 @@
+ // Test for bitfield alignment in structs on IA-32
+ // { dg-do run { target i?86-*-* } }
+-// { dg-options "-O2" }
++// { dg-options "-O2 -mno-align-double" }
++// { dg-options "-O2 -mno-align-double -mno-ms-bitfields" { target *-*-interix* } }
+ 
+ extern void abort (void);
+ extern void exit (int);
+--- gcc/testsuite/g++.dg/abi/bitfield3.C.bak	Fri Nov  8 13:13:23 2002
++++ gcc/testsuite/g++.dg/abi/bitfield3.C	Fri Nov  8 13:13:31 2002
+@@ -1,6 +1,7 @@
+ // Test for oversized bitfield alignment in structs on IA-32
+ // { dg-do run { target i?86-*-* } }
+-// { dg-options "-O2" }
++// { dg-options "-O2 -mno-align-double" }
++// { dg-options "-O2 -mno-align-double -mno-ms-bitfields" { target *-*-interix* } }
+ 
+ struct A
+ {
+--- gcc/doc/extend.texi.bak	Fri Nov  8 13:17:23 2002
++++ gcc/doc/extend.texi	Fri Nov  8 13:23:49 2002
+@@ -3072,12 +3072,17 @@ may provide a common format (when packed
+ that can be used for interchange.  The exact packing rules are
+ architecture dependent.
+ 
+-Currently --native-struct is provided for the Windows X86 compilers
++Currently native_struct is provided for the Windows X86 compilers
+ to match the native compiler.  The packing rules match the native
+ compiler when packing is not used, or when @code("#pragma pack()")
+ is used.  Bit-aligned packing (as provided by @code{"__attribute__
+ ((packed))"} is not provided by the native compiler.
+ 
++Note also that native Windows compilers default to the equivalent
++of @option(-malign-double).  It may be necessary to use 
++@option(-mno-align-double) (or possibly even @option(-mno-align-int)
++to get matching structure layouts.
++
+ @item section ("@var{section-name}")
+ @cindex @code{section} variable attribute
+ Normally, the compiler places the objects it generates in sections like
+@@ -3383,7 +3388,9 @@ X86 compilers to match the native compil
+ match the native compiler when packing is not used, or when
+ @code("#pragma pack()") is used.  Bit-aligned packing (as provided
+ by @code{"__attribute__ ((packed))"} is not provided by the native
+-compiler.
++compiler.  Note also that for Windows compilers, the default is
++@option(-malign-double), but that many gcc variants default to
++@option(-mno-align-double).
+ 
+ @opindex fshort-enums
+ Specifying this attribute for @code{struct} and @code{union} types is

@@ -1,0 +1,15 @@
+./asa/configure
+./libexec/configure
+./libexec/libdl/alpha/picdll
+./libexec/libdl/configure
+./libexec/libdl/i386/picdll
+./libexec/libdl/i386/picdll.old
+./othertests/driver
+./othertests/ld-s.testrun
+./othertests/stdcall.testrun
+./othertests/weak.testrun
+config.sub
+e.make.image
+e.make.libc
+e.makeit
+gcc.script

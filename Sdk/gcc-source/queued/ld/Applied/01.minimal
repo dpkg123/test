@@ -1,0 +1,213 @@
+The following group of patches, when applied along with the associated
+testsuite patches, and corresponding bfd patch group, cleans up the PE/i386 
+interface so it passes all expected regressions(*), and is more compatible 
+with MSVC-generated .obj files.
+
+(*) - no attempt was made to make S-records work
+    - my compiler doesn't yet have -fdata-sections, so that's as yet 
+      untested by me.
+    - see the 04.constructor patch for discussion of cdtest.
+
+Notes:
+
+(There are a few alpha-specific minor changes that are just easier to deal
+with now; there will be a set of alpha patches to follow this up.)
+
+It's possible for lex or yacc to be installed in such a way that
+the current search doesn't find it, but configure does.  Continue
+to honor the preference for the locay bison or flex, but in their
+absence use what configure found.  (Just using configure's result
+would be fine with me; this is conservative.)
+
+The current setting of RUNTESTFLAGS to explicitly null overrides 
+input from the command line, making it impossible to run a single
+test from "make check RUNTESTFLAGS=<stuff>" (as can be done many
+other places in the whole gcc package.)
+
+The Alpha on NT doesn't use the leading underscore naming convention;
+allow that to be tuned.
+
+These patches are for a POSIX subsystem application; allow tuning of
+the subsystem and entry point in the .sh setup scripts.
+
+When using -r, the linker put the special symbols that belong only
+in an executable image.  Skip doing that, so they don't end up as
+conflicts at final link time.
+
+Some compilers don't like really not strings; make stringify make smaller
+chunks.  If the last line of the file comes out even with a break, it
+will be misedited; bandaid that.
+
+bfd defines a new symbol class "section".  This needs to be honored;
+in most cases it's the same as defined, but not in bfd.
+
+MSVC does string pooling by hashing in a way that can cause conflicting
+sections upon occasion (when the same string ends up in both .data
+and .rdata); handle that.  Detailed comments in the code.
+
+Reorder .bss and .reloc for better layout of the executable (matches
+MSVC more).
+
+The testsuite tries to pick itens out of the output of configure.host.
+These are in "make" syntax (w.r.t quoting of $'s anyway).  If the
+resulting value contains a substitution or environment variable, it
+should be handled as intended.  Because the output is in make syntax,
+$$ becomes the PID of the current process rather than a single $.
+Use sed to clean this up.
+
+Handle the possibility of date-stamped executables for the binary
+compare of executables in the ld bootstrap tests.
+
+When testing nm, extract the value of ImageBase (if present) and use
+it to correct the printed values to the expected ones.
+
+ChangeLog
+
+	* Makefile.am (LEX, YACC): Use what configure found as the last resort.
+	* Makefile.am (RUNTESTFLAGS): Remove null value.
+	* Makefile.am (interix): Add
+
+	* configure.host (interix): Add
+
+	* configure.tgt (interix): Add
+
+	* emulparams/i386pe.sh (ENTRY): Make settable.
+	* emultempl/pe.em (definfo): Use.
+	* scripttempl/pe.sc:  Use
+
+	* emulparams/i386pe.sh (SUBSYSTEM): Make settable.
+	* emultempl/pe.em (definfo): Use.
+
+	* emulparams/i386pe.sh (INITIAL_SYMBOL_CHAR): Define
+	* emultempl/pe.em (set_pe_subsystem): use.
+
+	* emulparams/i386pei.sh: New file.
+
+	* emultempl/pe.em: rm (belt and suspenders).
+
+	* emultempl/pe.em: <string.h>
+
+	* emultempl/pe.em: Allow section alignment override from .sh file.
+
+	* emultempl/pe.em: Allow executable name override from .sh file.
+
+	* emultempl/pe.em (gld_${EMULATION_NAME}_set_symbols): No PEI
+	symbols in relocateable output.
+
+	* emultempl/stringify.set: make smaller chunks.
+
+	* ldlang.c (exp_init_os): Improve COMDAT handling.
+	* ldlang.c (section_already_linked): Ditto.
+
+	* ldmain.c (multiple_definition): Handle possible name conflict.
+
+	* lexsup.c (ld_options): Clarify messages.
+
+	* lexsup.c (parse_args): Respond to -? usefully.
+
+	* lexsup.c (parse_args): Allow multiple bases for OPTION_SPLIT_BY_RELOC
+
+	* scripttempl/pe.sc (.bss, .reloc): Reorder 
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/Makefile.am ld/Makefile.am
+--- ld.nil/Makefile.am	Wed Jul  7 14:17:26 1999
++++ ld/Makefile.am	Wed Jul  7 14:17:44 1999
+@@ -9,9 +9,9 @@ SUBDIRS = po
+ 
+ tooldir = $(exec_prefix)/$(target_alias)
+ 
+-YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo bison -y ; fi`
++YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo @YACC@ ; fi`
+ YFLAGS = -d
+-LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo flex ; fi`
++LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo @LEX@ ; fi`
+ 
+ # We put the scripts in the directory $(scriptdir)/ldscripts.
+ # We can't put the scripts in $(datadir) because the SEARCH_DIR
+@@ -52,8 +52,6 @@ RUNTEST = `if [ -f $${srcroot}/../dejagn
+ 	then echo $${srcroot}/../dejagnu/runtest ; \
+ 	else echo runtest ; fi`
+ 
+-RUNTESTFLAGS =
+-
+ CC_FOR_TARGET = ` \
+   if [ -f $$r/../gcc/xgcc ] ; then \
+     if [ -f $$r/../newlib/Makefile ] ; then \
+@@ -469,6 +467,9 @@ ei386nw.c:	$(srcdir)/emulparams/i386nw.s
+ ei386pe.c: $(srcdir)/emulparams/i386pe.sh \
+   $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} i386pe "$(tdir_i386pe)"
++ei386pe_posix.c: $(srcdir)/emulparams/i386pe_posix.sh \
++  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
++	${GENSCRIPTS} 'i386pe_posix' "$(tdir_i386pe_posix)"
+ elnk960.c: $(srcdir)/emulparams/lnk960.sh \
+   $(srcdir)/emultempl/lnk960.em $(srcdir)/scripttempl/i960.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} lnk960 "$(tdir_lnk960)"
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/configure.host ld/configure.host
+--- ld.nil/configure.host	Wed Jul  7 14:17:24 1999
++++ ld/configure.host	Wed Jul  7 14:17:44 1999
+@@ -100,6 +100,12 @@ i[3456]86-*-lynxos*)
+   HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -lc -lm /lib/initn.o'
+   ;;
+ 
++i[3456]86-pc-interix)
++  HOSTING_CRT0='$$INTERIX_ROOT/usr/lib/crt0.o'
++  NATIVE_LIB_DIRS='$$INTERIX_ROOT/usr/lib/'
++  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -L $$X/local_bin -L $$INTERIX_ROOT/usr/lib -lc -lcpsx -lc -lcpsx $$INTERIX_ROOT/usr/lib/psxdll.a $$INTERIX_ROOT/usr/lib/psxdll2.a'
++  ;;
++
+ mips*-dec-bsd*)
+   HOSTING_CRT0=/usr/lib/crt0.o
+   ;;
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/configure.tgt ld/configure.tgt
+--- ld.nil/configure.tgt	Wed Jul  7 14:17:24 1999
++++ ld/configure.tgt	Wed Jul  7 14:17:44 1999
+@@ -109,6 +109,8 @@ i[3456]86-*-msdos*)	targ_emul=i386msdos;
+ i[3456]86-*-moss*)	targ_emul=i386moss; targ_extra_emuls=i386msdos ;;
+ i[3456]86-*-winnt*)	targ_emul=i386pe ;
+ 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
++i[3456]86-*-interix)	targ_emul=i386pe_posix;
++ 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
+ i[3456]86-*-pe)		targ_emul=i386pe ;
+ 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
+ i[3456]86-*-cygwin*)	targ_emul=i386pe ;
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/emulparams/i386pe.sh ld/emulparams/i386pe.sh
+--- ld.nil/emulparams/i386pe.sh	Wed Jul  7 14:17:19 1999
++++ ld/emulparams/i386pe.sh	Wed Jul  7 14:17:44 1999
+@@ -3,3 +3,6 @@ SCRIPT_NAME=pe
+ OUTPUT_FORMAT="pei-i386"
+ RELOCATEABLE_OUTPUT_FORMAT="pe-i386"
+ TEMPLATE_NAME=pe
++ENTRY="___mainCRTStartup"
++SUBSYSTEM=3
++INITIAL_SYMBOL_CHAR=\"_\"
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/emulparams/i386pe_posix.sh ld/emulparams/i386pe_posix.sh
+--- ld.nil/emulparams/i386pe_posix.sh	Wed Dec 31 17:00:00 1969
++++ ld/emulparams/i386pe_posix.sh	Wed Jul  7 14:17:44 1999
+@@ -0,0 +1,9 @@
++ARCH=i386
++SCRIPT_NAME=pe
++OUTPUT_FORMAT="pei-i386"
++RELOCATEABLE_OUTPUT_FORMAT="pe-i386"
++TEMPLATE_NAME=pe
++ENTRY="___PosixProcessStartup"
++SUBSYSTEM=7
++EXECUTABLE_NAME=a.out
++INITIAL_SYMBOL_CHAR=\"_\"
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/emultempl/stringify.sed ld/emultempl/stringify.sed
+--- ld.nil/emultempl/stringify.sed	Wed Jul  7 14:17:18 1999
++++ ld/emultempl/stringify.sed	Wed Jul  7 14:17:45 1999
+@@ -1,4 +1,13 @@
+ s/["\\]/\\&/g
+ s/$/\\n\\/
+ 1 s/^/"/
++25s/\\$/"/
++26s/^/"/
++50s/\\$/"/
++51s/^/"/
++75s/\\$/"/
++76s/^/"/
++100s/\\$/"/
++101s/^/"/
+ $ s/$/n"/
++$ s/\\n"n"$/\\n"/

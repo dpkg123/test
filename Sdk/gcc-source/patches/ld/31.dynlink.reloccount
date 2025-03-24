@@ -1,0 +1,16 @@
+This may be generally applicable, but shows up with the relocaiton stuff
+in dynamic linking.
+
+
+--- ldlang.c.orig	Mon Feb 25 19:08:59 2002
++++ ldlang.c	Tue Feb 26 17:59:58 2002
+@@ -1027,6 +1027,9 @@ section_already_linked (abfd, sec, data)
+ 	     section.  */
+ 	  sec->output_section = bfd_abs_section_ptr;
+ 
++	  /* And if anyone is counting up relocs, say there are none. */
++	  sec->reloc_count = 0;
++
+ 	  return;
+ 	}
+     }

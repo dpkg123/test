@@ -1,0 +1,22 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/testsuite/gas/all/gas.exp //D/home/donn.intel/be.build/gas/testsuite/gas/all/gas.exp
+--- //Q/Gnusrc/cygwin.0420/gas/testsuite/gas/all/gas.exp	Tue Apr 20 02:20:53 1999
++++ //D/home/donn.intel/be.build/gas/testsuite/gas/all/gas.exp	Tue Apr 20 14:07:47 1999
+@@ -112,6 +112,7 @@ if {   ([istarget *-*-coff*] && ![istarg
+      || [istarget i*86-*-go32*] \
+      || [istarget i*86-*-cygwin*] \
+      || [istarget i*86-*-*nt] \
++     || [istarget i*86-*-interix] \
+      || ([istarget i960-*-vxworks5.*] && ![istarget i960-*-vxworks5.0*]) } {
+     run_dump_test cofftag
+ }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/testsuite/lib/gas-defs.exp //D/home/donn.intel/be.build/gas/testsuite/lib/gas-defs.exp
+--- //Q/Gnusrc/cygwin.0420/gas/testsuite/lib/gas-defs.exp	Tue Apr 20 02:13:03 1999
++++ //D/home/donn.intel/be.build/gas/testsuite/lib/gas-defs.exp	Tue Apr 20 14:07:47 1999
+@@ -253,6 +253,7 @@ proc run_dump_test { name } {
+     }
+     set opt_array [slurp_options "${file}.d"]
+     if { $opt_array == -1 } {
++	perror "error reading options from $file.d"
+ 	unresolved $subdir/$name
+ 	return
+     }

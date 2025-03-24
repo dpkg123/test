@@ -1,0 +1,110 @@
+#!/bin/ksh
+
+# Get the sources for the current egcs/binutils product.
+# There are two major stages: get the CVS-based sources from the
+# CVS shadow of the official tree, after fisrt being sure it's update.
+# Then, for the stuff that's not currently spun off the CVS trees,
+# use xupd to get a copy.
+
+# The result is unpatched.  Patching is intentionally NOT done here,
+# so this can be used "by hand" easily.
+
+# Expected evolution: more CVS stuff and less xupd.
+
+FAIL=0
+
+# First, do the CVS update(s).
+(
+    cd $1/egcs.baseline
+    cvs -z 9 update -A -P -d 
+)
+
+# And bring it nearby so it's handy.
+cp -r $1/egcs.baseline $2/egcs.source
+
+# Now do the xupd stuff for the rest of the tree.
+function do_xupd {
+   T=$1
+   echo $T
+   if ( mkdir $T; cd $T ; xupd -MR ;exit $?)
+   then
+       :
+   else
+       echo $T XUPD FAILED
+       FAIL=1
+   fi
+}
+
+do_xupd asa
+do_xupd bfd   # Needed for gdb
+## do_xupd binutils
+do_xupd byacc
+# do_xupd config
+# do_xupd dejagnu
+do_xupd expect
+## do_xupd gas
+do_xupd gdb
+# do_xupd gcc
+do_xupd include
+do_xupd install  # keeps configure happy
+## do_xupd ld
+do_xupd libexec
+# do_xupd libg++
+do_xupd libiberty # for gdb
+# do_xupd libio
+# do_xupd librx
+# do_xupd libstdc++
+do_xupd mmalloc
+do_xupd opcodes   # Needed for gdb
+do_xupd othertests
+do_xupd readline
+do_xupd tcl
+# do_xupd texinfo
+do_xupd tk
+
+xupd install-sh config.guess config.sub configure configure.in move-if-change
+
+gunzip <//C/Gnusrc/dejagnu-19981026_tar.gz | tar -xf -
+mv dejagnu-19981026 dejagnu
+cp -r //C/CVS/egcs.baseline/libiberty dejagnu
+cp -r //C/CVS/egcs.baseline/include dejagnu
+
+gunzip <//C/Gnusrc/fcvs.tgz | tar -xf -
+
+if [ $FAIL = 1 ]
+then
+   exit 1
+fi
+
+BIN_BASE=//Q/Gnusrc/cygwin.0422
+
+function gettree {
+   B=$1
+   T=$2
+   cp -r $B/$T egcs.source/
+   (
+     cd egcs.source/$T 
+     pwd
+     ~/queued/$T/applyem
+   )
+}
+
+export ALPHA=0
+gettree $BIN_BASE bfd
+gettree $BIN_BASE ld
+gettree $BIN_BASE binutils
+gettree $BIN_BASE gas
+# gettree $BIN_BASE libiberty
+gettree $BIN_BASE opcodes
+gettree $BIN_BASE include
+gettree $BIN_BASE intl
+
+(
+  cd egcs.source
+  ~/queued/toplevel/applyem
+)
+
+if [ $FAIL = 1 ]
+then
+   exit 1
+fi

@@ -1,0 +1,96 @@
+Add/use macro SET_SECTION_RELOC_COUNT to record the final (accurate)
+relocation count in the section symbol as well as in the section
+header.  This was causing problems because occasionally different
+versions of the assembler (due to different details of memory
+layout; same source, different compiler) would put in different
+*estimated* values for the number of relocations for a section
+symbol in the section symbol's AUX entry (and thus causing problems
+with binary compares).  The reason for the different estimates is
+that (rarely, but often enough) two symbols would end up in different
+fragments in different instances of the assembler, and there's an
+optimization in expr() that (primarily for PIC) converts a potential
+relocation to a simple add constant if both operands of a subtract
+are in the same fragment (but not otherwise).  The otherwise
+unnecessary fixup arising when the symbols in different fragments
+of the same section are subtracted is discovered and discarded
+later, but it's after the estimate is filled into the symbol table.
+
+
+        * config/tc-i386.c (SET_SECTION_RELOC_COUNT): Put in exact value.
+	* config/obj-coff.c (coff_adjust_section_syms): Comment about this.
+	* write.c (write_relocs): use.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/obj-coff.c gas/config/obj-coff.c
+--- gas.orig/config/obj-coff.c	Fri Aug 20 14:00:39 1999
++++ gas/config/obj-coff.c	Fri Aug 20 14:18:35 1999
+@@ -1174,7 +1297,9 @@ coff_adjust_section_syms (abfd, sec, x)
+       && sec != bss_section)
+     return;
+   secsym = section_symbol (sec);
++  /* This is an estimate; we'll plug in the real value using 
++     SET_SECTION_RELOC_COUNT later */
+   SA_SET_SCN_NRELOC (secsym, nrelocs);
+   SA_SET_SCN_NLINNO (secsym, nlnno);
+ }
+ 
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/obj-coff.h gas/config/obj-coff.h
+--- gas.orig/config/obj-coff.h	Fri Aug 20 14:00:39 1999
++++ gas/config/obj-coff.h	Fri Aug 20 14:01:23 1999
+@@ -841,4 +841,20 @@ extern void obj_coff_pe_handle_link_once
+ extern void obj_coff_init_stab_section PARAMS ((segT));
+ #define INIT_STAB_SECTION(seg) obj_coff_init_stab_section (seg)
+ 
++/* we'd plugged in an estimate of the reloction count into the symbol
++   table before.  Now we'll plug in an exact value, as well as doing
++   what write.c needs to have done with the final exact value. */
++
++#define SET_SECTION_RELOC_COUNT(stdoutput, abfd, sec, relocs, n) \
++{ symbolS *secsym;						\
++  secsym = section_symbol (sec);				\
++  SA_SET_SCN_NRELOC (secsym, n);				\
++  if (n) 							\
++    bfd_set_reloc (stdoutput, sec, relocs, n);			\
++  else								\
++    bfd_set_section_flags (abfd, sec,				\
++			   (bfd_get_section_flags (abfd, sec)	\
++			    & (flagword) ~SEC_RELOC));		\
++}
++
+ #endif /* OBJ_FORMAT_H */
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/doc/internals.texi gas/doc/internals.texi
+--- gas.orig/doc/internals.texi	Fri Aug 20 14:00:19 1999
++++ gas/doc/internals.texi	Fri Aug 20 14:01:23 1999
+@@ -1088,6 +1088,13 @@ fixup @var{fixp} to @var{stream}.  This 
+ A C statement to initialize the target specific fields of frag @var{fragp}.
+ These fields are defined with the @code{TC_FRAG_TYPE} macro.
+ 
++@item SET_SECTION_RELOC_COUNT (@var{stdoutput}, @var{abfd}, @var{sec}, @var{relocs}, @var{m})
++@cindex SET_SECTION_RELOC_COUNT
++You may define this to set the final relocation count (on final output).
++This is important on some systems because otherwise the count may be
++slightly too large (because the assembler itself resolves some relocations
++after arriving at the initial count).  It is called from @code{write_relocs}.
++
+ @item md_number_to_chars
+ @cindex md_number_to_chars
+ This should just call either @code{number_to_chars_bigendian} or
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/write.c gas/write.c
+--- gas.orig/write.c	Fri Aug 20 14:00:50 1999
++++ gas/write.c	Fri Aug 20 14:01:24 1999
+@@ -1063,12 +1084,16 @@ write_relocs (abfd, sec, xxx)
+   }
+ #endif
+ 
++#ifdef SET_SECTION_RELOC_COUNT
++  SET_SECTION_RELOC_COUNT (stdoutput, abfd, sec, relocs, n);
++#else
+   if (n)
+     bfd_set_reloc (stdoutput, sec, relocs, n);
+   else
+     bfd_set_section_flags (abfd, sec,
+ 			   (bfd_get_section_flags (abfd, sec)
+ 			    & (flagword) ~SEC_RELOC));
++#endif
+ 
+ #ifdef DEBUG3
+   {

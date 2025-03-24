@@ -1,0 +1,53 @@
+Writing a non-writeable file seems to be a bad thing to do, even with
+strip.  Also, return any error indication, per the standard.
+
+(Posix.2 is pretty clear on this: P93 L3387 says "When a file
+is to be read or written, the file shall be opened with an 
+acces mode correspoding to the operation to be performed.  If file
+access permissions deny access, the requested operation shall fail."
+Thus, writing (for the purposes of stripping) a file shall fail on
+a non-writeable file.)
+
+Check for writeablity before proceeding.  (Otherwise because of the
+copy/rename sequence, it would appear to write the non-writeable file.)
+
+	* objcopy.c (strip_main): check target for write before writing,
+	exit non-zero if appropriate.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files objcopy.c.orig objcopy.c
+--- objcopy.c.orig	Fri Nov 10 16:58:58 2000
++++ objcopy.c	Fri Nov 10 17:10:23 2000
+@@ -1816,8 +1816,22 @@ strip_main (argc, argv)
+ 
+       if (output_file != NULL)
+ 	tmpname = output_file;
+-      else
+-	tmpname = make_tempname (argv[i]);
++      else 
++	{
++	  int fd;
++	  /* Make sure we can open the file writeably; if we can't,
++	     we shouldn't do this.   (Otherwise it will succeed because
++	     it uses a temp file and rename.)  */
++	  fd = open(argv[i], O_RDWR);
++	  if (fd < 0)
++	    {
++	      perror(argv[i]);
++	      status = 1;
++	      continue;
++	    }
++	  close(fd);
++	  tmpname = make_tempname (argv[i]);
++	}
+       status = 0;
+ 
+       copy_file (argv[i], tmpname, input_target, output_target);
+@@ -1835,7 +1849,7 @@ strip_main (argc, argv)
+ 	free (tmpname);
+     }
+ 
+-  return 0;
++  return status;
+ }
+ 
+ static int

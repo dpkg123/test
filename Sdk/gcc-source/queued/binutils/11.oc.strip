@@ -1,0 +1,116 @@
+Proposed fixing in BFD instead by not setting flag in styp_to_sec_flags.
+
+(strip) .reloc sections (which should only be explicitly stripped in PEI),
+are indistinguishable from debug sections, except by name.  Check
+the name if it looks like a (strippable) debug section.
+
+	* objcopy.c (strip_action): initialize.
+	(is_strip_section, setup_section, copy_section): don't delete
+	PE .reloc.
+	* binutils.text: document.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/objcopy.c binutils/objcopy.c
+--- binutils.nil/objcopy.c	Wed Jul  7 16:58:52 1999
++++ binutils/objcopy.c	Wed Jul  7 16:59:21 1999
+@@ -111,8 +111,8 @@ enum strip_action
+   };
+ 
+ /* Which symbols to remove.  */
+-static enum strip_action strip_symbols;
+-
++static enum strip_action strip_symbols = STRIP_UNDEF;
++
+ enum locals_action
+   {
+     LOCALS_UNDEF,
+@@ -712,8 +712,14 @@ is_strip_section (abfd, sec)
+ 	  || strip_symbols == STRIP_ALL
+ 	  || discard_locals == LOCALS_ALL
+ 	  || convert_debugging))
+-    return true;
+-
++    {
++	/* In NT PEI format, the .reloc section (which should NOT be
++	   casually stripped) is indistinguishable based on the flags
++	   from a discardable debugging section.  Test for it by name. */
++	if (strcmp (bfd_get_section_name (abfd, sec), ".reloc") != 0)
++	  return true;
++    }
++
+   if (! sections_removed && ! sections_copied)
+     return false;
+ 
+@@ -1560,8 +1566,14 @@ setup_section (ibfd, isection, obfdarg)
+ 	  || strip_symbols == STRIP_ALL
+ 	  || discard_locals == LOCALS_ALL
+ 	  || convert_debugging))
+-    return;
+-
++    {
++	/* In NT PEI format, the .reloc section (which should NOT be
++	   casually stripped) is indistinguishable based on the flags
++	   from a discardable debugging section.  Test for it by name. */
++	if (strcmp (bfd_get_section_name (ibfd, isection), ".reloc") != 0)
++	  return;
++    }
++
+   p = find_section_list (bfd_section_name (ibfd, isection), false);
+   if (p != NULL)
+     p->used = true;
+@@ -1731,8 +1731,14 @@ copy_section (ibfd, isection, obfdarg)
+ 	  || strip_symbols == STRIP_ALL
+ 	  || discard_locals == LOCALS_ALL
+ 	  || convert_debugging))
+-    return;
+-
++      {
++ 	/* In NT PEI format, the .reloc section (which should NOT be
++ 	   casually stripped) is indistinguishable based on the flags
++ 	   from a discardable debugging section.  Test for it by name. */
++ 	if (strcmp (bfd_get_section_name (ibfd, isection), ".reloc") != 0)
++ 	  return;
++      }
++
+   if ((flags & SEC_GROUP) != 0)
+     return;
+ 
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/doc/binutils.texi binutils/doc/binutils.texi
+--- binutils.nil/doc/binutils.texi	Wed Jul  7 16:58:49 1999
++++ binutils/doc/binutils.texi	Wed Jul  7 16:59:21 1999
+@@ -921,13 +921,25 @@ inappropriately may make the output file
+ @item -S
+ @itemx --strip-all
+ Do not copy relocation and symbol information from the source file.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @item -g
+ @itemx --strip-debug
+ Do not copy debugging symbols from the source file.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @item --strip-unneeded
+ Strip all symbols that are not needed for relocation processing.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @item -K @var{symbolname}
+ @itemx --keep-symbol=@var{symbolname}
+@@ -1625,6 +1637,10 @@ strip [ -F @var{bfdname} | --target=@var
+ @sc{gnu} @code{strip} discards all symbols from object files
+ @var{objfile}.  The list of object files may include archives.
+ At least one object file must be given.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @code{strip} modifies the files named in its argument,
+ rather than writing modified copies under different names.

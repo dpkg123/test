@@ -1,0 +1,75 @@
+In coff_symtab_read a number of types are funneled together in a
+the 'case' for C_EXT; several, but not all, need to have their
+ms_type set.  Add code to sort this out for PE.  The
+change may be applicable to other systems.  (This also simplifies
+some cases for C_THUMB*.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* coffread.c(coff_symtab_read): use symbolic name for N_DEBUG.
+	(coff_symtab_read): For PE, recognize several storage classes
+	as external for purposes of setting ms_type.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.4
+diff -p -u -r1.4 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:11:37	1.4
++++ src/gdb/coffread.c	2001/12/24 01:12:11
+@@ -935,24 +935,36 @@ coff_symtab_read (long symtab_offset, un
+ 		tmpaddr = reladdr;
+ 		/* The address has already been relocated; make sure that
+ 		   objfile_relocate doesn't relocate it again.  */
+-		sec = -2;
++		sec = N_DEBUG;
+ 		ms_type = cs->c_sclass == C_EXT
+ 		  || cs->c_sclass == C_THUMBEXT ?
+ 		  mst_bss : mst_file_bss;
+ 	      }
+ 	    else
+ 	      {
++	        int external_class = 0;
+ 		sec = cs_to_section (cs, objfile);
+ 		tmpaddr = cs->c_value;
+ 		if (cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXTFUNC
+ 		    || cs->c_sclass == C_THUMBEXT)
+- 		  tmpaddr += ANOFFSET (objfile->section_offsets, sec);
++		  {
++		    tmpaddr += ANOFFSET (objfile->section_offsets, sec);
++		    external_class = 1;
++		  }
++#ifdef COFF_IMAGE_WITH_PE
++		/* this may be a general change */
++		if (cs->c_sclass == C_STAT || cs->c_sclass == C_LABEL ||
++		    cs->c_sclass == C_SECTION)
++		  {
++		    tmpaddr += ANOFFSET (objfile->section_offsets, sec);
++		    external_class = 1;
++		  }
++#endif
+ 
+ 		if (sec == SECT_OFF_TEXT (objfile))
+ 		  {
+ 		    ms_type =
+-		      cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXTFUNC
+-		      || cs->c_sclass == C_THUMBEXT ?
++		      cs->c_sclass == external_class ? 
+ 		      mst_text : mst_file_text;
+ #ifdef SMASH_TEXT_ADDRESS
+ 		    if (tmpaddr & 1)	/* FIXME: delete this line */
+@@ -962,13 +974,13 @@ coff_symtab_read (long symtab_offset, un
+ 		else if (sec == SECT_OFF_DATA (objfile))
+ 		  {
+ 		    ms_type =
+-		      cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXT ?
++		      cs->c_sclass == external_class ?
+ 		      mst_data : mst_file_data;
+ 		  }
+ 		else if (sec == SECT_OFF_BSS (objfile))
+ 		  {
+ 		    ms_type =
+-		      cs->c_sclass == C_EXT || cs->c_sclass == C_THUMBEXT ?
++		      cs->c_sclass == external_class ?
+ 		      mst_data : mst_file_data;
+ 		  }
+ 		else

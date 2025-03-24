@@ -1,0 +1,14 @@
+nodefaultlibs removes too much for Interix; restore -lpsxdll.
+
+diff -urP mknumeric_limits.orig mknumeric_limits
+--- mknumeric_limits.orig	Wed Nov 22 16:57:19 2000
++++ mknumeric_limits	Wed Nov 22 16:58:13 2000
+@@ -21,6 +21,8 @@ case `uname` in
+ 		LDFLAGS='-nodefaultlibs -lgcc -lc' ;;
+ 	esac
+ 	;;
++    Interix*)
++	LDFLAGS='-nodefaultlibs -lgcc -lc -lpsxdll' ;;
+     *)
+ 	LDFLAGS='-nodefaultlibs -lgcc -lc' ;;
+ esac

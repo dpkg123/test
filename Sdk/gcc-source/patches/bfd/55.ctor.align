@@ -1,0 +1,21 @@
+All ".ctor*" sections should be 4 byte aligned, so they pack tightly.
+
+--- coffcode.h.orig	Wed Feb 20 08:44:49 2002
++++ coffcode.h	Wed Feb 20 17:43:43 2002
+@@ -1517,12 +1644,12 @@ coff_section_alignment_table[] =
+     1, COFF_ALIGNMENT_FIELD_EMPTY, 0 },
+   /* The .stab section must be aligned to 2**2 at most, to avoid gaps.  */
+   { COFF_SECTION_NAME_PARTIAL_MATCH (".stab"),
+     3, COFF_ALIGNMENT_FIELD_EMPTY, 2 },
+   /* Similarly for the .ctors and .dtors sections.  */
+-  { COFF_SECTION_NAME_EXACT_MATCH (".ctors"),
+-    3, COFF_ALIGNMENT_FIELD_EMPTY, 2 },
+-  { COFF_SECTION_NAME_EXACT_MATCH (".dtors"),
+-    3, COFF_ALIGNMENT_FIELD_EMPTY, 2 }
++  { COFF_SECTION_NAME_PARTIAL_MATCH (".ctor"),
++    2, COFF_ALIGNMENT_FIELD_EMPTY, 2 },
++  { COFF_SECTION_NAME_PARTIAL_MATCH (".dtor"),
++    2, COFF_ALIGNMENT_FIELD_EMPTY, 2 }
+ };
+ 
+ static const unsigned int coff_section_alignment_table_size =

@@ -1,0 +1,47 @@
+A couple of tweaks to get rid of nuisance whining by the compiler.
+
+Index: src/bfd/syms.c
+===================================================================
+diff -p -c -r1.15 src/bfd/syms.c
+--- src/bfd/libbfd.c	Thu Jan 17 14:47:43 2002
++++ src/bfd/libbfd.c	Thu Jan 17 16:23:06 2002
+@@ -1357,10 +1357,10 @@ _bfd_generic_get_section_contents_in_win
+       || (bfd_get_file_window (abfd, section->filepos + offset, count, w, true)
+ 	  == false))
+     return false;
+-  return true;
+ #else
+   abort ();
+ #endif
++  return true;
+ }
+ 
+ /* This generic function can only be used in implementations where creating
+Index: src/bfd/reloc.c
+===================================================================
+diff -p -c -r1.15 src/bfd/reloc.c
+--- src/bfd/reloc.c.bak	Thu Jan 17 14:47:44 2002
++++ src/bfd/reloc.c	Thu Jan 17 16:24:03 2002
+@@ -441,7 +441,7 @@ bfd_get_reloc_size (howto)
+     case 4: return 8;
+     case 8: return 16;
+     case -2: return 4;
+-    default: abort ();
++    default: abort (); return 0;
+     }
+ }
+ 
+Index: src/bfd/dwarf2.c
+===================================================================
+diff -p -c -r1.15 src/bfd/dwarf2.c
+--- src/bfd/dwarf2.c.bak	Fri Jan 18 09:59:51 2002
++++ src/bfd/dwarf2.c	Fri Jan 18 10:16:53 2002
+@@ -486,7 +486,7 @@ read_address (unit, buf)
+     case 2:
+       return bfd_get_16 (unit->abfd, (bfd_byte *) buf);
+     default:
+-      abort ();
++      abort (); return 0;
+     }
+ }
+ 

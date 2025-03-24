@@ -1,0 +1,14 @@
+Temporary (until subsystem fixed) hack to handle "hole in the middle"
+munmaps().  (That is, don't do that!)
+
+--- /C/CVS/egcs.baseline/gcc/gcc/ggc-page.c	Tue Jan 15 10:19:47 2002
++++ gcc/ggc-page.c	Thu Feb  7 14:32:34 2002
+@@ -55,6 +55,8 @@ Software Foundation, 59 Temple Place - S
+ 
+ #endif
+ 
++#undef USING_MMAP  // INTERIX ONLY, and temporary
++
+ #ifndef USING_MMAP
+ #define USING_MALLOC_PAGE_GROUPS
+ #endif

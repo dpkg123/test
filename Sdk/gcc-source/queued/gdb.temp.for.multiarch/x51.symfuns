@@ -1,0 +1,446 @@
+This is needed for core and shared libs.
+
+Sun Nov  2 14:16:25 MST 1997
+	Yesterday's changes to bfd (to simplify the handling of
+	ImageBase significantly) needed to be reflected here.
+	Apply ImageBase to the internal section tables for both
+	the exec, and symbol tables.   One invalid assumption in
+	gdb had to be addressed:  it's assumed that stabs symbols
+	and regular symbols are relocated the same way, which they
+	aren't in PE.  (Stabs symbols have ImageBase applied,
+	regular coff (minimal) symbols don't.)  (It might be possible
+	to fix this by using the REFLONGNB relocation in the
+	assembler's parse of .stabs? lines, but the assembler isn't
+	currently set up to do that.  It's far easier to fix here,
+	altho there are good reasons to do it in the assembler, and
+	that may happen.)
+
+	Change: 
+	symfile.h: add a new function pointer build_section_table; it's
+	  intended to be called from the exec side of things to do file
+	  format specific things, such as apply ImageBase to the section
+	  VMAs.  This helps keep the format issues separate from the access
+	  mechanism (target) issues.
+
+	coffread.c: create a new section_offsets table with ImageBase
+	  backed out to pass to the stabs-reading code.
+
+	  Make a coff-private symfile_offsets() routine that applies 
+	  ImageBase to the initial section_offsets table.
+
+	  Make coff-private build_section_table() which does the analogous
+	  thing on the exec file side.
+
+	  Add body to coff_symfile_init to apply ImageBase to the 
+	  section tables.
+
+	exec.c: use the new build_section_table function pointer; rename
+	  old version (and it's helper) to default....
+
+	corelow.c: also use the new build_section_table entry.
+
+	dbxread.c: Init some uninitialized statics that were being relied
+	  upon to be zero (it DID make a difference).
+
+	  PE format does NOT use relative addresses for begin/end block.
+	  (And it looks tricky to get the compiler right to do that, for
+	  little benefit.)
+
+	symfile.c: rewrite find_sym_fns() to use new function lookup_sym_fns();
+	  lookup_sym_fns is like the old find_sym_fns but returns
+	  a value rather than changing a structure.  Useable now
+	  in exec.c and corelow.c to find the function pointer
+	  needed for build_section_table().
+
+	  Code marked as #ifndef IBM6000_TARGET had comments that it seemd a
+	  specific hack...  it appears to have been as it also broke NT/PE.
+	  Turn it off completely, and let those who care make a better ifdef.
+	  (Or use symfile_offsets or symfile_init, which look as if it could 
+	  do the right thing, if one were written for targets that need this
+	  hack.)  (The PE changes were quite similar, but not identical.)
+
+	target.h: remove declaration for build_section_table.
+
+----------------------
+
+In preparation for adding Interix core files, we need to have a
+private version of build_section_table.  Also, find_sym_fns is
+more useful if it returns a value rather than changing a structure,
+so restructure into find_sym_fns to do the old thing, which calls
+lookup_sym_fns to do the work.  lookup_sym_fns can then be called
+directly as well.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* symfile.h(sym_fns): add build_section_table field.
+	* corelow.h(core_open): Use instead of direct call.
+	* exec.c(exec_file_command): Likewise.
+	(add_to_section_table): Rename to default_add_to_section_table.
+	(build_section_table): Rename to default_build_section_table,
+	use defauilt_add_to_section_table.
+	* target.h(build_section_table): Remove declaration.
+
+	* symfile.c(lookup_sym_fns): New, contains most of...
+	(find_sym_fns): use lookup_sym_fns to do most of work.
+
+
+Index: src/gdb/corelow.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/corelow.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 corelow.c
+--- src/gdb/corelow.c	2001/12/23 00:34:44	1.1.1.1
++++ src/gdb/corelow.c	2001/12/24 02:15:44
+@@ -31,6 +31,7 @@
+ #include "frame.h"		/* required by inferior.h */
+ #include "inferior.h"
+ #include "symtab.h"
++#include "symfile.h"
+ #include "command.h"
+ #include "bfd.h"
+ #include "target.h"
+@@ -316,8 +317,8 @@ core_open (char *filename, int from_tty)
+   validate_files ();
+ 
+   /* Find the data section */
+-  if (build_section_table (core_bfd, &core_ops.to_sections,
+-			   &core_ops.to_sections_end))
++  if ((*lookup_sym_fns(exec_bfd)->sym_build_sect_table)
++      (core_bfd, &core_ops.to_sections, &core_ops.to_sections_end))
+     error ("\"%s\": Can't find sections: %s",
+ 	   bfd_get_filename (core_bfd), bfd_errmsg (bfd_get_error ()));
+ 
+Index: src/gdb/dbxread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/dbxread.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 dbxread.c
+--- src/gdb/dbxread.c	2001/12/23 23:50:50	1.2
++++ src/gdb/dbxread.c	2001/12/24 02:15:44
+@@ -3531,6 +3531,7 @@ static struct sym_fns aout_sym_fns =
+   dbx_symfile_read,		/* sym_read: read a symbol file into symtab */
+   dbx_symfile_finish,		/* sym_finish: finished with file, cleanup */
+   default_symfile_offsets,	/* sym_offsets: parse user's offsets to internal form */
++  default_build_section_table,	/* sym_build_sect_table: build section table */
+   NULL				/* next: pointer to next struct sym_fns */
+ };
+ 
+Index: src/gdb/elfread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/elfread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 elfread.c
+--- src/gdb/elfread.c	2001/12/23 00:34:46	1.1.1.1
++++ src/gdb/elfread.c	2001/12/24 02:15:44
+@@ -805,6 +805,7 @@ static struct sym_fns elf_sym_fns =
+   elf_symfile_read,		/* sym_read: read a symbol file into symtab */
+   elf_symfile_finish,		/* sym_finish: finished with file, cleanup */
+   default_symfile_offsets,	/* sym_offsets:  Translate ext. to int. relocation */
++  default_build_section_table,	/* sym_build_sect_table: build section table */
+   NULL				/* next: pointer to next struct sym_fns */
+ };
+ 
+Index: src/gdb/exec.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/exec.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 exec.c
+--- src/gdb/exec.c	2001/12/23 23:22:12	1.2
++++ src/gdb/exec.c	2001/12/24 02:15:43
+@@ -256,8 +256,8 @@ exec_file_attach (char *filename, int fr
+ 	}
+ #endif /* IBM6000_TARGET */
+ 
+-      if (build_section_table (exec_bfd, &exec_ops.to_sections,
+-			       &exec_ops.to_sections_end))
++      if ((*lookup_sym_fns(exec_bfd)->sym_build_sect_table)
++	  (exec_bfd, &exec_ops.to_sections, &exec_ops.to_sections_end))
+ 	{
+ 	  /* Make sure to close exec_bfd, or else "run" might try to use
+ 	     it.  */
+@@ -365,7 +365,7 @@ file_command (char *arg, int from_tty)
+    we cast it back to its proper type.  */
+ 
+ static void
+-add_to_section_table (bfd *abfd, sec_ptr asect, PTR table_pp_char)
++default_add_to_section_table (bfd *abfd, sec_ptr asect, PTR table_pp_char)
+ {
+   struct section_table **table_pp = (struct section_table **) table_pp_char;
+   flagword aflag;
+@@ -386,7 +386,7 @@ add_to_section_table (bfd *abfd, sec_ptr
+    Returns 0 if OK, 1 on error.  */
+ 
+ int
+-build_section_table (bfd *some_bfd, struct section_table **start,
++default_build_section_table (bfd *some_bfd, struct section_table **start,
+ 		     struct section_table **end)
+ {
+   unsigned count;
+@@ -396,7 +396,7 @@ build_section_table (bfd *some_bfd, stru
+     xfree (* start);
+   *start = (struct section_table *) xmalloc (count * sizeof (**start));
+   *end = *start;
+-  bfd_map_over_sections (some_bfd, add_to_section_table, (char *) end);
++  bfd_map_over_sections (some_bfd, default_add_to_section_table, (char *)end);
+   if (*end > *start + count)
+     internal_error (__FILE__, __LINE__, "failed internal consistency check");
+   /* We could realloc the table, but it probably loses for most files.  */
+Index: src/gdb/mipsread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/mipsread.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 mipsread.c
+--- src/gdb/mipsread.c	2001/12/23 23:50:51	1.2
++++ src/gdb/mipsread.c	2001/12/24 02:15:43
+@@ -437,6 +437,7 @@ static struct sym_fns ecoff_sym_fns =
+   mipscoff_symfile_read,	/* sym_read: read a symbol file into symtab */
+   mipscoff_symfile_finish,	/* sym_finish: finished with file, cleanup */
+   default_symfile_offsets,	/* sym_offsets: dummy FIXME til implem sym reloc */
++  default_build_section_table,	/* sym_build_sect_table: build section table */
+   NULL				/* next: pointer to next struct sym_fns */
+ };
+ 
+Index: src/gdb/nlmread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/nlmread.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 nlmread.c
+--- src/gdb/nlmread.c	2001/12/23 23:50:51	1.2
++++ src/gdb/nlmread.c	2001/12/24 02:15:43
+@@ -238,6 +238,7 @@ static struct sym_fns nlm_sym_fns =
+   nlm_symfile_read,		/* sym_read: read a symbol file into symtab */
+   nlm_symfile_finish,		/* sym_finish: finished with file, cleanup */
+   default_symfile_offsets,	/* sym_offsets:  Translate ext. to int. relocation */
++  default_build_section_table,	/* sym_build_sect_table: build section table */
+   NULL				/* next: pointer to next struct sym_fns */
+ };
+ 
+Index: src/gdb/pa64solib.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/pa64solib.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 pa64solib.c
+--- src/gdb/pa64solib.c	2001/12/23 00:34:52	1.1.1.1
++++ src/gdb/pa64solib.c	2001/12/24 02:15:44
+@@ -312,9 +312,8 @@ pa64_solib_load_symbols (struct so_list 
+   /* Now we need to build a section table for this library since
+      we might be debugging a core file from a dynamically linked
+      executable in which the libraries were not privately mapped.  */
+-  if (build_section_table (so->abfd,
+-			   &so->sections,
+-			   &so->sections_end))
++  if ((*lookup_sym_fns (so->abfd)->sym_build_sect_table) 
++      (so->abfd, &so->sections, &so->sections_end))
+     {
+       error ("Unable to build section table for shared library\n.");
+       return;
+Index: src/gdb/solib.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/solib.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 solib.c
+--- src/gdb/solib.c	2001/12/23 00:34:55	1.1.1.1
++++ src/gdb/solib.c	2001/12/24 02:15:43
+@@ -250,7 +250,7 @@ solib_map_sections (PTR arg)
+       error ("\"%s\": not in executable format: %s.",
+ 	     scratch_pathname, bfd_errmsg (bfd_get_error ()));
+     }
+-  if (build_section_table (abfd, &so->sections, &so->sections_end))
++  if ((*lookup_sym_fns (abfd)->sym_build_sect_table) (abfd, &so->sections, &so->sections_end))
+     {
+       error ("Can't find the file sections in `%s': %s",
+ 	     bfd_get_filename (abfd), bfd_errmsg (bfd_get_error ()));
+Index: src/gdb/somread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/somread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 somread.c
+--- src/gdb/somread.c	2001/12/23 00:34:55	1.1.1.1
++++ src/gdb/somread.c	2001/12/24 02:15:43
+@@ -745,6 +745,7 @@ static struct sym_fns som_sym_fns =
+   som_symfile_read,		/* sym_read: read a symbol file into symtab */
+   som_symfile_finish,		/* sym_finish: finished with file, cleanup */
+   som_symfile_offsets,		/* sym_offsets:  Translate ext. to int. relocation */
++  default_build_section_table,	/* sym_build_sect_table: build section table */
+   NULL				/* next: pointer to next struct sym_fns */
+ };
+ 
+Index: src/gdb/somsolib.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/somsolib.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 somsolib.c
+--- src/gdb/somsolib.c	2001/12/23 00:34:55	1.1.1.1
++++ src/gdb/somsolib.c	2001/12/24 02:15:43
+@@ -351,9 +351,8 @@ som_solib_load_symbols (struct so_list *
+   /* Now we need to build a section table for this library since
+      we might be debugging a core file from a dynamically linked
+      executable in which the libraries were not privately mapped.  */
+-  if (build_section_table (so->abfd,
+-			   &so->sections,
+-			   &so->sections_end))
++  if ((*lookup_sym_fns (abfd)->sym_build_sect_table) 
++      (so->abfd, &so->sections, &so->sections_end))
+     {
+       error ("Unable to build section table for shared library\n.");
+       return;
+Index: src/gdb/symfile.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/symfile.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 symfile.c
+--- src/gdb/symfile.c	2001/12/23 23:22:13	1.2
++++ src/gdb/symfile.c	2001/12/24 02:15:43
+@@ -1159,23 +1159,23 @@ add_symtab_fns (struct sym_fns *sf)
+ }
+ 
+ 
+-/* Initialize to read symbols from the symbol file sym_bfd.  It either
+-   returns or calls error().  The result is an initialized struct sym_fns
+-   in the objfile structure, that contains cached information about the
+-   symbol file.  */
+-
+-static void
+-find_sym_fns (struct objfile *objfile)
+-{
++/* Get format dependent information.  It either returns or calls error(). 
++   The result is a pointer to a struct sym_fns.   This allows us to get
++   to the format dependent stuff from elsewhere (specifically exec)
++   when we need it. */
++
++struct sym_fns*
++lookup_sym_fns (bfd* abfd)
++{
+   struct sym_fns *sf;
+-  enum bfd_flavour our_flavour = bfd_get_flavour (objfile->obfd);
+-  char *our_target = bfd_get_target (objfile->obfd);
+-
++  enum bfd_flavour our_flavour = bfd_get_flavour (abfd);
++  char *our_target = bfd_get_target (abfd);
++
+   if (our_flavour == bfd_target_srec_flavour
+       || our_flavour == bfd_target_ihex_flavour
+       || our_flavour == bfd_target_tekhex_flavour)
+-    return;	/* No symbols. */
+-
++    return objfile->sf;	/* No symbols; use prior. */
++
+   /* Special kludge for apollo.  See dstread.c.  */
+   if (STREQN (our_target, "apollo", 6))
+     our_flavour = (enum bfd_flavour) -2;
+@@ -1184,12 +1184,23 @@ find_sym_fns (struct objfile *objfile)
+     {
+       if (our_flavour == sf->sym_flavour)
+ 	{
+-	  objfile->sf = sf;
+-	  return;
++	  return sf;
+ 	}
+     }
+-  error ("I'm sorry, Dave, I can't do that.  Symbol format `%s' unknown.",
+-	 bfd_get_target (objfile->obfd));
++  error ("Object format `%s' unknown.",
++	 bfd_get_target (abfd));
++}
++
++/* Initialize to read symbols from the symbol file sym_bfd.  It either
++   returns or calls error().  The result is an initialized struct sym_fns
++   in the objfile structure, that contains cached information about the
++   symbol file.  */
++
++static void
++find_sym_fns (objfile)
++     struct objfile *objfile;
++{
++  objfile->sf = lookup_sym_fns(objfile->obfd);
+ }
+ 
+ /* This function runs the load command of our current target.  */
+Index: src/gdb/symfile.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/symfile.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 symfile.h
+--- src/gdb/symfile.h	2001/12/23 00:34:56	1.1.1.1
++++ src/gdb/symfile.h	2001/12/24 02:15:43
+@@ -74,6 +74,9 @@ struct section_addr_info 
+   } other[MAX_SECTIONS];
+ };
+ 
++/* Forward declaration */
++struct section_table;
++
+ /* Structure to keep track of symbol reading functions for various
+    object file types.  */
+ 
+@@ -121,6 +124,15 @@ struct sym_fns
+ 
+     void (*sym_offsets) (struct objfile *, struct section_addr_info *);
+ 
++  /* This isn't strictly a symbol routine, but there may be format-
++     sensitive information that the "exec" side of gdb needs to have
++     dealt with.  Used (at least) for Interix */
++  /* Builds a section table, given args BFD, SECTABLE_PTR, SECEND_PTR.
++     Returns 0 if OK, 1 on error.  */
++
++  int (*sym_build_sect_table) (bfd *, struct section_table **, 
++			       struct section_table **);
++
+     /* Finds the next struct sym_fns.  They are allocated and initialized
+        in whatever module implements the functions pointed to; an 
+        initializer calls add_symtab_fns to add them to the global chain.  */
+@@ -135,6 +147,11 @@ struct sym_fns
+ extern void
+ default_symfile_offsets (struct objfile *objfile, struct section_addr_info *);
+ 
++/* The default version of sym_fns.sym_build_sect_table. */
++
++extern int
++default_build_section_table (bfd *some_bfd, struct section_table **start,
++			     struct section_table **end);
+ 
+ extern void
+ extend_psymbol_list (struct psymbol_allocation_list *, struct objfile *);
+@@ -318,5 +335,8 @@ mdebug_build_psymtabs (struct objfile *,
+ extern void
+ elfmdebug_build_psymtabs (struct objfile *,
+ 			  const struct ecoff_debug_swap *, asection *);
++
++extern struct sym_fns* 
++lookup_sym_fns (bfd* abfd);
+ 
+ #endif /* !defined(SYMFILE_H) */
+Index: src/gdb/target.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/target.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 target.h
+--- src/gdb/target.h	2001/12/23 00:34:56	1.1.1.1
++++ src/gdb/target.h	2001/12/24 02:15:43
+@@ -1145,12 +1145,6 @@ struct section_table
+     bfd *bfd;			/* BFD file pointer */
+   };
+ 
+-/* Builds a section table, given args BFD, SECTABLE_PTR, SECEND_PTR.
+-   Returns 0 if OK, 1 on error.  */
+-
+-extern int
+-build_section_table (bfd *, struct section_table **, struct section_table **);
+-
+ /* From mem-break.c */
+ 
+ extern int memory_remove_breakpoint (CORE_ADDR, char *);
+Index: src/gdb/xcoffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/xcoffread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 xcoffread.c
+--- src/gdb/xcoffread.c	2001/12/23 00:34:58	1.1.1.1
++++ src/gdb/xcoffread.c	2001/12/24 02:15:43
+@@ -3029,6 +3029,7 @@ static struct sym_fns xcoff_sym_fns =
+   xcoff_initial_scan,		/* sym_read: read a symbol file into symtab */
+   xcoff_symfile_finish,		/* sym_finish: finished with file, cleanup */
+   xcoff_symfile_offsets,	/* sym_offsets: xlate offsets ext->int form */
++  default_build_section_table,	/* sym_build_sect_table: build section table */
+   NULL				/* next: pointer to next struct sym_fns */
+ };
+ 

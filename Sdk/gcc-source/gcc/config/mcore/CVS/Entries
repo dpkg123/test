@@ -1,0 +1,13 @@
+/crti.asm/1.1/Mon Feb 14 22:51:36 2000//Tgcc_3_3_release
+/crtn.asm/1.1/Mon Feb 14 22:51:36 2000//Tgcc_3_3_release
+/gfloat.h/1.2/Tue Oct  9 10:16:13 2001//Tgcc_3_3_release
+/lib1.asm/1.3/Thu May 17 03:16:03 2001//Tgcc_3_3_release
+/mcore-elf.h/1.13/Fri May 16 11:18:19 2003//Tgcc_3_3_release
+/mcore-pe.h/1.14/Fri May 16 11:18:19 2003//Tgcc_3_3_release
+/mcore-protos.h/1.10/Fri May 16 11:18:19 2003//Tgcc_3_3_release
+/mcore.c/1.40/Fri May 16 11:18:20 2003//Tgcc_3_3_release
+/mcore.h/1.41.4.1/Fri May 16 11:18:21 2003//Tgcc_3_3_release
+/mcore.md/1.7/Fri May 16 11:18:21 2003//Tgcc_3_3_release
+/t-mcore/1.3/Thu May 17 03:16:03 2001//Tgcc_3_3_release
+/t-mcore-pe/1.4/Fri May 16 11:18:21 2003//Tgcc_3_3_release
+D

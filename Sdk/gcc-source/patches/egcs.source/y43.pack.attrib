@@ -1,0 +1,354 @@
+This set of patches moves the MS packing rule logic from a command
+line option to an attribute (as well).  Programs with both the
+vendor-native and gcc default packing are sometimes very useful in
+conversions, and this simplifies that a lot.
+
+Add the mechanics to handle new attributes to attribs.c, and the
+mechanism in various places to recognize that it is turned on on
+a specific strcture.  The global state of the command line flag is
+only used to initialize the structure default value, which can
+be overridden with an attribute command.
+
+Testcase attached.  File name (but not location) chosen pending
+the placement of bf-ms-layout.c (from a prior patch by Danny Smith)
+because it should go right next to it.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/attribs.c gcc/attribs.c
+--- gcc.saved2/attribs.c	Thu Apr  4 13:02:30 2002
++++ gcc/attribs.c	Thu Apr  4 15:59:09 2002
+@@ -44,6 +44,10 @@ static bool attributes_initialized = fal
+ 
+ static tree handle_packed_attribute	PARAMS ((tree *, tree, tree, int,
+ 						 bool *));
++static tree handle_native_attribute	PARAMS ((tree *, tree, tree, int,
++						 bool *));
++static tree handle_gcc_pack_attribute	PARAMS ((tree *, tree, tree, int,
++						 bool *));
+ static tree handle_nocommon_attribute	PARAMS ((tree *, tree, tree, int,
+ 						 bool *));
+ static tree handle_common_attribute	PARAMS ((tree *, tree, tree, int,
+@@ -99,6 +103,10 @@ static const struct attribute_spec c_com
+   /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */
+   { "packed",                 0, 0, false, false, false,
+       			      handle_packed_attribute },
++  { "native_struct",          0, 0, false, false, false,
++      			      handle_native_attribute },
++  { "gcc_struct",             0, 0, false, false, false,
++      			      handle_gcc_pack_attribute },
+   { "nocommon",               0, 0, true,  false, false,
+ 			      handle_nocommon_attribute },
+   { "common",                 0, 0, true,  false, false,
+@@ -456,6 +464,76 @@ handle_packed_attribute (node, name, arg
+     DECL_PACKED (*node) = 1;
+   /* We can't set DECL_PACKED for a VAR_DECL, because the bit is
+      used for DECL_REGISTER.  It wouldn't mean anything anyway.  */
++  else
++    {
++      warning ("`%s' attribute ignored", IDENTIFIER_POINTER (name));
++      *no_add_attrs = true;
++    }
++
++  return NULL_TREE;
++}
++
++/* Handle a "native" attribute; arguments as in
++   struct attribute_spec.handler.  */
++
++static tree
++handle_native_attribute (node, name, args, flags, no_add_attrs)
++     tree *node;
++     tree name;
++     tree args ATTRIBUTE_UNUSED;
++     int flags;
++     bool *no_add_attrs;
++{
++  tree *type = NULL;
++  if (DECL_P (*node))
++    {
++      if (TREE_CODE (*node) == TYPE_DECL)
++	type = &TREE_TYPE (*node);
++    }
++  else
++    type = node;
++
++  if (type)
++    {
++      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
++	*type = build_type_copy (*type);
++      TYPE_NATIVE (*type) = 1;
++    }
++  else
++    {
++      warning ("`%s' attribute ignored", IDENTIFIER_POINTER (name));
++      *no_add_attrs = true;
++    }
++
++  return NULL_TREE;
++}
++
++/* Handle a "gcc_pack" attribute; arguments as in
++   struct attribute_spec.handler.  */
++
++static tree
++handle_gcc_pack_attribute (node, name, args, flags, no_add_attrs)
++     tree *node;
++     tree name;
++     tree args ATTRIBUTE_UNUSED;
++     int flags;
++     bool *no_add_attrs;
++{
++  tree *type = NULL;
++  if (DECL_P (*node))
++    {
++      if (TREE_CODE (*node) == TYPE_DECL)
++	type = &TREE_TYPE (*node);
++    }
++  else
++    type = node;
++
++  if (type)
++    {
++      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
++	*type = build_type_copy (*type);
++      TYPE_NATIVE (*type) = 0;
++    }
+   else
+     {
+       warning ("`%s' attribute ignored", IDENTIFIER_POINTER (name));
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/c-decl.c gcc/c-decl.c
+--- gcc.saved2/c-decl.c	Thu Apr  4 13:02:29 2002
++++ gcc/c-decl.c	Thu Apr  4 15:40:25 2002
+@@ -5359,6 +5359,9 @@ start_struct (code, name)
+     {
+       C_TYPE_BEING_DEFINED (ref) = 1;
+       TYPE_PACKED (ref) = flag_pack_struct;
++#ifdef TARGET_USE_MS_BITFIELD_LAYOUT
++      TYPE_NATIVE (ref) = TARGET_USE_MS_BITFIELD_LAYOUT != 0;
++#endif
+       if (TYPE_FIELDS (ref))
+         {
+ 	  if (code == UNION_TYPE)
+@@ -5378,6 +5381,9 @@ start_struct (code, name)
+   pushtag (name, ref);
+   C_TYPE_BEING_DEFINED (ref) = 1;
+   TYPE_PACKED (ref) = flag_pack_struct;
++#ifdef TARGET_USE_MS_BITFIELD_LAYOUT
++  TYPE_NATIVE (ref) = TARGET_USE_MS_BITFIELD_LAYOUT != 0;
++#endif
+   return ref;
+ }
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/config/i386/i386-interix.h gcc/config/i386/i386-interix.h
+--- gcc.saved2/config/i386/i386-interix.h	Thu Apr  4 13:02:03 2002
++++ gcc/config/i386/i386-interix.h	Thu Apr  4 14:38:11 2002
+@@ -293,7 +292,7 @@ extern void i386_pe_asm_file_end PARAMS 
+ /* If using MS bitfield layout, alignment is limited to 32 bits even if the
+    overall default is larger. */
+ #define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED)			      \
+-  (((TARGET_USE_MS_BITFIELD_LAYOUT) && (COMPUTED) > 32) ? 32 : (COMPUTED))
++  ((TYPE_NATIVE ((RLI)->t) && !DECL_USER_ALIGN(FIELD) && (COMPUTED) > 32) ? 32 : (COMPUTED))
+ 
+ /* Note that there appears to be two different ways to support const
+    sections at the moment.  You can either #define the symbol
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/config/i386/i386.c gcc/config/i386/i386.c
+--- gcc.saved2/config/i386/i386.c	Thu Apr  4 13:02:03 2002
++++ gcc/config/i386/i386.c	Thu Apr  4 14:55:56 2002
+@@ -12484,5 +12484,5 @@ static bool
+ ix86_ms_bitfield_layout_p (record_type)
+      tree record_type ATTRIBUTE_UNUSED;
+ {
+-  return TARGET_USE_MS_BITFIELD_LAYOUT;
++  return TYPE_NATIVE(record_type);
+ }
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/cp/decl.c gcc/cp/decl.c
+--- gcc.saved2/cp/decl.c	Thu Apr  4 13:02:27 2002
++++ gcc/cp/decl.c	Thu Apr  4 15:40:37 2002
+@@ -12896,6 +12896,11 @@ xref_tag (code_type_node, name, globaliz
+ 	  /* Class types don't nest the way enums do.  */
+ 	  class_binding_level = (struct binding_level *)0;
+ #endif
++	  TYPE_PACKED (ref) = flag_pack_struct;
++#ifdef TARGET_USE_MS_BITFIELD_LAYOUT
++	  TYPE_NATIVE (ref) = TARGET_USE_MS_BITFIELD_LAYOUT != 0;
++#endif
++
+ 	  pushtag (name, ref, globalize);
+ 	  class_binding_level = old_b;
+ 	}
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/cp/pt.c gcc/cp/pt.c
+--- gcc.saved2/cp/pt.c	Thu Apr  4 13:02:27 2002
++++ gcc/cp/pt.c	Thu Apr  4 13:03:28 2002
+@@ -5077,6 +5077,7 @@ instantiate_class_template (type)
+   TYPE_USES_VIRTUAL_BASECLASSES (type)
+     = TYPE_USES_VIRTUAL_BASECLASSES (pattern);
+   TYPE_PACKED (type) = TYPE_PACKED (pattern);
++  TYPE_NATIVE (type) = TYPE_NATIVE (pattern);
+   TYPE_ALIGN (type) = TYPE_ALIGN (pattern);
+   TYPE_USER_ALIGN (type) = TYPE_USER_ALIGN (pattern);
+   TYPE_FOR_JAVA (type) = TYPE_FOR_JAVA (pattern); /* For libjava's JArray<T> */
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/doc/extend.texi gcc/doc/extend.texi
+--- gcc.saved2/doc/extend.texi	Thu Apr  4 13:01:01 2002
++++ gcc/doc/extend.texi	Thu Apr  4 13:25:38 2002
+@@ -2821,9 +2821,10 @@ It is an error to ask for the alignment 
+ 
+ The keyword @code{__attribute__} allows you to specify special
+ attributes of variables or structure fields.  This keyword is followed
+-by an attribute specification inside double parentheses.  Ten
++by an attribute specification inside double parentheses.  Twelve
+ attributes are currently defined for variables: @code{aligned},
+-@code{mode}, @code{nocommon}, @code{packed}, @code{section},
++@code{mode}, @code{nocommon}, @code{packed},
++@code{native_struct}, @code{gnu_struct}, @code{section},
+ @code{transparent_union}, @code{unused}, @code{deprecated},
+ @code{vector_size}, and @code{weak}.  Some other attributes are defined
+ for variables on particular target systems.  Other attributes are
+@@ -2943,6 +2944,31 @@ struct foo
+ @};
+ @end example
+ 
++@item native_struct
++@itemx gnu_struct
++@cindex @code{native_struct}
++@cindex @code{gnu_struct}
++If @code(packed) is used on a structure, or if bitfields are used
++it may be that the system ABI packs them differently
++than gcc would normally pack them.  Particularly when moving packed
++data between functions compiled with gcc and the native compiler (either via
++function call or as data in a file), it may be necessary to access
++either format.  For many implementations of gcc, either there is
++only one packing convention, or gcc is the native compiler, and these
++flags then have no effect.  However, if the native compiler would
++yield different results than gcc would, these flags allow the packing
++rule for structures to be specified.  (This situation also applies when
++older versions of gcc which did not support the native order are involved.)
++The designers of gcc have indicated that the "native" form should be the
++preferred packing rules, but in situations where there may be
++several ABIs (in particular, the x86), the default gcc rules
++may provide a common format (when packed structures or bitfields must be used) 
++that can be used for interchange.  The exact packing rules are
++architecture dependent.
++
++Currently --native-struct is provided for the Windows X86 compilers
++to match the native Microsoft compiler.
++
+ @item section ("@var{section-name}")
+ @cindex @code{section} variable attribute
+ Normally, the compiler places the objects it generates in sections like
+@@ -3110,8 +3136,9 @@ packed))}.
+ The keyword @code{__attribute__} allows you to specify special
+ attributes of @code{struct} and @code{union} types when you define such
+ types.  This keyword is followed by an attribute specification inside
+-double parentheses.  Five attributes are currently defined for types:
+-@code{aligned}, @code{packed}, @code{transparent_union}, @code{unused},
++double parentheses.  Seven attributes are currently defined for types:
++@code{aligned}, @code{packed}, @code{native_struct}, @code{gnu_struct},
++@code{transparent_union}, @code{unused},
+ and @code{deprecated}.  Other attributes are defined for functions
+ (@pxref{Function Attributes}) and for variables (@pxref{Variable Attributes}).
+ 
+@@ -3124,7 +3151,8 @@ instead of @code{aligned}.
+ You may specify the @code{aligned} and @code{transparent_union}
+ attributes either in a @code{typedef} declaration or just past the
+ closing curly brace of a complete enum, struct or union type
+-@emph{definition} and the @code{packed} attribute only past the closing
++@emph{definition} and the @code{packed} (and it's modifiers 
++@code{native_struct} and @code{gnu_struct}) attribute only past the closing
+ brace of a definition.
+ 
+ You may also specify attributes between the enum, struct or union
+@@ -3217,6 +3245,31 @@ alignment.  See your linker documentatio
+ This attribute, attached to an @code{enum}, @code{struct}, or
+ @code{union} type definition, specified that the minimum required memory
+ be used to represent the type.
++
++@item native_struct
++@itemx gnu_struct
++@cindex @code{native_struct}
++@cindex @code{gnu_struct}
++If @code(packed) is used on a structure, or if bitfields are used
++it may be that the system ABI packs them differently
++than gcc would normally pack them.  Particularly when moving packed
++data between functions compiled with gcc and the native compiler (either via
++function call or as data in a file), it may be necessary to access
++either format.  For many implementations of gcc, either there is
++only one packing convention, or gcc is the native compiler, and these
++flags then have no effect.  However, if the native compiler would
++yield different results than gcc would, these flags allow the packing
++rule for structures to be specified.  (This situation also applies when
++older versions of gcc which did not support the native order are involved.)
++The designers of gcc have indicated that the "native" form should be the
++preferred packing rules, but in situations where there may be
++several ABIs (in particular, the x86), the default gcc rules
++may provide a common format (when packed structures must be used) 
++that can be used for interchange.  The exact packing rules are
++architecture dependent.
++
++Currently @option(-m[no-]ms-bitfields) is provided for the Windows X86 
++compilers to match the native Microsoft compiler.
+ 
+ @opindex fshort-enums
+ Specifying this attribute for @code{struct} and @code{union} types is
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved2/tree.h gcc/tree.h
+--- gcc.saved2/tree.h	Thu Apr  4 13:02:35 2002
++++ gcc/tree.h	Thu Apr  4 13:03:28 2002
+@@ -1139,10 +1139,15 @@ struct tree_block
+ #define TYPE_NONALIASED_COMPONENT(NODE) \
+   (ARRAY_TYPE_CHECK (NODE)->type.transparent_union_flag)
+ 
+-/* Indicated that objects of this type should be laid out in as
++/* Indicates that objects of this type should be laid out in as
+    compact a way as possible.  */
+ #define TYPE_PACKED(NODE) (TYPE_CHECK (NODE)->type.packed_flag)
+ 
++/* Indicates that objects of this type should be layed out as the
++   native compiler does; if a compile line option (or default state)
++   turns this on, then turning it OFF should result in gnu alignment. */
++#define TYPE_NATIVE(NODE) ((NODE)->type.native_flag)
++
+ /* A bounded pointer or bounded reference type (collectively called
+    indirect types) is represented as a RECORD_TYPE node containing
+    three pointer fields whose type is the corresponding unbounded
+@@ -1219,6 +1224,7 @@ struct tree_type
+   unsigned needs_constructing_flag : 1;
+   unsigned transparent_union_flag : 1;
+   unsigned packed_flag : 1;
++  unsigned native_flag : 1;
+   unsigned restrict_flag : 1;
+   unsigned pointer_depth : 2;
+ 
+===================================================
+/* bf-ms-attrib.c */
+/* Adapted from Donn Terry <donnte@microsoft.com> testcase
+   posted to GCC-patches
+   http://gcc.gnu.org/ml/gcc-patches/2000-08/msg00577.html */ 
+
+/* { dg-do run { target *-*-mingw* *-*-cygwin* *-*-interix* } } */
+
+#include <stdio.h>
+
+struct one_gcc {
+  int d;
+  unsigned char a;
+  unsigned short b:7;
+  char c;	
+} __attribute__((__gcc_struct__)) ;
+
+
+struct one_nat {
+  int d;
+  unsigned char a;
+  unsigned short b:7;
+  char c;	
+} __attribute__((__native_struct__));
+
+
+main() 
+  {
+    /* As long as the sizes are as expected, we know attributes are working.
+       bf-ms-layout.c makes sure the right thing happens when the attribute
+       is on. */
+    if (sizeof(struct one_nat) != 12)
+	abort();
+    if (sizeof(struct one_gcc) != 8)
+	abort();
+  }

@@ -1,0 +1,747 @@
+Posix is explicit that // can mean something different than /. Have tcl
+recognize that distinction when normalizing pathnames.  (Tests, too.)
+
+Interix (currently) has ENOMSG and ENOENT with the same value.
+
+The socket tests can hang due to sockets not being closed after failed tests.
+Do more preemptive closes upon failure (or in the case of unixNotfy.test,
+in advance).  (This is only a partial fix.)
+
+fd_set might be im time.h (per XPG/New Posix).
+
+Use the FD_* macros instead of assuming the structure of the bit
+vector, which is broadly nonconforming.  This fix does not make tcl
+strictly conforming in this regard, but is MORE conforming than
+the current code which assumes it knows the correct order of bit
+packing, and that in fact bit vectors are being used.  (The remaining
+set-or and "is any bit set" tests are more likely to succeed now
+than they were before, but conforming implementations are not
+required to use bit vectors at all, so further abstraction is 
+needed to be a strictly conforming application.)
+
+tclUnixFCmd was using an unsigned as the result of read().
+
+Interix getgrgid can take (literally) hours, so use the quick one.
+(A more thorough fix would be to bring out the distinction to the user.)
+
+Implementations are permitted to require that the 2d argument of gettimeofday
+be NULL.  Since it's not actuall used, make it conforming.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/generic/tclFCmd.c tcl/generic/tclFCmd.c
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/generic/tclFCmd.c	Thu Jul  1 16:21:07 1999
++++ tcl/generic/tclFCmd.c	Mon Jan 21 13:58:37 2002
+@@ -258,7 +258,11 @@ TclFileMakeDirsCmd(interp, argc, argv)
+ 	     * directory.
+ 	     */
+ 
+-	    if (TclStat(target, &statBuf) == 0) {
++ 	    if (j == 0 && target[0] == '/' && target[1] == '/') {
++ 		/* we have a // (URL); it might or might not come back
++ 		   with stat, but it always "exists" */
++ 	    }
++	    else if (TclStat(target, &statBuf) == 0) {
+ 		if (!S_ISDIR(statBuf.st_mode)) {
+ 		    errno = EEXIST;
+ 		    errfile = target;
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/generic/tclFileName.c tcl/generic/tclFileName.c
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/generic/tclFileName.c	Tue Oct  9 17:47:41 2001
++++ tcl/generic/tclFileName.c	Wed Jan 30 18:51:44 2002
+@@ -460,7 +460,14 @@ SplitUnixPath(path, bufPtr)
+     }
+ #endif
+ 
+-    if (path[0] == '/') {
++
++    /*
++     * POSIX requires that // be treated specially.
++     */
++    if (path[0] == '/' && path[1] == '/' && path[2] != '/') {
++	Tcl_DStringAppend(bufPtr, "//", 3);
++	p = path+2;
++    } else if (path[0] == '/') {
+ 	Tcl_DStringAppend(bufPtr, "/", 2);
+ 	p = path+1;
+     } else {
+@@ -796,7 +803,13 @@ Tcl_JoinPath(argc, argv, resultPtr)
+ 		    }
+ 		}
+ #endif
+-		if (*p == '/') {
++		/* Treat // specially (see POSIX) */
++		if (p[0] == '/' && p[1] == '/' && p[2] != '/') {
++		    Tcl_DStringSetLength(resultPtr, oldLength);
++		    Tcl_DStringAppend(resultPtr, "//", 2);
++		    p += 2;
++		}
++		else if (*p == '/') {
+ 		    Tcl_DStringSetLength(resultPtr, oldLength);
+ 		    Tcl_DStringAppend(resultPtr, "/", 1);
+ 		    while (*p == '/') {
+@@ -1929,6 +1942,7 @@ TclDoGlob(interp, separators, headPtr, t
+ 	    /*
+ 	     * Add a separator if this is the first absolute element, or
+ 	     * a later relative element.
++	     * If // (but not ///), retain that.
+ 	     */
+ 
+ 	    if ((*tail != '\0')
+@@ -1936,6 +1950,9 @@ TclDoGlob(interp, separators, headPtr, t
+ 			    && (strchr(separators, lastChar) == NULL))
+ 			    || ((length == 0) && (count > 0)))) {
+ 		Tcl_DStringAppend(headPtr, "/", 1);
++		if ((length == 0) && (count == 2)) {
++		    Tcl_DStringAppend(headPtr, "/", 1);
++		}
+ 	    }
+ 	    break;
+     }
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/generic/tclPosixStr.c tcl/generic/tclPosixStr.c
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/generic/tclPosixStr.c	Mon Aug  7 14:32:40 2000
++++ tcl/generic/tclPosixStr.c	Mon Jan 21 13:58:37 2002
+@@ -279,7 +279,7 @@ Tcl_ErrnoId()
+ #ifdef ENOMEM
+ 	case ENOMEM: return "ENOMEM";
+ #endif
+-#ifdef ENOMSG
++#if defined(ENOMSG) && ENOENT != ENOMSG
+ 	case ENOMSG: return "ENOMSG";
+ #endif
+ #ifdef ENONET
+@@ -726,7 +726,7 @@ Tcl_ErrnoMsg(err)
+ #ifdef ENOMEM
+ 	case ENOMEM: return "not enough memory";
+ #endif
+-#ifdef ENOMSG
++#if defined(ENOMSG) && ENOENT != ENOMSG
+ 	case ENOMSG: return "no message of desired type";
+ #endif
+ #ifdef ENONET
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/cmdAH.test tcl/tests/cmdAH.test
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/cmdAH.test	Wed Oct 17 12:33:50 2001
++++ tcl/tests/cmdAH.test	Wed Jan 30 18:05:12 2002
+@@ -260,22 +260,24 @@ test cmdAH-8.13 {Tcl_FileObjCmd: dirname
+     testsetplatform unix
+     list [catch {file dirname /foo} msg] $msg
+ } {0 /}
++# Note... stripping off a leading / is a Bad Idea; POSIX is quite
++# specific that // might have a different meaning from / (root).
+ test cmdAH-8.14 {Tcl_FileObjCmd: dirname} {
+     testsetplatform unix
+     list [catch {file dirname //foo} msg] $msg
+-} {0 /}
++} {0 //}
+ test cmdAH-8.15 {Tcl_FileObjCmd: dirname} {
+     testsetplatform unix
+     list [catch {file dirname //foo/bar} msg] $msg
+-} {0 /foo}
++} {0 //foo}
+ test cmdAH-8.16 {Tcl_FileObjCmd: dirname} {
+     testsetplatform unix
+     list [catch {file dirname {//foo\/bar/baz}} msg] $msg
+-} {0 {/foo\/bar}}
++} {0 {//foo\/bar}}
+ test cmdAH-8.17 {Tcl_FileObjCmd: dirname} {
+     testsetplatform unix
+     list [catch {file dirname {//foo\/bar/baz/blat}} msg] $msg
+-} {0 {/foo\/bar/baz}}
++} {0 {//foo\/bar/baz}}
+ test cmdAH-8.18 {Tcl_FileObjCmd: dirname} {
+     testsetplatform unix
+     list [catch {file dirname /foo//} msg] $msg
+@@ -412,6 +414,22 @@ test cmdAH-8.46 {Tcl_FileObjCmd: dirname
+     set env(HOME) $temp
+     set result
+ } {0 home:}
++test cmdAH-8.47 {Tcl_FileObjCmd: dirname} {
++    testsetplatform unix
++    list [catch {file dirname ///foo} msg] $msg
++} {0 /}
++test cmdAH-8.48 {Tcl_FileObjCmd: dirname} {
++    testsetplatform unix
++    list [catch {file dirname ///foo/bar} msg] $msg
++} {0 /foo}
++test cmdAH-8.49 {Tcl_FileObjCmd: dirname} {
++    testsetplatform unix
++    list [catch {file dirname {///foo\/bar/baz}} msg] $msg
++} {0 {/foo\/bar}}
++test cmdAH-8.50 {Tcl_FileObjCmd: dirname} {
++    testsetplatform unix
++    list [catch {file dirname {///foo\/bar/baz/blat}} msg] $msg
++} {0 {/foo\/bar/baz}}
+ 
+ # tail
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/fileName.test tcl/tests/fileName.test
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/fileName.test	Wed Oct 17 12:33:50 2001
++++ tcl/tests/fileName.test	Mon Jan 21 13:58:37 2002
+@@ -285,7 +285,7 @@ test filename-4.12 {Tcl_SplitPath: unix}
+ test filename-4.13 {Tcl_SplitPath: unix} {
+     testsetplatform unix
+     file split //foo
+-} {/ foo}
++} {// foo}
+ test filename-4.14 {Tcl_SplitPath: unix} {
+     testsetplatform unix
+     file split foo//bar
+@@ -306,7 +306,11 @@ test filename-4.18 {Tcl_SplitPath: unix}
+     testsetplatform unix
+     file split foo/bar~/baz
+ } {foo bar~ baz}
+-
++test filename-4.19 {Tcl_SplitPath: unix} {
++    testsetplatform unix
++    file split ///foo
++} {/ foo}
++
+ test filename-5.1 {Tcl_SplitPath: mac} {
+     testsetplatform mac
+     file split a:b
+@@ -700,7 +704,7 @@ test filename-7.16 {Tcl_JoinPath: unix} 
+ test filename-7.17 {Tcl_JoinPath: unix} {
+     testsetplatform unix
+     file join //a b
+-} {/a/b}
++} {//a/b}
+ test filename-7.18 {Tcl_JoinPath: unix} {
+     testsetplatform unix
+     file join /// a b
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/socket.test tcl/tests/socket.test
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/socket.test	Wed Jul 26 18:39:21 2000
++++ tcl/tests/socket.test	Wed Jan 30 17:59:50 2002
+@@ -579,12 +579,15 @@ test socket-3.1 {socket conflict} {socke
+     close $f
+     set f [open "|[list $::tcltest::tcltest script]" r+]
+     gets $f
+-    set x [list [catch {socket -server accept 2828} msg] \
++    set x [list [catch { set fprime [ socket -server accept 2828 ] } msg] \
+ 		$msg]
+     puts $f bye
+     close $f
+     set x
+ } {1 {couldn't open socket: address already in use}}
++
++catch { close $fprime } msg ; # in case it actually opened.
++
+ test socket-3.2 {server with several clients} {socket stdio} {
+     removeFile script
+     set f [open script w]
+@@ -643,6 +646,11 @@ test socket-3.2 {server with several cli
+     set x
+ } {ready done}
+ 
++catch { close $s1 } msg ; # just in case
++catch { close $s2 } msg ; # just in case
++catch { close $s3 } msg ; # just in case
++catch { close $f } msg ; # just in case
++
+ test socket-4.1 {server with several clients} {socket stdio} {
+     removeFile script
+     set f [open script w]
+@@ -679,6 +687,8 @@ test socket-4.1 {server with several cli
+             puts $s $l
+         }
+     }
++
++    # If the timeouts occur, this test can hang forever.
+     set t1 [after 30000 "set x timed_out"]
+     set t2 [after 31000 "set x timed_out"]
+     set t3 [after 32000 "set x timed_out"]
+@@ -888,6 +898,10 @@ test socket-8.1 {testing -async flag on 
+     close $s1
+     set z
+ } bye
++
++# If this test fails before it gets to the closes...
++catch { close $s }
++catch { close $s1 }
+ 
+ test socket-9.1 {testing spurious events} {socket} {
+     set len 0
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/unixNotfy.test tcl/tests/unixNotfy.test
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/tests/unixNotfy.test	Mon Apr 10 10:19:05 2000
++++ tcl/tests/unixNotfy.test	Wed Jan 30 18:20:25 2002
+@@ -27,6 +27,22 @@ if {[info exists tk_version]} {
+     return
+ }
+ 
++# This test will hang if any preceding test left a dangling socket (or ???).
++# Thus, assure there aren't any (but report).
++foreach i [file channels] {
++   switch $i {
++       stdin -
++       stdout -
++       stderr { 
++	       # nothing
++	      }
++       default { 
++	   puts "Channel $i found open; closing."
++	   close $i
++       }
++   }
++}
++
+ set ::tcltest::testConstraints(testthread) \
+ 	[expr {[info commands testthread] != {}}]
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/configure.in tcl/unix/configure.in
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/configure.in	Fri Oct 19 17:24:15 2001
++++ tcl/unix/configure.in	Mon Jan 21 13:58:37 2002
+@@ -108,6 +108,8 @@ SC_SERIAL_PORT
+ #	other systems like SCO UNIX have a sys/select.h that's
+ #	pernicious.  If "fd_set" isn't defined anywhere then set a
+ #	special flag.
++#
++#	XPGn has fd_set in sys/time.h, so look there too.
+ #--------------------------------------------------------------------
+ 
+ AC_MSG_CHECKING([fd_set and sys/select])
+@@ -118,6 +120,11 @@ if test $tk_ok = no; then
+     if test $tk_ok = yes; then
+ 	AC_DEFINE(HAVE_SYS_SELECT_H)
+     fi
++fi
++AC_MSG_RESULT($tk_ok)
++if test $tk_ok = no; then
++    AC_MSG_CHECKING([fd_set and sys/time])
++    AC_HEADER_EGREP(fd_mask, sys/time.h, tk_ok=yes)
+ fi
+ AC_MSG_RESULT($tk_ok)
+ if test $tk_ok = no; then
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixChan.c tcl/unix/tclUnixChan.c
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixChan.c	Wed Oct  3 13:24:28 2001
++++ tcl/unix/tclUnixChan.c	Wed Jan 30 19:10:04 2002
+@@ -2634,8 +2634,8 @@ TclUnixWaitForFile(fd, mask, timeout)
+ {
+     Tcl_Time abortTime, now;
+     struct timeval blockTime, *timeoutPtr;
+-    int index, bit, numFound, result = 0;
+-    fd_mask readyMasks[3*MASK_SIZE];
++    int numFound, result = 0;
++    fd_set readyMasks[3];
+ 				/* This array reflects the readable/writable
+ 				 * conditions that were found to exist by the
+ 				 * last call to select. */
+@@ -2669,9 +2669,7 @@ TclUnixWaitForFile(fd, mask, timeout)
+     if (fd >= FD_SETSIZE) {
+ 	panic("TclWaitForFile can't handle file id %d", fd);
+     }
+-    memset((VOID *) readyMasks, 0, 3*MASK_SIZE*sizeof(fd_mask));
+-    index = fd/(NBBY*sizeof(fd_mask));
+-    bit = 1 << (fd%(NBBY*sizeof(fd_mask)));
++    memset((VOID *) readyMasks, 0, sizeof(readyMasks));
+     
+     /*
+      * Loop in a mini-event loop of our own, waiting for either the
+@@ -2697,30 +2695,35 @@ TclUnixWaitForFile(fd, mask, timeout)
+ 	 */
+ 
+ 	if (mask & TCL_READABLE) {
+-	    readyMasks[index] |= bit;
++	    FD_SET(fd, &readyMasks[0]);
+ 	}
+ 	if (mask & TCL_WRITABLE) {
+-	    (readyMasks+MASK_SIZE)[index] |= bit;
++	    FD_SET(fd, &readyMasks[1]);
+ 	}
+ 	if (mask & TCL_EXCEPTION) {
+-	    (readyMasks+2*(MASK_SIZE))[index] |= bit;
++	    FD_SET(fd, &readyMasks[2]);
+ 	}
+ 
+ 	/*
+ 	 * Wait for the event or a timeout.
+ 	 */
+ 
+-	numFound = select(fd+1, (SELECT_MASK *) &readyMasks[0],
+-		(SELECT_MASK *) &readyMasks[MASK_SIZE],
+-		(SELECT_MASK *) &readyMasks[2*MASK_SIZE], timeoutPtr);
+-	if (numFound == 1) {
+-	    if (readyMasks[index] & bit) {
++	numFound = select(fd+1, &readyMasks[0],
++		&readyMasks[1],
++		&readyMasks[2], timeoutPtr);
++	/* Careful here... select returns the number of *bits* that are
++	 * set, not the number of file descriptors (select on one ordinary
++	 * file returns 3!).  Thus, testing for numFound of 1 is a bad idea,
++	 * though it will often work.
++         */
++	if (numFound > 0) {
++	    if (FD_ISSET(fd,&readyMasks[0])) {
+ 		result |= TCL_READABLE;
+ 	    }
+-	    if ((readyMasks+MASK_SIZE)[index] & bit) {
++	    if (FD_ISSET(fd,&readyMasks[1])) {
+ 		result |= TCL_WRITABLE;
+ 	    }
+-	    if ((readyMasks+2*(MASK_SIZE))[index] & bit) {
++	    if (FD_ISSET(fd,&readyMasks[2])) {
+ 		result |= TCL_EXCEPTION;
+ 	    }
+ 	    result &= mask;
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixFCmd.c tcl/unix/tclUnixFCmd.c
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixFCmd.c	Wed Oct 17 12:12:26 2001
++++ tcl/unix/tclUnixFCmd.c	Wed Jan 30 19:18:55 2002
+@@ -433,8 +433,8 @@ CopyFile(src, dst, statBufPtr) 
+     int dstFd;
+     u_int blockSize;   /* Optimal I/O blocksize for filesystem */
+     char *buffer;      /* Data buffer for copy */
+-    size_t nread;
+-
++    ssize_t nread;
++
+     if ((srcFd = open(src, O_RDONLY, 0)) < 0) {		/* INTL: Native. */
+ 	return TCL_ERROR;
+     }
+@@ -1088,7 +1088,14 @@ GetGroupAttribute(interp, objIndex, file
+ 	return TCL_ERROR;
+     }
+ 
++#ifdef __INTERIX
++    /* On Interix in a large domain, getgrgid can take (literally!) hours
++       and yield tens of thousands of members; we don't need the members, 
++       so this is faster. */
++    groupPtr = getgrgid_nomembers(statBuf.st_gid);	/* INTL: Native. */
++#else
+     groupPtr = getgrgid(statBuf.st_gid);		/* INTL: Native. */
++#endif
+     if (groupPtr == NULL) {
+ 	*attributePtrPtr = Tcl_NewIntObj((int) statBuf.st_gid);
+     } else {
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixNotfy.c tcl/unix/tclUnixNotfy.c
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixNotfy.c	Mon Apr 24 16:32:13 2000
++++ tcl/unix/tclUnixNotfy.c	Wed Jan 30 19:16:06 2002
+@@ -62,12 +62,12 @@ typedef struct FileHandlerEvent {
+ typedef struct ThreadSpecificData {
+     FileHandler *firstFileHandlerPtr;
+ 				/* Pointer to head of file handler list. */
+-    fd_mask checkMasks[3*MASK_SIZE];
++    fd_set checkMasks[3];
+ 				/* This array is used to build up the masks
+ 				 * to be used in the next call to select.
+ 				 * Bits are set in response to calls to
+ 				 * Tcl_CreateFileHandler. */
+-    fd_mask readyMasks[3*MASK_SIZE];
++    fd_set readyMasks[3];
+ 				/* This array reflects the readable/writable
+ 				 * conditions that were found to exist by the
+ 				 * last call to select. */
+@@ -410,8 +410,7 @@ Tcl_CreateFileHandler(fd, mask, proc, cl
+ {
+     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
+     FileHandler *filePtr;
+-    int index, bit;
+-
++
+     if (tclStubs.tcl_CreateFileHandler != Tcl_CreateFileHandler) {
+ 	tclStubs.tcl_CreateFileHandler(fd, mask, proc, clientData);
+ 	return;
+@@ -438,22 +437,20 @@ Tcl_CreateFileHandler(fd, mask, proc, cl
+      * Update the check masks for this file.
+      */
+ 
+-    index = fd/(NBBY*sizeof(fd_mask));
+-    bit = 1 << (fd%(NBBY*sizeof(fd_mask)));
+     if (mask & TCL_READABLE) {
+-	tsdPtr->checkMasks[index] |= bit;
++	FD_SET(fd, &tsdPtr->checkMasks[0]);
+     } else {
+-	tsdPtr->checkMasks[index] &= ~bit;
++	FD_CLR(fd, &tsdPtr->checkMasks[0]);
+     } 
+     if (mask & TCL_WRITABLE) {
+-	(tsdPtr->checkMasks+MASK_SIZE)[index] |= bit;
++	FD_SET(fd, &tsdPtr->checkMasks[1]);
+     } else {
+-	(tsdPtr->checkMasks+MASK_SIZE)[index] &= ~bit;
++	FD_CLR(fd, &tsdPtr->checkMasks[1]);
+     }
+     if (mask & TCL_EXCEPTION) {
+-	(tsdPtr->checkMasks+2*(MASK_SIZE))[index] |= bit;
++	FD_SET(fd, &tsdPtr->checkMasks[2]);
+     } else {
+-	(tsdPtr->checkMasks+2*(MASK_SIZE))[index] &= ~bit;
++	FD_CLR(fd, &tsdPtr->checkMasks[2]);
+     }
+     if (tsdPtr->numFdBits <= fd) {
+ 	tsdPtr->numFdBits = fd+1;
+@@ -482,8 +479,7 @@ Tcl_DeleteFileHandler(fd)
+     int fd;		/* Stream id for which to remove callback procedure. */
+ {
+     FileHandler *filePtr, *prevPtr;
+-    int index, bit, i;
+-    unsigned long flags;
++    int i;
+     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
+ 
+     if (tclStubs.tcl_DeleteFileHandler != Tcl_DeleteFileHandler) {
+@@ -509,17 +505,14 @@ Tcl_DeleteFileHandler(fd)
+      * Update the check masks for this file.
+      */
+ 
+-    index = fd/(NBBY*sizeof(fd_mask));
+-    bit = 1 << (fd%(NBBY*sizeof(fd_mask)));
+-
+     if (filePtr->mask & TCL_READABLE) {
+-	tsdPtr->checkMasks[index] &= ~bit;
++	FD_CLR(fd, &tsdPtr->checkMasks[0]);
+     }
+     if (filePtr->mask & TCL_WRITABLE) {
+-	(tsdPtr->checkMasks+MASK_SIZE)[index] &= ~bit;
++	FD_CLR(fd, &tsdPtr->checkMasks[1]);
+     }
+     if (filePtr->mask & TCL_EXCEPTION) {
+-	(tsdPtr->checkMasks+2*(MASK_SIZE))[index] &= ~bit;
++	FD_CLR(fd, &tsdPtr->checkMasks[2]);
+     }
+ 
+     /*
+@@ -527,20 +520,14 @@ Tcl_DeleteFileHandler(fd)
+      */
+ 
+     if (fd+1 == tsdPtr->numFdBits) {
+-	for (tsdPtr->numFdBits = 0; index >= 0; index--) {
+-	    flags = tsdPtr->checkMasks[index]
+-		| (tsdPtr->checkMasks+MASK_SIZE)[index]
+-		| (tsdPtr->checkMasks+2*(MASK_SIZE))[index];
+-	    if (flags) {
+-		for (i = (NBBY*sizeof(fd_mask)); i > 0; i--) {
+-		    if (flags & (((unsigned long)1) << (i-1))) {
+-			break;
+-		    }
+-		}
+-		tsdPtr->numFdBits = index * (NBBY*sizeof(fd_mask)) + i;
++        for (i=fd; i >= 0; i--) {
++	    if (FD_ISSET(i, &tsdPtr->checkMasks[0])
++	       || FD_ISSET(i, &tsdPtr->checkMasks[1])
++	       || FD_ISSET(i, &tsdPtr->checkMasks[2])) {
+ 		break;
+ 	    }
+ 	}
++	tsdPtr->numFdBits = i+1;  /* i might be -1; that's right. */
+     }
+ 
+     /*
+@@ -654,7 +641,7 @@ Tcl_WaitForEvent(timePtr)
+     FileHandler *filePtr;
+     FileHandlerEvent *fileEvPtr;
+     struct timeval timeout, *timeoutPtr;
+-    int bit, index, mask;
++    int mask;
+ #ifdef TCL_THREADS
+     int waitForFiles;
+ #else
+@@ -736,8 +723,8 @@ Tcl_WaitForEvent(timePtr)
+ 	write(triggerPipe, "", 1);
+     }
+ 
+-    memset((VOID *) tsdPtr->readyMasks, 0, 3*MASK_SIZE*sizeof(fd_mask));
+-
++    memset((VOID *) tsdPtr->readyMasks, 0, sizeof(tsdPtr->readyMasks));
++
+     if (!tsdPtr->eventReady) {
+         Tcl_ConditionWait(&tsdPtr->waitCV, &notifierMutex, timePtr);
+     }
+@@ -767,19 +754,18 @@ Tcl_WaitForEvent(timePtr)
+     
+ #else
+     memcpy((VOID *) tsdPtr->readyMasks, (VOID *) tsdPtr->checkMasks,
+-	    3*MASK_SIZE*sizeof(fd_mask));
++	    sizeof(tsdPtr->readyMasks));
+     numFound = select(tsdPtr->numFdBits,
+-	    (SELECT_MASK *) &tsdPtr->readyMasks[0],
+-	    (SELECT_MASK *) &tsdPtr->readyMasks[MASK_SIZE],
+-	    (SELECT_MASK *) &tsdPtr->readyMasks[2*MASK_SIZE], timeoutPtr);
+-
++	    &tsdPtr->readyMasks[0],
++	    &tsdPtr->readyMasks[1],
++	    &tsdPtr->readyMasks[2], timeoutPtr);
+     /*
+      * Some systems don't clear the masks after an error, so
+      * we have to do it here.
+      */
+ 
+     if (numFound == -1) {
+-	memset((VOID *) tsdPtr->readyMasks, 0, 3*MASK_SIZE*sizeof(fd_mask));
++	memset((VOID *) tsdPtr->readyMasks, 0, sizeof(tsdPtr->readyMasks));
+     }
+ #endif
+ 
+@@ -789,17 +775,15 @@ Tcl_WaitForEvent(timePtr)
+ 
+     for (filePtr = tsdPtr->firstFileHandlerPtr; (filePtr != NULL);
+ 	 filePtr = filePtr->nextPtr) {
+-	index = filePtr->fd / (NBBY*sizeof(fd_mask));
+-	bit = 1 << (filePtr->fd % (NBBY*sizeof(fd_mask)));
+ 	mask = 0;
+ 
+-	if (tsdPtr->readyMasks[index] & bit) {
++	if (FD_ISSET(filePtr->fd,&tsdPtr->readyMasks[0])) {
+ 	    mask |= TCL_READABLE;
+ 	}
+-	if ((tsdPtr->readyMasks+MASK_SIZE)[index] & bit) {
++	if (FD_ISSET(filePtr->fd,&tsdPtr->readyMasks[1])) {
+ 	    mask |= TCL_WRITABLE;
+ 	}
+-	if ((tsdPtr->readyMasks+2*(MASK_SIZE))[index] & bit) {
++	if (FD_ISSET(filePtr->fd,&tsdPtr->readyMasks[2])) {
+ 	    mask |= TCL_EXCEPTION;
+ 	}
+ 
+@@ -858,12 +842,10 @@ NotifierThreadProc(clientData)
+     ClientData clientData;	/* Not used. */
+ {
+     ThreadSpecificData *tsdPtr;
+-    fd_mask masks[3*MASK_SIZE];
+-    long *maskPtr = (long *)masks;	/* masks[] cast to type long[] */
++    fd_set masks[3];
+     int fds[2];
+-    int i, status, index, bit, numFdBits, found, receivePipe, word;
++    int i, j, status, numFdBits, found, receivePipe;
+     struct timeval poll = {0., 0.}, *timePtr;
+-    int maskSize = 3 * ((MASK_SIZE) / sizeof(long)) * sizeof(fd_mask);
+     char buf[2];
+ 
+     if (pipe(fds) != 0) {
+@@ -915,12 +897,10 @@ NotifierThreadProc(clientData)
+ 	 * Set up the select mask to include the receive pipe.
+ 	 */
+ 
+-	memset((VOID *)masks, 0, 3*MASK_SIZE*sizeof(fd_mask));
++	memset((VOID *)masks, 0, sizeof(masks));
+         numFdBits = receivePipe + 1;
+-	index = receivePipe / (NBBY*sizeof(fd_mask));
+-	bit = 1 << (receivePipe % (NBBY*sizeof(fd_mask)));
+-	masks[index] |= bit;
+-
++	FD_SET(receivePipe, &masks[0])
++
+ 	/*
+ 	 * Add in the check masks from all of the waiting notifiers.
+ 	 */
+@@ -928,9 +908,17 @@ NotifierThreadProc(clientData)
+ 	Tcl_MutexLock(&notifierMutex);
+ 	timePtr = NULL;
+         for (tsdPtr = waitingListPtr; tsdPtr; tsdPtr = tsdPtr->nextPtr) {
+-            for (i = 0; i < maskSize; i++) {
+-                maskPtr[i] |= ((long*)tsdPtr->checkMasks)[i];
+-            }
++	    /* This is not quite strictly portable, but should work
++	       many places. */
++	    for (j=0; j<3; j++) {
++		for (i = 0;
++		     i < (int)(sizeof(masks[j].fds_bits)
++			 / sizeof(masks[j].fds_bits[0]));
++		     i++) {
++		    masks[j].fds_bits[i] 
++			|= tsdPtr->checkMasks[j].fds_bits[i];
++		}
++	    }
+             if (tsdPtr->numFdBits > numFdBits) {
+                 numFdBits = tsdPtr->numFdBits;
+             }
+@@ -946,11 +934,10 @@ NotifierThreadProc(clientData)
+         }
+ 	Tcl_MutexUnlock(&notifierMutex);
+ 
+-	maskSize = 3 * ((MASK_SIZE) / sizeof(long)) * sizeof(fd_mask);
+-
+-	if (select(numFdBits, (SELECT_MASK *) &masks[0],
+-		(SELECT_MASK *) &masks[MASK_SIZE],
+-		(SELECT_MASK *) &masks[2*MASK_SIZE], timePtr) == -1) {
++	found = select(numFdBits, (SELECT_MASK *) &masks[0],
++				  (SELECT_MASK *) &masks[1],
++				  (SELECT_MASK *) &masks[2], timePtr);
++	if (found == -1) {
+ 	    /*
+ 	     * Try again immediately on an error.
+ 	     */
+@@ -966,10 +953,18 @@ NotifierThreadProc(clientData)
+         for (tsdPtr = waitingListPtr; tsdPtr; tsdPtr = tsdPtr->nextPtr) {
+ 	    found = 0;
+ 
+-            for (i = 0; i < maskSize; i++) {
+-                word = maskPtr[i] & ((long*)tsdPtr->checkMasks)[i];
+-                found |= word;
+-                (((long*)(tsdPtr->readyMasks))[i]) = word;
++	    /* This is not quite strictly portable, but should work
++	       many places. */
++	    for (j=0; j<3; j++) {
++		for (i = 0;
++		     i < (int)(sizeof(checkMasks[j].fds_bits)
++			 / sizeof(checkMasks[j].fds_bits[0]));
++		     i++) {
++		    readyMasks[j].fds_bits[i] 
++			= tsdPtr->masks[j].fds_bits[i]
++			  & tsdPtr->checkMasks[j].fds_bits[i];
++		    found |= readyMasks[j].fds_bits[i];
++		}
+ 	    }
+             if (found || (tsdPtr->pollState & POLL_DONE)) {
+                 tsdPtr->eventReady = 1;
+@@ -1004,7 +999,7 @@ NotifierThreadProc(clientData)
+ 	 * to avoid a race condition we only read one at a time.
+ 	 */
+ 
+-	if (masks[index] & bit) {
++	if (FD_ISSET(receivePipe, &masks[0])) {
+ 	    i = read(receivePipe, buf, 1);
+ 
+ 	    if ((i == 0) || ((i == 1) && (buf[0] == 'q'))) {
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixPort.h tcl/unix/tclUnixPort.h
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixPort.h	Tue Sep  4 15:26:49 2001
++++ tcl/unix/tclUnixPort.h	Wed Jan 30 19:17:34 2002
+@@ -393,25 +393,6 @@ EXTERN int		gettimeofday _ANSI_ARGS_((st
+ #endif
+ 
+ /*
+- * The following macro defines the number of fd_masks in an fd_set:
+- */
+-
+-#ifndef FD_SETSIZE
+-#   ifdef OPEN_MAX
+-#	define FD_SETSIZE OPEN_MAX
+-#   else
+-#	define FD_SETSIZE 256
+-#   endif
+-#endif
+-#if !defined(howmany)
+-#   define howmany(x, y) (((x)+((y)-1))/(y))
+-#endif
+-#ifndef NFDBITS
+-#   define NFDBITS NBBY*sizeof(fd_mask)
+-#endif
+-#define MASK_SIZE howmany(FD_SETSIZE, NFDBITS)
+-
+-/*
+  * Not all systems declare the errno variable in errno.h. so this
+  * file does it explicitly.  The list of system error messages also
+  * isn't generally declared in a header file anywhere.
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixTime.c tcl/unix/tclUnixTime.c
+--- /dev/fs/M/donn/sources/tcl/tcl8.3.4/unix/tclUnixTime.c	Fri Jan 14 14:15:52 2000
++++ tcl/unix/tclUnixTime.c	Mon Jan 21 13:58:37 2002
+@@ -67,13 +67,12 @@ TclpGetClicks()
+     struct tms dummy;
+ #else
+     struct timeval date;
+-    struct timezone tz;
+ #endif
+ 
+ #ifdef NO_GETTOD
+     now = (unsigned long) times(&dummy);
+ #else
+-    gettimeofday(&date, &tz);
++    gettimeofday(&date, NULL);
+     now = date.tv_sec*1000000 + date.tv_usec;
+ #endif
+ 
+@@ -235,9 +234,8 @@ TclpGetTime(timePtr)
+     Tcl_Time *timePtr;		/* Location to store time information. */
+ {
+     struct timeval tv;
+-    struct timezone tz;
+     
+-    (void) gettimeofday(&tv, &tz);
++    (void) gettimeofday(&tv, NULL);
+     timePtr->sec = tv.tv_sec;
+     timePtr->usec = tv.tv_usec;
+ }

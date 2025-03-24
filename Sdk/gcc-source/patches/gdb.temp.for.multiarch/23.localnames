@@ -1,0 +1,24 @@
+Get rid of local labels on Intel/coff/PE.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* coffread.c (coff_symtab_read): don't record L... symbols.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.8
+diff -p -u -r1.8 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:18:57	1.8
++++ src/gdb/coffread.c	2001/12/24 01:28:20
+@@ -1013,6 +1013,11 @@ coff_symtab_read (long symtab_offset, un
+ 	    /* At least on a 3b1, gcc generates swbeg and string labels
+ 	       that look like this.  Ignore them.  */
+ 	    break;
++	  /* On Intel, local names can be Lnnn; we can discard them
++	     (and lots of other junk) if there's a leading char. */
++	  if (bfd_get_symbol_leading_char(objfile->obfd) &&
++	      cs->c_name[0] != bfd_get_symbol_leading_char(objfile->obfd))
++	      break;
+ 	  /* fall in for static symbols that don't start with '.' */
+ 	case C_THUMBEXT:
+ 	case C_THUMBEXTFUNC:

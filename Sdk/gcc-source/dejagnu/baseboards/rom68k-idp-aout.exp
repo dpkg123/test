@@ -1,0 +1,17 @@
+# This is a list of toolchains that are supported on this board.
+set_board_info target_install {m68k-aout};
+
+# a.out is problematic. We must output srecords directly, as otherwise we
+# lose the address to load at. GDB won't work on this target anyway, since
+# it probably loads at the wrong address.
+set_board_info output_format "srec";
+
+# This target uses underscores; this is needed by the gcc testsuite to
+# properly compile the wrapper functions.
+set_board_info uses_underscores 1;
+
+# We're almost the same as rom68k-idp.
+load_base_board_description "rom68k-idp";
+
+# The status wrapper stuff fails with 96q4 a.out (it may work in devo).
+unset_board_info needs_status_wrapper;

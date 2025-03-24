@@ -1,0 +1,32 @@
+#!/bin/ksh
+
+# Test that stdcall works:
+# Test doesn't fit gcc regression model because of looking at .o,
+# and because it's one architecture only.
+
+CC="$1"
+
+m=$(uname -m | cut -f1 -d" " )
+if [ $m = Pentium  -o $m = Intel ]
+then
+   : nothing
+else
+   exit 0
+fi
+
+$CC -c stdcall.c
+if ! ../local_bin/nm stdcall.o | grep -q " _foo@0$"
+then
+	echo "stdcall: stdcall failed"
+	exit 1
+fi
+
+if ! ../local_bin/nm stdcall.o | grep -q " barbell"
+then
+	echo "stdcall: asm failed"
+	exit 1
+fi
+
+rm -f stdcall.o
+
+exit 0

@@ -1,0 +1,12 @@
+Make sure we link against the latest and greatest lib.
+
+--- testsuite/Makefile.am.orig	Thu Aug 29 11:48:15 2002
++++ testsuite/Makefile.am	Thu Aug 29 11:57:37 2002
+@@ -61,6 +61,7 @@ else
+ noinst_PROGRAMS =
+ endif
+ abi_check_SOURCES = abi_check.cc
++abi_check_LDFLAGS = -L../src/.libs
+
+ # Enable wchar_t tests if capable.
+ if GLIBCPP_TEST_WCHAR_T

@@ -1,0 +1,60 @@
+q-patch gdb 01 2  # basics
+q-patch gdb 02 2  # procfs
+q-patch gdb 03 2  # int.misc
+q-patch gdb 04 2  # misc
+q-patch gdb 06 2  # imagebase
+q-patch gdb 07 2  # docfix
+q-patch gdb 08 2  # cosmetics
+q-patch gdb 09 2  # unwind
+q-patch gdb 11 2  # unexpected signal
+q-patch gdb 13 2  # sym section
+q-patch gdb 14 2  # align
+q-patch gdb 15 2  # coreaddr
+q-patch gdb 16 2  # long long
+q-patch gdb 17 2  # t_null
+q-patch gdb 18 2  # relocations
+q-patch gdb 20 2  # PE
+q-patch gdb 21 2  # filename
+q-patch gdb 22 2  # file sections
+q-patch gdb 23 2  # local names
+q-patch gdb 24 2  # absolute
+q-patch gdb 25 2  # alloca frame
+q-patch gdb 26 2  # line nums
+q-patch gdb 30 2  # float errors
+q-patch gdb 31 2  # float pretty
+q-patch gdb 32 2  # prettyprint
+q-patch gdb 34 2  # signal names
+q-patch gdb 35 2  # static block
+q-patch gdb 36 2  # wizard mode
+q-patch gdb 41 2  # disassemble line
+q-patch gdb 43 2  # memory write error
+q-patch gdb 50 2  # solib breakpoints
+q-patch gdb 51 0  # symbolic functions
+q-patch gdb 52 2  # solib breakpoints
+q-patch gdb 53 2  # solib sec table
+q-patch gdb 55 2  # core
+q-patch gdb 56 1  # weak symbols (indirect)
+q-patch gdb 57 1  # .so thunks ignore
+# q-patch gdb 58 1  # small structs  Now appears to be the default...
+q-patch gdb 59 1  # Misc small fixes (should go out soon)
+# q-patch gdb 60 1  # /proc temp hack.
+# q-patch gdb 61 1  # Win XP trampolines
+q-patch gdb 62 0  # Various junky changes pending multiarch
+q-patch gdb 63 0  # SECT_OFF_* fix
+q-patch gdb 64 0  # FP register access.
+q-patch gdb 70 2  # longjmp test
+# q-patch gdb 71 2  # call strs TEST failure... not applicable (PH)
+q-patch gdb 74 2  # signal test
+q-patch gdb 76 2  # misc tests
+# q-patch gdb 77 2  # gdbtk not applicable (as in NS or not applied?)
+# q-patch gdb 78 2  # malloc for keyboard call (Joel did ==)
+q-patch gdb 79 0  # assembler tests; gdb.asm
+q-patch gdb 80 1  # accept CODE in data and DATA in code
+q-patch gdb 81 0  # attach test failing, leaving trash.
+q-patch gdb 82 0  # get name of file (for attach)
+# q-patch gdb 83 0  # newchanges for GDB
+q-patch gdb 84 0  # Changes for thread library
+q-patch gdb 85 0  # Changes for thread library
+q-patch gdb 86 0  # Changes for thread library
+q-patch gdb 87 0  # Changes for back traces in singl handlers
+q-patch gdb 88 0  # changes to fix for the assert (levels < MAX_UI_OUT_LEVELS)

@@ -1,0 +1,50 @@
+#!/bin/sh
+
+LAST_KNOWN_GOOD=$X/../last_known_good
+
+COMMAND=$(basename $0)
+if $X/local_bin/${COMMAND}-real $@ 
+then
+  exit 0  # all is well
+else
+    export LD_LIBRARY_PATH=$LAST_KNOWN_GOOD
+    # Either syntax error or ICE; try the other compiler.
+    # Remove any -B
+    echo ========================= RETRYING FAILED COMPILE =====================
+    ARGS=""
+    SKIP=false
+    for i in $* 
+    do
+	if $SKIP = true
+	then 
+	  SKIP=false
+	else 
+	    case $i in
+	    -B)
+	      SKIP=true
+	      ;;
+
+	    -B*)
+	      ;;
+
+	    *)
+	      ARGS="$ARGS $i"
+	      ;;
+	    esac
+	fi
+    done
+    if $LAST_KNOWN_GOOD/${COMMAND} -B$LAST_KNOWN_GOOD/ -I $X/lib/gcc-lib/i386-pc $ARGS
+    then
+	echo ICE FROM:
+	echo "    $X/local_bin/${COMMAND}-real -B$X/local_bin/ $@"
+	echo "    in $(pwd)"
+
+	echo ICE FROM: >> $X/logs/ICE.LOG
+	echo "    $X/local_bin/${COMMAND}-real -B$X/local_bin/ $@" >> $X/logs/ICE.LOG
+	echo "    in $(pwd)" >> $X/logs/ICE.LOG
+	exit 0 # Pretend success after logging it
+    else
+	# a real error, just exit 
+	exit $?
+    fi
+fi

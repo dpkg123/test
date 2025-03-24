@@ -1,0 +1,112 @@
+#!/bin/ksh
+
+if [ $# = 1 ]
+then
+    F77=$1
+else
+    compdir=../../..
+    F77="$compdir/gcc/g77 --driver=$compdir/gcc/xgcc -B $compdir/local_bin/ -B $compdir/gcc/"
+fi
+
+rm -f g77.log
+
+for i in *.for
+do
+    echo $i
+    n=${i%%.for}
+
+
+    if [ -f $n.dat ]
+    then
+       datfile=$n.dat
+    else
+       datfile=/dev/null
+    fi
+
+    if $F77 $i >>g77.log 2>&1
+    then
+
+	if [ -f $n.run ]
+	then
+	    ./$n.run >>g77.log 2>&1
+	    continue
+	fi
+
+	# get rid of any hangover files.
+	rm -f '        DIRFILE'
+	rm -f fort.[0-9] fort.[0-9][0-9]
+
+	# for all tests to pass, the output file must NOT be in O_APPEND
+	# mode, so we can't use >>.
+
+        if ./a.out <$datfile >tmp.log 2>&1
+        then
+	   cat tmp.log >>g77.log
+        else
+	   cat tmp.log >>g77.log
+	   echo EXECTION of $i FAIL
+	   echo EXECTION of $i FAIL >>g77.log
+        fi
+    else
+       echo COMPILATION of $i FAIL
+       echo COMPILATION of $i FAIL >>g77.log
+    fi
+done
+
+rm -f '        DIRFILE'
+rm -f fort.[0-9] fort.[0-9][0-9]
+
+perl -e '
+# The first test is a test of the testsuite; back out its results as 
+# confusing at this level.
+$passes=-1;
+$errors=-1;
+$dels=-1;
+$fails=0;
+$inspect=0;
+$unres=0;
+$cerrors=0;
+
+while (<>) {
+	if (/TESTS PASSED/) {
+		($c, $junk) = split(" ");
+		$passes += $c;
+	}
+	if (/ERRORS ENCOUNTERED/) {
+		($c, $junk) = split(" ");
+		$errors += $c;
+	}
+	if (/COMPILATION of/) {
+		$cerrors += 1;
+	}
+	if (/TESTS FAILED/) {
+		($c, $junk) = split(" ");
+		$fails += $c;
+	}
+	if (/TESTS DELETED/) {
+		($c, $junk) = split(" ");
+		$dels += $c;
+	}
+	if (/TESTS REQUIRE INSPECTION/) {
+		($c, $junk) = split(" ");
+		$inspect += $c;
+	}
+	if (/TESTS UNRESOLVED/) {
+		($c, $junk) = split(" ");
+		$unres += $c;
+	}
+}
+
+print "Totals:\n";
+if ($passes)  {print "   # of Passed: $passes\n";}
+if ($fails)   {print "   # of Failed: $fails\n";}
+if ($errors)  {print "   # of Errors: $errors\n";}
+if ($cerrors) {print "   # of Compilation Errors: $cerrors\n";}
+if ($dels)    {print "   # of Deleted: $dels\n";}
+if ($inspect) {print "   # of Require Inspection: $inspect\n";}
+if ($unres)   {print "   # of Unresolved: $unres\n";}
+print "\n";
+printf "# of tests: %d\n", $passes+$fails+$dels+$inspect+$unres+$errors+$cerrors;' g77.log
+
+echo
+echo "# of lines of diff" $(diff g77.log g77.log.master | wc -l)

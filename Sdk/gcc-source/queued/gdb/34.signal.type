@@ -1,0 +1,292 @@
+This has gotten trimmed further; further testing indicated.
+
+CONSIDER SPLIT INTO 2 PARTS.
+
+Long signal names caused ragged columns and linewraps, making "handle
+all print" output difficult to read.  (And corresponding regression changes.)
+(See particularly the MACH_ stuff.)
+
+If there is a mismatch between the system and the debugger on the
+list of supported signals, the user doesn't get any information about
+the host signal number.  Provide at least the host number (so labeled).
+Don't try to deal with signals not supported by the host.  (And 
+corresponding regression changes.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* infrun.c(sig_print_header): New column alignment so that longer
+	signal names print without tabs messing up.
+	(sig_print_info): Likewise.
+	(handle_command): Report unsupported signals, don't try to print
+	info about them (and die).
+	(signals_info): Likewise.
+	* target.c(target_signal_to_name): Provide host number for 
+	unknown signals. (target_signal_from_host): save host number.
+	(do_target_signal_to_host): if no realtime signals, don't
+	pretend that 32 exists.
+	* gdb.base/sigall.exp:  Update for new messages from above.
+	
+Index: src/gdb/infrun.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/infrun.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 infrun.c
+--- src/gdb/infrun.c	2001/12/23 00:34:49	1.1.1.1
++++ src/gdb/infrun.c	2001/12/24 01:42:41
+@@ -3569,23 +3569,23 @@ static void
+ sig_print_header (void)
+ {
+   printf_filtered ("\
+-Signal        Stop\tPrint\tPass to program\tDescription\n");
+-}
+-
++Signal               Stop  Print  -> program  Description\n");
++}
++
+ static void
+ sig_print_info (enum target_signal oursig)
+ {
+   char *name = target_signal_to_name (oursig);
+-  int name_padding = 13 - strlen (name);
+-
++  int name_padding = 20 - strlen (name);
++
+   if (name_padding <= 0)
+     name_padding = 0;
+ 
+   printf_filtered ("%s", name);
+   printf_filtered ("%*.*s ", name_padding, name_padding, "                 ");
+-  printf_filtered ("%s\t", signal_stop[oursig] ? "Yes" : "No");
+-  printf_filtered ("%s\t", signal_print[oursig] ? "Yes" : "No");
+-  printf_filtered ("%s\t\t", signal_program[oursig] ? "Yes" : "No");
++  printf_filtered ("%s    ", signal_stop[oursig] ? "Yes" : "No");
++  printf_filtered ("%s    ", signal_print[oursig] ? "Yes" : "No");
++  printf_filtered ("%s        ", signal_program[oursig] ? "Yes" : "No");
+   printf_filtered ("%s\n", target_signal_to_string (oursig));
+ }
+ 
+@@ -3745,6 +3745,9 @@ Are you sure you want to change it? ", t
+ 	      /* Make sure that "all" doesn't print these.  */
+ 	      break;
+ 	    default:
++	        if (!allsigs && !sigs[signum] &&
++		   !target_signal_to_host_p(signum))
++		   error("Signal %d not supported by this machine\n", signum);
+ 	      sigs[signum] = 1;
+ 	      break;
+ 	    }
+@@ -3761,7 +3764,7 @@ Are you sure you want to change it? ", t
+       sig_print_header ();
+       for (signum = 0; signum < nsigs; signum++)
+ 	{
+-	  if (sigs[signum])
++	  if (sigs[signum] && target_signal_to_host_p(signum))
+ 	    {
+ 	      sig_print_info (signum);
+ 	    }
+@@ -3859,7 +3862,10 @@ signals_info (char *signum_exp, int from
+ 	  oursig =
+ 	    target_signal_from_command (parse_and_eval_long (signum_exp));
+ 	}
+-      sig_print_info (oursig);
++      if (!target_signal_to_host_p(oursig))
++	 printf_filtered("That signal is not defined on this system\n");
++      else
++         sig_print_info (oursig);
+       return;
+     }
+ 
+@@ -3871,8 +3877,7 @@ signals_info (char *signum_exp, int from
+     {
+       QUIT;
+ 
+-      if (oursig != TARGET_SIGNAL_UNKNOWN
+-	  && oursig != TARGET_SIGNAL_DEFAULT && oursig != TARGET_SIGNAL_0)
++      if (target_signal_to_host_p (oursig))
+ 	sig_print_info (oursig);
+     }
+ 
+Index: src/gdb/signals/signals.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/signals/signals.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 signals.c
+--- src/gdb/signals/signals.c	2001/12/23 00:34:55	1.1.1.1
++++ src/gdb/signals/signals.c	2001/12/24 01:42:41
+@@ -206,16 +206,24 @@ target_signal_to_string (enum target_sig
+     return signals[TARGET_SIGNAL_UNKNOWN].string;
+ }
+ 
++int saved_hostsig = 0;
++
+ /* Return the name for a signal.  */
+ char *
+ target_signal_to_name (enum target_signal sig)
+ {
++  static char buf[10];
++ 
+   if ((sig >= TARGET_SIGNAL_FIRST) && (sig <= TARGET_SIGNAL_LAST)
+       && signals[sig].name != NULL)
+     return signals[sig].name;
+   else
+-    /* I think the code which prints this will always print it along
+-       with the string, so no need to be verbose (very old comment).  */
++    {
++      /* I think the code which prints this will always print it along
++         with the string, so no need to be verbose (very old comment).  */
++      sprintf(buf, "?(host#=%d)", saved_hostsig);
++      return buf;
++    }
+     return "?";
+ }
+ 
+@@ -499,6 +507,7 @@ target_signal_from_host (int hostsig)
+ 	error ("GDB bug: target.c (target_signal_from_host): unrecognized real-time signal");
+     }
+ #endif
++  saved_hostsig = hostsig;
+   return TARGET_SIGNAL_UNKNOWN;
+ }
+ 
+Index: src/gdb/testsuite/gdb.base/sigall.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/sigall.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 sigall.exp
+--- src/gdb/testsuite/gdb.base/sigall.exp	2001/12/23 00:35:18	1.1.1.1
++++ src/gdb/testsuite/gdb.base/sigall.exp	2001/12/24 01:42:41
+@@ -46,14 +46,24 @@ proc test_one_sig {nextsig} {
+     global gdb_prompt
+     global thissig
+ 
++    set need_another_continue 1
++    set missed_handler 0
+     set this_sig_supported $sig_supported
+-    gdb_test "handle SIG$thissig stop print" \
+-	"SIG$thissig\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Yes.*"
++
++    send_gdb "handle SIG$thissig stop print\n"
++    gdb_expect {
++	-re "SIG$thissig\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Yes.*$gdb_prompt $" {
++	    pass "signal SIG$thissig handled"
++	}
++	-re "Signal \[0-9\]+ not supported by this machine.*$gdb_prompt $" {
++	    set this_sig_supported 0
++	    pass "signal SIG$thissig reports not supported"
++	}
++    }
++
+     gdb_test "b handle_$thissig" "Breakpoint \[0-9\]+ .*"
+     gdb_test "b gen_$nextsig" "Breakpoint \[0-9\]+ .*"
+ 
+-    set need_another_continue 1
+-    set missed_handler 0
+     if $this_sig_supported then {
+ 	send_gdb "continue\n"
+ 	if { $thissig == "IO" } {
+Index: src/gdb/testsuite/gdb.base/signals.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/signals.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 signals.exp
+--- src/gdb/testsuite/gdb.base/signals.exp	2001/12/23 00:35:18	1.1.1.1
++++ src/gdb/testsuite/gdb.base/signals.exp	2001/12/24 01:42:41
+@@ -337,6 +337,7 @@ gdb_start
+ # TARGET_SIGNAL_UNKNOWN are skipped.
+ proc test_handle_all_print {} {
+     global timeout
++    global gdb_prompt
+     # Increase timeout and expect input buffer for large output from gdb.
+     # Allow blank or TAB as whitespace characters.
+     set oldtimeout $timeout
+@@ -345,10 +346,31 @@ proc test_handle_all_print {} {
+     if { ![istarget "*-*-linux*"]
+          && ( [istarget "*-*-gnu*"]
+               || [istarget "*-*-mach*"] ) } {
+-	gdb_test "handle all print" "Signal\[ 	\]+Stop\[ 	\]+Print\[ 	\]+Pass to program\[ 	\]+Description\r\nSIGHUP\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Hangup.*SIG63\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Real-time event 63.*EXC_BREAKPOINT\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Breakpoint"
++     	gdb_test "handle all print" "Signal\[ 	\]+Stop\[ 	\]+Print\[ 	\]+-> program\[ 	\]+Description\r\nSIGHUP\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Hangup\r\n.*SIG63\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Real-time event 63.*EXC_BREAKPOINT\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Breakpoint"
+     } else {
+-	gdb_test "handle all print" "Signal\[ 	\]+Stop\[ 	\]+Print\[ 	\]+Pass to program\[ 	\]+Description\r\nSIGHUP\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Hangup.*SIG63\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Real-time event 63.*"
++     	gdb_test "handle all print" "Signal\[ 	\]+Stop\[ 	\]+Print\[ 	\]+-> program\[ 	\]+Description\r\nSIGHUP\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Yes\[ 	\]+Hangup\r\n.*SIGUSR2\[      \]+Yes\[        \]+Yes\[      \]+Yes\[        \]+User defined signal 2\r\n.*"
+     }
++
++    send_gdb "handle all print\n"
++
++    # test for the prefix that we always require
++    gdb_expect {
++	-re "Signal\[   \]+Stop\[       \]+Print\[      \]+-> program\[ 	\]+Description\r\nSIGHUP\[      \]+Yes\[        \]+Yes\[        \]+Yes\[ 	\]+Hangup\r\n.*$gdb_prompt $" { pass "Signal list prefix" }
++	-re ".*$gdb_prompt $" { fail "No signal list" }
++	timeout { fail "No signal list; (timeout)" }
++      }
++
++    # Now test for some things we DON'T want, as well as looking for 
++    # the next prompt.
++    send_gdb "handle all print\n"
++    gdb_expect {
++	-re ".*TARGET_SIGNAL_0.*$gdb_prompt $" { fail "TARGET_SIGNAL_0 should not be found" }
++	-re ".*TARGET_SIGNAL_DEFAULT.*$gdb_prompt $" { fail "TARGET_SIGNAL_DEFAULT should not be found" }
++	-re ".*TARGET_SIGNAL_UNKNOWN.*$gdb_prompt $" { fail "TARGET_SIGNAL_UNKNOWN should not be found" }
++	-re ".*$gdb_prompt $" { pass "handle print all" }
++	timeout { fail "Junk in signal list; (timeout)" }
++    }
++
+     set timeout $oldtimeout
+     verbose "Timeout restored to $timeout seconds" 2
+ }
+@@ -422,15 +444,39 @@ The program being debugged stopped while
+     gdb_test "p count" "= 5" "p count #2 in signals.exp"
+ 
+ 
+-# Verify that "info signals" produces reasonable output.
+-#
++# Verify that "info signals" produces reasonable output.  We're confirming
++# that there are no suprise signal names, but want to allow the nonportable
++# signals to be omitted.  Note that some signals are expected to always
++# be present; whether this is exactly the right set I'm not sure.  Making
++# them all optional seems very wrong.
++
++# Workaround bug in expect: the single RE that should be able to do this
++# is (probably) too long, so we use 3 shorter gdb_expect calls, each looking
++# for part of it.
++
+     send_gdb "info signals\n"
++    gdb_expect {
++      -re ".*SIGHUP\[^\r]*\r\nSIGINT\[^\r]*\r\nSIGQUIT\[^\r]*\r\nSIGILL\[^\r]*\r\nSIGTRAP\[^\r]*\r\nSIGABRT\[^\r]*\r\n(SIGEMT\[^\r]*\r\n|)SIGFPE\[^\r]*\r\nSIGKILL\[^\r]*\r\nSIGBUS\[^\r]*\r\nSIGSEGV\[^\r]*\r\nSIGSYS\[^\r]*\r\nSIGPIPE\[^\r]*\r\nSIGALRM\[^\r]*\r\nSIGTERM\[^\r]*\r\nSIGURG\[^\r]*\r\nSIGSTOP\[^\r]*\r\nSIGTSTP\[^\r]*\r\nSIGCONT\[^\r]*\r\nSIGCHLD\[^\r]*\r\nSIGTTIN\[^\r]*\r\nSIGTTOU\[^\r]*\r\nSIGIO\[^\r]*\r\nSIGXCPU\[^\r]*\r\nSIGXFSZ\[^\r]*\r\nSIGVTALRM\[^\r]*\r\nSIGPROF\[^\r]*\r\nSIGWINCH\[^\r]*\r\n(SIGLOST\[^\r]*\r\n|)SIGUSR1\[^\r]*\r\nSIGUSR2\[^\r]*\r\n(SIGPWR\[^\r]*\r\n|)(SIGPOLL\[^\r]*\r\n|)(SIGWIND\[^\r]*\r\n|)(SIGPHONE\[^\r]*\r\n|)(SIGWAITING\[^\r]*\r\n|)(SIGLWP\[^\r]*\r\n|)(SIGDANGER\[^\r]*\r\n|)(SIGGRANT\[^\r]*\r\n|)(SIGRETRACT\[^\r]*\r\n|)(SIGMSG\[^\r]*\r\n|)(SIGSOUND\[^\r]*\r\n|)(SIGSAK\[^\r]*\r\n|)(SIGPRIO\[^\r]*\r\n|)" \
++              {pass "info signals part 1"}
++      -re "$gdb_prompt $"\
++              {fail "info signals part 1"}
++      timeout {fail "(timeout) info signals part 1"}
++    }
++
++    gdb_expect {
++      -re "(SIG33\[^\r]*\r\n|)(SIG34\[^\r]*\r\n|)(SIG35\[^\r]*\r\n|)(SIG36\[^\r]*\r\n|)(SIG37\[^\r]*\r\n|)(SIG38\[^\r]*\r\n|)(SIG39\[^\r]*\r\n|)(SIG40\[^\r]*\r\n|)(SIG41\[^\r]*\r\n|)(SIG42\[^\r]*\r\n|)(SIG43\[^\r]*\r\n|)(SIG44\[^\r]*\r\n|)(SIG45\[^\r]*\r\n|)(SIG46\[^\r]*\r\n|)(SIG47\[^\r]*\r\n|)(SIG48\[^\r]*\r\n|)(SIG49\[^\r]*\r\n|)" \
++              {pass "info signals part 2"}
++      -re "$gdb_prompt $"\
++              {fail "info signals part 2"}
++      timeout {fail "(timeout) info signals part 2"}
++    }
++
+     gdb_expect {
+-      -re "SIGHUP.*SIGINT.*SIGQUIT.*SIGILL.*SIGTRAP.*SIGABRT.*SIGEMT.*SIGFPE.*SIGKILL.*SIGBUS.*SIGSEGV.*SIGSYS.*SIGPIPE.*SIGALRM.*SIGTERM.*SIGURG.*SIGSTOP.*SIGTSTP.*SIGCONT.*SIGCHLD.*SIGTTIN.*SIGTTOU.*SIGIO.*SIGXCPU.*SIGXFSZ.*SIGVTALRM.*SIGPROF.*SIGWINCH.*SIGLOST.*SIGUSR1.*SIGUSR2.*SIGPWR.*SIGPOLL.*SIGWIND.*SIGPHONE.*SIGWAITING.*SIGLWP.*SIGDANGER.*SIGGRANT.*SIGRETRACT.*SIGMSG.*SIGSOUND.*SIGSAK.*SIGPRIO.*SIG33.*SIG34.*SIG35.*SIG36.*SIG37.*SIG38.*SIG39.*SIG40.*SIG41.*SIG42.*SIG43.*SIG44.*SIG45.*SIG46.*SIG47.*SIG48.*SIG49.*SIG50.*SIG51.*SIG52.*SIG53.*SIG54.*SIG55.*SIG56.*SIG57.*SIG58.*SIG59.*SIG60.*SIG61.*SIG62.*SIG63.*Use the \"handle\" command to change these tables.*$gdb_prompt $"\
+-              {pass "info signals"}
++      -re "(SIG50\[^\r]*\r\n|)(SIG51\[^\r]*\r\n|)(SIG52\[^\r]*\r\n|)(SIG53\[^\r]*\r\n|)(SIG54\[^\r]*\r\n|)(SIG55\[^\r]*\r\n|)(SIG56\[^\r]*\r\n|)(SIG57\[^\r]*\r\n|)(SIG58\[^\r]*\r\n|)(SIG59\[^\r]*\r\n|)(SIG60\[^\r]*\r\n|)(SIG61\[^\r]*\r\n|)(SIG62\[^\r]*\r\n|)(SIG63\[^\r]*\r\n|).*Use the \"handle\" command to change these tables.*$gdb_prompt $" \
++              {pass "info signals part 3"}
+       -re "$gdb_prompt $"\
+-              {fail "info signals"}
+-      timeout {fail "(timeout) info signals"}
++              {fail "info signals part 3"}
++      timeout {fail "(timeout) info signals part 2"}
+     }
+ 
+ # Verify that "info signal" correctly handles an argument, be it a
+@@ -510,9 +556,9 @@ The program being debugged stopped while
+ # Verify that we can "handle" multiple signals at once, interspersed
+ # with actions.
+ #
+-    send_gdb "handle SIG63 print SIGILL\n"
++    send_gdb "handle SIGSEGV print SIGILL\n"
+     gdb_expect {
+-      -re ".*SIGILL\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Illegal instruction.*SIG63\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Real-time event 63.*$gdb_prompt $"\
++      -re ".*SIGILL\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Illegal instruction.*SIGSEGV\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Yes\[ \t\]*Segmentation fault.*$gdb_prompt $"\
+               {pass "handle multiple SIGs"}
+       -re "$gdb_prompt $"\
+               {fail "handle multiple SIGs"}

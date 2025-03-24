@@ -1,0 +1,15 @@
+When compiling a whole program, --save-temps doesn't leave a .o file behind.
+This was introduced in patch 1.276, where delete_this_arg was not being reset
+to zero after a %d operator.
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gcc.saved/gcc.c gcc/gcc.c
+--- gcc.saved/gcc.c	Wed Mar 13 11:33:54 2002
++++ gcc/gcc.c	Wed Mar 13 15:44:01 2002
+@@ -4562,6 +4562,7 @@ do_spec_1 (spec, inswitch, soft_matched_
+ 			    obstack_grow (&obstack, temp_filename,
+ 			    			    temp_filename_length);
+ 			    arg_going = 1;
++			    delete_this_arg = 0;
+ 			    break;
+ 			  }
+ 		      }

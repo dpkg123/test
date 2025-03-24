@@ -1,0 +1,1780 @@
+#!/bin/ksh
+# The purpose of this script is to start with source, and useing the local
+# (vendor) compiler, build the gcc suite and then rebuild it so it's fully
+# self-hosted.  The last step is to run the regression tests.
+
+# It does a fair amount of self-checking along the way, but the run time
+# would be far too long if it did all the regressions every place it 
+# made sense.
+
+if [ $# != 1 -o \( x$1 != x"on" -a x$1 != x"off" \) ]
+then
+    # Print to /dev/tty until we get started, just so we'll notice
+    echo 'Usage: e.makeit [on|off] (do updates from gnu-land or not)'
+    echo 'Usage: e.makeit [on|off] (do updates from gnu-land or not)' >/dev/tty
+    exit 1
+fi
+
+DO_UPDATES=$1
+
+startdir=$(pwd)
+
+if [ $(basename $startdir) != gnu2.intel ]
+then
+    echo "Wrong directory, bub."
+    echo "Wrong directory, bub." >/dev/tty
+    exit
+fi
+
+LN=ln  # could be ln -s if everything worked.
+
+GNUSRC=/C/Gnusrc
+CVS=/C/CVS
+
+GCC_SERVER=:pserver:anoncvs@subversions.gnu.org:/cvsroot/gcc
+
+PATH=$startdir/local_bin:$PATH
+
+cd $startdir
+if [ -f /bin/true ]
+then
+    # This is Firebrand; INTERIX_ROOT s.b. null
+    export INTERIX_ROOT=
+    echo Setting INTERIX_ROOT to $INTERIX_ROOT
+fi
+
+# This is a dumb firebrand bug workaround
+TEMP=C:\\TEMP\\
+TMP=C:\\TEMP\\
+
+# This is a dumb check for a possible gotcha.
+touch foo.c
+if cc -O2 foo.c 2>&1 | grep "D4025" >/dev/null
+then
+   echo "cc needs to be changed to send MSVC /Od, not /O2"
+   echo "cc needs to be changed to send MSVC /Od, not /O2" >/dev/tty
+   exit 1
+fi
+
+export X=$startdir
+unalias cd
+#-----------------------------------------------------------------------
+# This is needed until we're all "flat" again.
+# (And maybe thereafter; dejagnu isn't working as expected.)
+# Yes... source directory for dejagnu.
+PATH=$PATH:$startdir/egcs.bin/expect:$startdir/egcs.source/dejagnu:$startdir/egcs.bin/tcl
+export TCL_LIBRARY=$startdir/egcs.source/tcl/library
+#-----------------------------------------------------------------------
+
+# Be sure to use the new .so files (once we install them in local_bin)
+export LD_LIBRARY_PATH=$startdir/local_bin
+export DEJAGNU_LD_LIBRARY_PATH=$startdir/local_bin
+export LIBRARY_PATH=$startdir/local_bin   # at least libg2c test needs this
+
+#-----------------------------------------------------------------------
+# Location of scripts to apply patches.
+QUEUED=$HOME/queued
+
+FAIL=0
+export UNUSED="takes up space" # work around shell bug that shows up in bfd config.
+
+#-----------------------------------------------------------------------
+# Figure out which host we are on, and convert the name from uname -m
+# form to the form needed by the scripts.
+
+m=$(uname -m | cut -f1 -d" " )
+if [ $m = Pentium ]
+then
+   arch=i386
+elif [ $m = Intel ]
+then
+   arch=i386
+elif [ $m = x86 ]
+then
+   arch=i386
+elif [ $m = Alpha ]
+then
+   arch=alpha
+else
+   echo "What machine am I on?"
+   exit 1
+fi
+
+#TARGETS=i386-pc-interix3,alpha-pc-interix3"
+TARGETS=i386-pc-interix3
+
+function compute_version {
+    # This function contains all the stuff that MUST be done every time
+    # the script runs, but can't be done (successfully) until checkouts
+    # have occurred.  It's designed to run and not do anything too bad
+    # if checkouts haven't occurred, and then it can be called a second
+    # time once checkouts are known to be OK.
+
+    if true #################################### true
+    then
+	GCC_VERSION=HEAD
+	GCC_DIRECTORY=$CVS/egcs.baseline
+	GCC_REVISION_OP=""
+	GCC_PATCH_VERSION=""
+    else
+	GCC_VERSION=2_95_2
+	GCC_DIRECTORY=$CVS/egcs.$GCC_VERSION.baseline
+	GCC_REVISION_OP="-r gcc-$GCC_VERSION-release"
+	GCC_PATCH_VERSION=".$GCC_VERSION"
+    fi
+
+    # Update to gcc's idea of a version if we're working off HEAD
+    # We do this here in case we're restarting, but it won't succeed
+    # the very first time, because things aren't extracted yet.
+
+    if [ -f $startdir/egcs.source/gcc/version.c ]
+    then
+	if [ $GCC_VERSION = HEAD ]
+	then
+	    #GCC_VERSION=$(grep version_string $startdir/egcs.source/gcc/version.c | awk '{print $6}' | sed -e 's/\./_/g' -e 's/\"//g')
+	    GCC_VERSION=$(grep version_string $startdir/egcs.source/gcc/version.c | awk '{print $6}' | sed 's/\"//g')
+	fi
+    fi
+
+    echo O_GCC_$GCC_VERSION
+    PREFIX=/opt/gcc.$GCC_VERSION
+
+    #-----------------------------------------------------------------------
+    # The value for CXX won't initially exist, but by the time we need it,
+    # it'd better!
+
+##
+##! --disable-nls is just so I don't have to deal with msgfmt; really
+##!   it should be used.
+    CC_CONFIGURE="
+	export CC=\"cc -D__STDC__ -D_ALL_SOURCE\" ;
+	export CXX=\"$startdir/local_bin/g++ -B$startdir/local_bin/\" ;
+	export CONFIG_SHELL=/bin/sh ;
+	export RANLIB=: ;
+	./configure  --verbose --host=$arch-pc-interix3 \
+	--disable-shared \
+	--disable-nls \
+	--target=$arch-pc-interix3 \
+	--with-stabs \
+	--with-gnu-as \
+	--with-gnu-ld \
+	--prefix=$PREFIX \
+	--enable-targets=$TARGETS"
+
+    GCC_CONFIGURE="
+	export CC=\"$startdir/local_bin/gcc -B$startdir/local_bin/\";
+	export CXX=\"$startdir/local_bin/g++ -B$startdir/local_bin/\";
+	export CFLAGS=\"-g -O2 -D_ALL_SOURCE\";
+	export CXXFLAGS=\"-g -O2 -D_ALL_SOURCE\";
+	export CONFIG_SHELL=/bin/sh ;
+	export RANLIB=: ;
+	./configure  --verbose --host=$arch-pc-interix3 \
+	--disable-shared \
+	--target=$arch-pc-interix3 \
+	--prefix=$PREFIX \
+	--disable-nls \
+	--with-stabs \
+	--with-gnu-as \
+	--with-gnu-ld \
+	--enable-targets=$TARGETS"
+
+    CONFIGURE="$CC_CONFIGURE"
+
+    #export CC="egcc -D_ALL_SOURCE"
+    #export CXX="eg++"
+
+    #export CC="gcc -D_ALL_SOURCE"
+    #export CXX="g++"
+
+    EGCS_CC_CONFIGURE="
+	export CC=\"cc -D_ALL_SOURCE -D__STDC__ -D_ALL_SOURCE\" ;
+	export CXX="NOT_THERE" ;
+	export CONFIG_SHELL=/bin/sh ;
+	export RANLIB=: ;
+	${startdir}/egcs.source/\${subdir}/configure  --verbose \
+	--prefix=$PREFIX \
+	--disable-shared \
+	--with-stabs \
+	--disable-nls \
+	--with-local-prefix=$PREFIX \
+	--with-gnu-as \
+	--with-gnu-ld \
+	--enable-targets=$TARGETS"
+
+    EGCS_GCC_CONFIGURE="
+	export CC=\"$startdir/local_bin/gcc -B$startdir/local_bin/ \";
+	export CXX=\"$startdir/local_bin/g++ -B$startdir/local_bin/ \";
+	export CFLAGS=\"-g -O2 -D_ALL_SOURCE\";
+	export CXXFLAGS=\"-g -O2 -D_ALL_SOURCE\";
+	export CONFIG_SHELL=/bin/sh ;
+	export RANLIB=: ;
+	${startdir}/egcs.source/\${subdir}/configure  --verbose \
+	--prefix=$PREFIX \
+	--disable-shared \
+	--with-stabs \
+	--disable-nls \
+	--with-local-prefix=$PREFIX \
+	--with-gnu-as \
+	--with-gnu-ld \
+	--enable-targets=$TARGETS"
+    ## Pending: shared, haifa, 'fancy new stuff'
+}
+
+function do_configure {
+   T=$2
+   export subdir=""
+   echo "   conf " $T
+   CONFIGURE=$1
+   if (
+      mkdir -p $T
+      cd $T >/dev/null
+      rm -f config.cache
+      eval $CONFIGURE
+   ) >$startdir/logs/log.configure.$(basename $T) 2>&1
+   then
+       :
+   else
+       echo $T CONFIGURE FAILED
+       FAIL=1
+   fi
+}
+
+# Really for CC builds only.
+function do_configure_bin {
+   T=$2
+   export subdir=$T
+   CONFIGURE=$1
+   echo "   conf " $T $subdir
+   if (
+      mkdir -p egcs.bin/$T
+      cd egcs.bin/$T >/dev/null
+      rm -f config.cache
+      eval $CONFIGURE
+   ) >$startdir/logs/log.configure.$(basename $T) 2>&1
+   then
+       :
+   else
+       echo $T CONFIGURE FAILED
+       FAIL=1
+   fi
+}
+
+function do_make {
+   T=$1
+   shift
+   if [ "x$1" == xclean ]
+   then
+       CLEAN=.clean
+   else
+       CLEAN=
+   fi
+   echo "   gmake " $T "$@"
+   if (
+      cd $T >/dev/null
+      # Use gmake; make has a problem with nested $() constructs
+      gmake "$@" >$startdir/logs/log.make.$(basename $T)$CLEAN 2>&1
+   )
+   then
+       :
+   else
+       echo $T MAKE FAILED
+       FAIL=1
+   fi
+}
+
+function patch_tree {
+   if [ $# != 2 ]
+   then
+       echo "Bad patch_tree call"
+       exit 1
+   fi
+   TARGET=$1
+   PATCHDIR=$2
+
+   echo ">>>Patch" $TARGET
+      
+   (
+      cd $TARGET >/dev/null
+      $QUEUED/$PATCHDIR/applyem >$startdir/logs/log.patch.$(basename $TARGET) 2>&1
+   )
+   if grep FAIL $startdir/logs/log.patch.$(basename $TARGET)
+   then
+       echo $TARGET PATCH FAILED
+       FAIL=1
+   fi
+   if grep malformed $startdir/logs/log.patch.$(basename $TARGET)
+   then
+       echo $TARGET PATCH FAILED
+       FAIL=1
+   fi
+   if grep "already exists" $startdir/logs/log.patch.$(basename $TARGET)
+   then
+       echo $TARGET PATCH FAILED
+       FAIL=1
+   fi
+   if grep "Reversed" $startdir/logs/log.patch.$(basename $TARGET)
+   then
+       echo $TARGET PATCH FAILED
+       FAIL=1
+   fi
+   if grep "can.t find file to patch" $startdir/logs/log.patch.$(basename $TARGET)
+   then
+       echo $TARGET PATCH FAILED
+       FAIL=1
+   fi
+   # information only:
+   grep fuzz $startdir/logs/log.patch.$(basename $TARGET)
+   grep ignored $startdir/logs/log.patch.$(basename $TARGET)
+}
+
+function do_xupd {
+   T=$1
+   echo XUPD $T
+   if ( mkdir $T; cd $T ; xupd -MR ;exit $?)
+   then
+       :
+   else
+       echo $T XUPD FAILED
+       FAIL=1
+   fi
+}
+
+function do_refresh {
+   T=$1
+   echo sync $T
+   if ( mkdir $T; cd $T ; sd sync -f ... ;exit $?)
+   then
+       :
+   else
+       echo $T sd sync of $T FAILED
+       FAIL=1
+   fi
+}
+
+function refresh {
+   sd sync -f $@
+}
+
+function command_installed {
+   F=$1
+   if ! ( whence $F >/dev/null )
+   then
+       echo "The command $F is not installed."
+       echo "The command $F is not installed." >/dev/tty
+       FAIL=1
+   fi
+}
+
+
+# do this here to be sure it gets done if we do partial executions,
+# but it won't be right if checkouts below haven't happened yet,
+# so we do it again there.
+
+compute_version
+
+# -------------------------------------------------------------------
+# Prerequisites:
+#  A number of commands need to be pre-installed before we can proceed.
+#  It is simply too complex to try to maintain all of them as part of this
+#  build, so you'll have to build and install them all before running this.
+
+#  Building them:
+#   The following simply require running configure, make, and install.
+#   The configure command should be:
+#     CC="gcc -g -D_ALL_SOURCE" configure
+#       (cc probably works, as well.)
+#   You'll want to do these in the order below:
+#   m4 (gnu m4; the interix one won't work).  Be sure the gnu one is found
+#      in the path before proceeding!
+#   autoconf -- use default configure
+#   automake -- use default configure  Version: automake-1.4-p5 
+#               There seem to be two variants on automake and the way
+#               they handle ylwrap (in ld); check existing source for
+#               automake verison changes.
+#   gmake -- use default configure
+#   cvs -- use default configure -- 
+#      You'll also need to "sign in" to the accounts:
+#      Read the binutils and gcc web documentation as to how to sign up for
+#      them.
+#   bison -- use default configure
+#   flex --  2.5.4 is the latest (from 1997!).  
+#            http://astro.temple.edu/~john43/flex/ would be a good place
+#            to start looking if you need a newer one.
+#            Use default configure: appears to require bison (or at least
+#            yacc) to build.
+
+command_installed bison
+command_installed autoconf
+command_installed automake
+command_installed m4
+command_installed cl.exe
+command_installed cvs   # Should already have been found
+command_installed gmake
+command_installed flex
+
+if [ "$(m4 --version)" != "GNU m4 1.4" ]
+then
+   echo "The default m4 will not work; adjust your path to get Gnu m4."
+   echo "The default m4 will not work; adjust your path to get Gnu m4." >/dev/tty
+   FAIL=1
+fi
+
+if [ $FAIL = 1 ]
+then
+    echo INSTALL CONFIGURATION INCORRECT
+    echo INSTALL CONFIGURATION INCORRECT > /dev/tty
+    echo there are comments in e.makeit on how to install these.
+    echo there are comments in e.makeit on how to install these. > /dev/tty
+    exit 1
+fi
+
+#-----------------------------------------------------------------------
+if false
+then #############################
+:
+fi ########################################
+#-----------------------------------------------------------------------
+
+
+mkdir logs
+refresh e.make.libc
+refresh e.make.image
+refresh gcc.script
+refresh e.executables
+
+# Do the egcs stuff first
+echo Getting egcs Source
+
+if [ "$DO_UPDATES" = on ]
+then 
+    cd $GCC_DIRECTORY
+    if cvs -z 6 -d $GCC_SERVER update -A -P -d $GCC_REVISION_OP >$startdir/logs/log.cvs.gcc 2>&1
+    then
+	echo CVS GCC update succeeded
+    else
+	echo CVS GCC UPDATE FAILED
+	exit 1
+    fi
+fi
+
+mkdir $startdir/egcs.source
+echo pax -rw $GCC_DIRECTORY/gcc $startdir/egcs.source
+(cd $GCC_DIRECTORY/gcc; pax -rw . $startdir/egcs.source)
+
+# As a consequence of doing the copy, the objc and c parsers now
+# have dates bracketing the date of c-parse.in.  This causes a Bison
+# version skew and mysterious bugs.  Touch them to be sure they're
+# both more current than c-parse.in.  We do it here so if we patch
+# c-parse.in, it then becomes newer.  (c-parse.in is parent to both!)
+
+# With latest changes in gnu-land, this seems unneeded
+# touch $startdir/egcs.source/gcc/c-parse.y $startdir/egcs.source/gcc/objc/objc-parse.y
+
+# For the moment, we have to deal with version skew in the actual CVS.  
+# Thus... just stomp c-parse.in.  Remove this someday?  (Removed).
+
+# sleep 2
+# touch $startdir/egcs.source/gcc/c-parse.in
+
+echo Getting binutils/gdb Source
+
+BU_SERVER=:pserver:anoncvs@sources.redhat.com:/cvs/src
+
+# In case we're playing with Binutils versions
+if true #################################### true
+then
+    BU_VERSION=HEAD
+    BU_DIRECTORY=$CVS/binutils.baseline/src
+    BU_REVISION_OP=""
+    BU_PATCH_VERSION=""
+else
+    BU_VERSION=  ### NO VERSION TAG YET!!!!!!!!!!!!!!!!!!!!!!
+    BU_DIRECTORY=$CVS/egcs.$BU_VERSION.baseline/src
+    BU_REVISION_OP="-r gcc-$BU_VERSION-release"
+    BU_PATCH_VERSION=".$BU_VERSION"
+fi
+
+echo BU/GCC: $BU_VERSION
+touch $startdir/0_BU_GCC_$BU_VERSION
+
+if [ "$DO_UPDATES" = on ]
+then 
+    cd $BU_DIRECTORY
+    # If this fails in 
+    # /C/CVS/binutils.baseline/cygwin-xfree/programs/Xserver/hw/xwin
+    # it's a case sensitivity problem.  Run the update manually where
+    # case sensitivity is enabled (not on a network drive) and all will
+    # subsequently be well.
+    if cvs -z 6 -d $BU_SERVER update -A -P -d $BU_REVISION_OP >$startdir/logs/log.cvs.bu 2>&1
+    then
+	echo CVS BU/GDB update succeeded
+    else
+	echo CVS BU/GDB UPDATE FAILED
+	exit 1
+    fi
+fi
+
+# Selectively bring over binutils pieces 
+cp -r $BU_DIRECTORY/bfd $startdir/egcs.source
+cp -r $BU_DIRECTORY/binutils $startdir/egcs.source
+cp -r $BU_DIRECTORY/config $startdir/egcs.source
+cp -r $BU_DIRECTORY/dejagnu $startdir/egcs.source
+cp -r $BU_DIRECTORY/expect $startdir/egcs.source
+cp -r $BU_DIRECTORY/gas $startdir/egcs.source
+cp -r $BU_DIRECTORY/gdb $startdir/egcs.source
+cp -r $BU_DIRECTORY/include $startdir/egcs.source
+# hashtab is only used by gcc, so we use the gcc version of that.
+# (We're using the gcc libiberty already.)  (We might want to reverse
+# the sense of this copy at some point.)
+cp $GCC_DIRECTORY/gcc/include/hashtab.h $startdir/egcs.source/include
+cp $GCC_DIRECTORY/gcc/include/demangle.h $startdir/egcs.source/include
+cp $GCC_DIRECTORY/gcc/include/dyn-string.h $startdir/egcs.source/include
+cp $GCC_DIRECTORY/gcc/include/libiberty.h $startdir/egcs.source/include
+cp -r $BU_DIRECTORY/intl $startdir/egcs.source
+cp -r $BU_DIRECTORY/itcl $startdir/egcs.source
+cp -r $BU_DIRECTORY/ld $startdir/egcs.source
+cp -r $BU_DIRECTORY/libgui $startdir/egcs.source
+cp -r $BU_DIRECTORY/opcodes $startdir/egcs.source
+cp -r $BU_DIRECTORY/readline $startdir/egcs.source
+cp -r $BU_DIRECTORY/tix $startdir/egcs.source
+cp -r $BU_DIRECTORY/tcl $startdir/egcs.source
+cp -r $BU_DIRECTORY/tk $startdir/egcs.source
+cp $BU_DIRECTORY/gettext.m4 $startdir/egcs.source
+
+# We may need some of these if ??sh commands run in patch stage below.
+# Some (all?) of these should be done with patches???
+
+cd $startdir
+gunzip <$GNUSRC/fcvs.tgz | tar -xf -
+
+do_refresh asa
+do_refresh libexec
+do_refresh othertests
+xargs chmod u+x <e.executables
+
+# At this point, all the sources (but unpatched, unless I own them
+# exclusively) should be in place.
+
+#-----------------------------------------------------------------------
+# Recompute version stuff; this time it'll be right.
+
+if [ ! -f $startdir/egcs.source/gcc/version.c ]
+then
+    echo "Version file missing; bye!"
+    exit 1
+fi
+
+compute_version
+    
+echo GCC: $GCC_VERSION
+touch $startdir/O_GCC_$GCC_VERSION
+
+#-----------------------------------------------------------------------
+
+# Apply queued patches.
+echo Applying Patches
+export ALPHA=0 # Alpha not being kept up at the moment (ever?)
+
+
+patch_tree egcs.source egcs.source$GCC_PATCH_VERSION
+patch_tree fcvs fcvs$GCC_PATCH_VERSION
+patch_tree libexec libexec$GCC_PATCH_VERSION
+
+patch_tree egcs.source/bfd bfd$BU_PATCH_VERSION
+patch_tree egcs.source/binutils binutils$BU_PATCH_VERSION
+patch_tree egcs.source/dejagnu dejagnu$BU_PATCH_VERSION
+patch_tree egcs.source/expect expect$BU_PATCH_VERSION
+patch_tree egcs.source/gas gas$BU_PATCH_VERSION
+patch_tree egcs.source/gdb gdb$BU_PATCH_VERSION
+
+patch_tree egcs.source/include include$BU_PATCH_VERSION
+patch_tree egcs.source/intl intl$BU_PATCH_VERSION
+patch_tree egcs.source/libgui libgui$BU_PATCH_VERSION
+patch_tree egcs.source/ld ld$BU_PATCH_VERSION
+patch_tree egcs.source/libiberty libiberty$BU_PATCH_VERSION
+patch_tree egcs.source/tcl tcl$BU_PATCH_VERSION
+patch_tree egcs.source/tix tix$BU_PATCH_VERSION
+patch_tree egcs.source/tk tk$BU_PATCH_VERSION
+patch_tree egcs.source/opcodes opcodes$BU_PATCH_VERSION
+patch_tree egcs.source/readline readline$BU_PATCH_VERSION
+patch_tree egcs.source/libstdc++-v3 libstdc++-v3$BU_PATCH_VERSION
+
+patch_tree "." toplevel$BU_PATCH_VERSION
+
+if [ $FAIL = 1 ]
+then
+    echo PATCHES FAILED
+    exit 1
+fi
+
+cd $startdir
+### if [ -f /bin/true ]
+if false   # May or may not need this, but for now, no.
+then
+    # This is Firebrand; apply the patches
+    q-patch fb.egcs 01 1 >$startdir/logs/log.patch.fb 2>&1
+
+    if grep -q "\\.rej" $startdir/logs/log.patch.fb
+    then
+	echo FB PATCH FAILED
+	exit 1
+    fi
+
+    if grep -q malformed $startdir/logs/log.patch.fb
+    then
+	echo FB PATCH FAILED
+	exit 1
+    fi
+
+    if grep -q "already exists" $startdir/logs/log.patch.fb
+    then
+	echo FB PATCH FAILED
+	exit 1
+    fi
+
+fi
+
+# Put the (potentially) patched versions of the below into both places.
+cp $startdir/egcs.source/gcc/{config.guess,configure,configure.in,move-if-change} $startdir
+# LIBEXEC needs these:
+cp $startdir/egcs.source/{install-sh,config.sub} $startdir
+
+#stdbool is needed by bfd.
+cp $startdir/egcs.source/gcc/ginclude/stdbool.h $startdir/egcs.source/include
+
+#-----------------------------------------------------------------------
+
+# Remember ??sh scripts from q-patch!
+
+#-----------------------------------------------------------------------
+
+echo "Doing aclocal"
+ACLOCALABLE="egcs.source/bfd egcs.source/gas"
+rm -f $startdir/logs/log.aclocal
+for i in $ACLOCALABLE
+do
+    (cd $i; echo $i >>$startdir/logs/log.aclocal; 
+	    aclocal >>$startdir/logs/log.aclocal 2>&1; exit $?)
+    if [ $? != 0 ]
+    then
+	echo "Aclocal failed"
+	exit 1
+    fi
+done
+
+#-----------------------------------------------------------------------
+
+echo "Doing Autoconf"
+AUTOCONFABLE="egcs.source/bfd egcs.source/binutils egcs.source/gas egcs.source/ld egcs.source/opcodes egcs.source/libf2c/libU77 egcs.source/gcc egcs.source/libstdc++-v3"
+rm -f $startdir/logs/log.autoconf
+for i in $AUTOCONFABLE
+do
+    (cd $i; echo $i >>$startdir/logs/log.autoconf; 
+	    autoconf >>$startdir/logs/log.autoconf 2>&1; exit $?)
+    if [ $? != 0 ]
+    then
+	echo "Autoconf failed"
+	exit 1
+    fi
+done
+
+#-----------------------------------------------------------------------
+echo "Doing Automake"
+rm -f log.automake
+AUTOMAKEABLE="egcs.source/bfd egcs.source/binutils egcs.source/gas egcs.source/ld egcs.source/opcodes egcs.source/libstdc++-v3"
+# With automake 1.4-p5, gas reports a "fatal warning"; we ignore it.
+for i in $AUTOMAKEABLE
+do
+    (cd $i; automake -a >>$startdir/logs/log.automake 2>&1; exit $?)
+    if [ $? != 0 -a $i != "egcs.source/gas" ]
+    then
+	echo "Automake failed"
+	exit 1
+    fi
+done
+
+#-----------------------------------------------------------------------
+# First pass configures.
+
+echo "Configuring (cc build):"
+# Egcs uses a single configure for the whole tree, except that it now
+# requires C++ for some pieces, which we don't have yet.  Since we don't
+# yet need those pieces, configure individually just those we do.
+mkdir egcs.bin
+do_configure_bin "$EGCS_CC_CONFIGURE" libiberty
+do_configure_bin "$EGCS_CC_CONFIGURE" intl
+do_configure_bin "$EGCS_CC_CONFIGURE" gcc
+do_configure_bin "$EGCS_CC_CONFIGURE" bfd
+do_configure_bin "$EGCS_CC_CONFIGURE" opcodes
+do_configure_bin "$EGCS_CC_CONFIGURE" ld
+do_configure_bin "$EGCS_CC_CONFIGURE" gas
+do_configure_bin "$EGCS_CC_CONFIGURE" binutils
+
+if [ $FAIL = 1 ]
+then
+    echo INITIAL CONFIGURES FAILED
+    echo "Did you forget to put CL.EXE in your path? (Donn: run gcccompile)"
+    exit 1
+fi
+
+#-----------------------------------------------------------------------
+# When we configured intl, it got a symlink.  MSVC needs a hardlink,
+# so we fix that by brute force.  This is the only known instance.
+rm -f egcs.bin/intl/libintl.h
+ln egcs.source/intl/libgettext.h egcs.bin/intl/libintl.h
+
+
+echo "Makeing (cc build) basics:"
+do_make egcs.bin/libiberty
+
+do_make egcs.bin/bfd headers
+mv logs/log.make.bfd logs/log.make.bfd.headers
+do_make egcs.bin/bfd
+
+do_make egcs.bin/gas   # We need gas to complete the gcc build.
+
+if [ $FAIL = 1 ]
+then
+    echo "INITIAL GAS MAKE FAILED (sub-stage 1)"
+    exit 1
+fi
+
+echo Copying preliminary tools to local_bin
+mkdir -p $startdir/local_bin
+cp $startdir/egcs.bin/gas/as-new $startdir/local_bin/as
+
+# Now we can make gcc
+do_make egcs.bin/gcc LANGUAGES=c 
+
+# Just so the log files reflect something useful if something DOES
+# go wrong.
+if [ $FAIL = 1 ]
+then
+    echo "INITIAL MAKES FAILED (sub-stage 2)"
+    exit 1
+fi
+
+
+# Just so the log files reflect something useful if something DOES
+# go wrong.
+if [ $FAIL = 1 ]
+then
+    echo "INITIAL MAKES FAILED (sub-stage 3)"
+    exit 1
+fi
+
+do_make egcs.bin/intl
+do_make egcs.bin/opcodes
+do_make egcs.bin/ld
+do_make egcs.bin/binutils
+
+if [ $FAIL = 1 ]
+then
+    echo "INITIAL MAKES FAILED (sub-stage 4)"
+    exit 1
+fi
+
+#-----------------------------------------------------------------------
+
+# At this point, all the pieces needed to allow us to configure using
+# gcc (the one we JUST built) are in place.
+# Save them away.  While we're doing so, save away the stuff generated
+# with the bootstrap compiler, just for grins.
+
+echo Copying results to local_bin
+mkdir -p $startdir/local_bin
+cp $startdir/egcs.bin/gcc/xgcc $startdir/local_bin/gcc-real
+cp $startdir/gcc.script $startdir/local_bin/gcc
+cp $startdir/egcs.bin/gcc/cc1 $startdir/local_bin/cc1
+cp $startdir/egcs.bin/gcc/cc1plus $startdir/local_bin/cc1plus
+cp $startdir/egcs.bin/gcc/cpp $startdir/local_bin/cpp
+cp $startdir/egcs.bin/gcc/cpp0 $startdir/local_bin/cpp0
+cp $startdir/egcs.bin/gcc/tradcpp0 $startdir/local_bin/tradcpp0
+cp $startdir/egcs.bin/gcc/collect2 $startdir/local_bin/collect2
+cp $startdir/egcs.bin/gcc/libgcc.a $startdir/local_bin/libgcc.a
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/ld
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/real-ld
+cp $startdir/egcs.bin/gas/as-new $startdir/local_bin/as
+cp $startdir/egcs.bin/binutils/ar $startdir/local_bin/ar
+INCDIR=$startdir/lib/gcc-lib/$arch-pc-interix3/$GCC_VERSION/include
+mkdir -p $INCDIR
+cp $startdir/egcs.bin/gcc/include/*.h $INCDIR
+touch $startdir/local_bin/BUILT_WITH_NATIVE_COMPILER
+chmod 555 $startdir/local_bin/gcc
+
+
+# If we went to the backup compiler, make sure we see it!
+if [ -f $startdir/logs/ICE.LOG ]
+then
+    cat $startdir/logs/ICE.LOG
+fi
+
+echo Starting new logs directory
+mv logs logs_1
+mkdir logs
+
+#-----------------------------------------------------------------------
+# At this point, anything we build will be built with the new gcc, and
+# thus be shared-library smart.  We need shared libraries for that to
+# happen, so we build them.  (The tools in local_bin don't yet USE shared
+# libs, they just support them.)
+
+if [ -f /usr/lib/libc.so ]
+then
+    cp /usr/lib/libc.so $startdir/local_bin/
+else
+    mkdir -p libcdir
+    cd libcdir
+    ../e.make.libc $startdir/local_bin "-$GCC_VERSION"
+fi
+
+cd $startdir
+
+# We need ld.so, too.
+
+# In addtion to the above, libexec needs ar, nm, objcopy, and objdump, so put
+# them where it can find them.
+cp $startdir/egcs.bin/binutils/ar $startdir/local_bin/ar
+cp $startdir/egcs.bin/binutils/objdump $startdir/local_bin/objdump
+cp $startdir/egcs.bin/binutils/objcopy $startdir/local_bin/objcopy
+cp $startdir/egcs.bin/binutils/nm-new $startdir/local_bin/nm
+
+echo "libexec build"
+do_configure "$GCC_CONFIGURE" libexec
+do_make libexec
+if [ $FAIL = 1 ]
+then
+    echo "FIRST LIBEXEC BUILD FAILED"
+    exit 1
+fi
+
+cp $startdir/libexec/libdl/ld.so.* $startdir/local_bin
+(cd $startdir/local_bin; $LN ld.so.* ld.so)
+
+#-----------------------------------------------------------------------
+# Second pass configures of the support stuff.
+
+echo "Configuring (gcc build):"
+
+# We can't yet do a "configure everything" because we still don't have
+# g++ built.
+do_configure_bin "$EGCS_GCC_CONFIGURE" libiberty
+do_configure_bin "$EGCS_GCC_CONFIGURE" zlib
+do_configure_bin "$EGCS_GCC_CONFIGURE" intl
+do_configure_bin "$EGCS_GCC_CONFIGURE" gcc
+do_configure_bin "$EGCS_GCC_CONFIGURE" bfd
+do_configure_bin "$EGCS_GCC_CONFIGURE" opcodes
+do_configure_bin "$EGCS_GCC_CONFIGURE" ld
+do_configure_bin "$EGCS_GCC_CONFIGURE" gas
+do_configure_bin "$EGCS_GCC_CONFIGURE" binutils
+
+if [ $FAIL = 1 ]
+then
+    echo SECOND CONFIGURES FAILED
+    exit 1
+fi
+
+#-----------------------------------------------------------------------
+echo "Makeing (gcc build) cleans:"
+
+do_make egcs.bin/libiberty clean
+do_make egcs.bin/intl clean
+do_make egcs.bin/bfd clean
+do_make egcs.bin/opcodes clean
+do_make egcs.bin/ld clean
+do_make egcs.bin/gas clean
+do_make egcs.bin/binutils clean
+
+# Just so the log files reflect something useful if something DOES
+# go wrong.
+if [ $FAIL = 1 ]
+then
+    echo "SECOND MAKES FAILED (sub-stage 1)"
+    exit 1
+fi
+
+echo making builds
+do_make egcs.bin/bfd headers CC_FOR_BUILD="gcc -B$startdir/local_bin/"
+
+# Just so the log files reflect something useful if something DOES
+# go wrong.
+if [ $FAIL = 1 ]
+then
+    echo "SECOND MAKES FAILED (sub-stage2)"
+    exit 1
+fi
+
+do_make egcs.bin/libiberty
+do_make egcs.bin/intl
+do_make egcs.bin/bfd
+do_make egcs.bin/opcodes
+do_make egcs.bin/ld
+do_make egcs.bin/gas
+do_make egcs.bin/binutils
+
+if [ $FAIL = 1 ]
+then
+    echo "SECOND MAKES FAILED (sub-stage 3)"
+    exit 1
+fi
+
+#-----------------------------------------------------------------------
+mv $startdir/local_bin $startdir/local_bin_1
+
+echo Copying second pass results to local_bin
+mkdir -p $startdir/local_bin
+
+cp $startdir/egcs.bin/gcc/xgcc $startdir/local_bin/gcc-real
+cp $startdir/gcc.script $startdir/local_bin/gcc
+cp $startdir/egcs.bin/gcc/cc1 $startdir/local_bin/cc1
+cp $startdir/egcs.bin/gcc/cc1plus $startdir/local_bin/cc1plus
+cp $startdir/egcs.bin/gcc/cpp $startdir/local_bin/cpp
+cp $startdir/egcs.bin/gcc/cpp0 $startdir/local_bin/cpp0
+cp $startdir/egcs.bin/gcc/tradcpp0 $startdir/local_bin/tradcpp0
+cp $startdir/egcs.bin/gcc/collect2 $startdir/local_bin/collect2
+cp $startdir/egcs.bin/gcc/libgcc.a $startdir/local_bin/libgcc.a
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/ld
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/real-ld
+cp $startdir/egcs.bin/gas/as-new $startdir/local_bin/as
+cp $startdir/egcs.bin/binutils/ar $startdir/local_bin/ar
+chmod 555 $startdir/local_bin/gcc
+if [ -f /usr/lib/libc.so ]
+then
+    cp /usr/lib/libc.so $startdir/local_bin/libc.so
+else
+    cp $startdir/libcdir/libc.so.* $startdir/local_bin
+    (cd $startdir/local_bin; $LN libc.so.* libc.so)
+fi
+cp $startdir/libexec/libdl/ld.so.* $startdir/local_bin
+(cd $startdir/local_bin; $LN ld.so.* ld.so)
+touch $startdir/local_bin/BUILT_WITH_STAGE1
+
+# If we went to the backup compiler, make sure we see it!
+if [ -f $startdir/logs/ICE.LOG ]
+then
+    cat $startdir/logs/ICE.LOG
+fi
+
+echo Starting new logs directory.
+mv logs logs_2
+mkdir logs
+#-----------------------------------------------------------------------
+# When we build stage 1, what we're really doing is just copying things
+# off to where stage2 will find them.  This is mostly housekeeping,
+# as we don't really use the stages directly.
+
+echo "Makeing 'stage1' gcc"
+do_make egcs.bin/gcc stage1 LANGUAGES=c
+
+if [ $FAIL = 1 ]
+then
+    echo "STAGE 1 MAKE FAILED"
+    exit 1
+fi
+
+mv logs/log.make.gcc logs/log.make.gcc.stage1
+
+# Now rebuild; the stage1 stuff we care about is now in local_bin
+# and the tools are there as well.
+echo "Rebuilding gcc for stage 2; clean and build"
+
+# don't clean egcs/gcc: stage files get stepped on; but it moved the .o
+# files so we rebuild.
+do_make egcs.bin/gcc LANGUAGES=c
+
+if [ $FAIL = 1 ]
+then
+    echo "STAGE 2 MAKE FAILED"
+    exit 1
+fi
+
+#-----------------------------------------------------------------------
+mv $startdir/local_bin $startdir/local_bin_2
+
+echo Copying pass 1.5 results to local_bin
+mkdir -p $startdir/local_bin
+
+cp $startdir/egcs.bin/gcc/xgcc $startdir/local_bin/gcc-real
+cp $startdir/gcc.script $startdir/local_bin/gcc
+cp $startdir/egcs.bin/gcc/cc1 $startdir/local_bin/cc1
+cp $startdir/egcs.bin/gcc/cc1plus $startdir/local_bin/cc1plus
+cp $startdir/egcs.bin/gcc/cpp $startdir/local_bin/cpp
+cp $startdir/egcs.bin/gcc/cpp0 $startdir/local_bin/cpp0
+cp $startdir/egcs.bin/gcc/tradcpp0 $startdir/local_bin/tradcpp0
+cp $startdir/egcs.bin/gcc/collect2 $startdir/local_bin/collect2
+cp $startdir/egcs.bin/gcc/libgcc.a $startdir/local_bin/libgcc.a
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/ld
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/real-ld
+cp $startdir/egcs.bin/gas/as-new $startdir/local_bin/as
+cp $startdir/egcs.bin/binutils/ar $startdir/local_bin/ar
+chmod 555 $startdir/local_bin/gcc
+if [ -f /usr/lib/libc.so ]
+then
+    cp /usr/lib/libc.so $startdir/local_bin/libc.so
+else
+    cp $startdir/libcdir/libc.so.* $startdir/local_bin
+    (cd $startdir/local_bin; $LN libc.so.* libc.so)
+fi
+cp $startdir/libexec/libdl/ld.so.* $startdir/local_bin
+(cd $startdir/local_bin; $LN ld.so.* ld.so)
+touch $startdir/local_bin/BUILT_WITH_STAGE1.5
+
+#-----------------------------------------------------------------------
+# The stage 2 compiler (which should be identical with the stage 3 one)
+# is now where we can get it; now build everything else one more time.
+# We'll find out if stage 2 and stage 3 match here in a moment.
+
+echo "Makeing (gcc build) cleans, for Pass 2:"
+
+echo "Makeing (gcc build) cleans (egcs.bin), for Pass 2:"
+do_make egcs.bin/libiberty clean
+do_make egcs.bin/zlib clean
+do_make egcs.bin/intl clean
+do_make egcs.bin/opcodes clean
+do_make egcs.bin/bfd clean
+do_make egcs.bin/ld clean
+do_make egcs.bin/gas clean
+do_make egcs.bin/binutils clean
+
+# Just so the log files reflect something useful if something DOES
+# go wrong.
+if [ $FAIL = 1 ]
+then
+    echo "THIRD MAKES FAILED (sub-stage 1)"
+    exit 1
+fi
+
+echo "Makeing (gcc build) basics, for Pass 2:"
+do_make egcs.bin/libiberty
+do_make egcs.bin/zlib
+do_make egcs.bin/intl
+do_make egcs.bin/bfd
+do_make egcs.bin/opcodes
+do_make egcs.bin/ld
+do_make egcs.bin/gas
+do_make egcs.bin/binutils
+
+if [ $FAIL = 1 ]
+then
+    echo "THIRD MAKES FAILED (sub-stage 2)"
+    exit 1
+fi
+
+
+#-----------------------------------------------------------------------
+mv $startdir/local_bin $startdir/local_bin_3
+
+echo Copying third pass results to local_bin
+mkdir -p $startdir/local_bin
+
+cp $startdir/egcs.bin/gcc/xgcc $startdir/local_bin/gcc-real
+cp $startdir/gcc.script $startdir/local_bin/gcc
+cp $startdir/egcs.bin/gcc/cc1 $startdir/local_bin/cc1
+cp $startdir/egcs.bin/gcc/cc1plus $startdir/local_bin/cc1plus
+cp $startdir/egcs.bin/gcc/cpp $startdir/local_bin/cpp
+cp $startdir/egcs.bin/gcc/cpp0 $startdir/local_bin/cpp0
+cp $startdir/egcs.bin/gcc/tradcpp0 $startdir/local_bin/tradcpp0
+cp $startdir/egcs.bin/gcc/collect2 $startdir/local_bin/collect2
+cp $startdir/egcs.bin/gcc/libgcc.a $startdir/local_bin/libgcc.a
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/ld
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/real-ld
+cp $startdir/egcs.bin/gas/as-new $startdir/local_bin/as
+cp $startdir/egcs.bin/binutils/ar $startdir/local_bin/ar
+cp $startdir/libexec/libdl/ld.so.* $startdir/local_bin
+chmod 555 $startdir/local_bin/gcc
+if [ -f /usr/lib/libc.so ]
+then
+    cp /usr/lib/libc.so $startdir/local_bin/libc.so
+else
+    cp $startdir/libcdir/libc.so.* $startdir/local_bin
+    (cd $startdir/local_bin; $LN libc.so.* libc.so)
+fi
+(cd $startdir/local_bin; $LN ld.so.* ld.so)
+touch $startdir/local_bin/BUILT_WITH_STAGE2
+
+
+# And save away the stage 2 results.
+echo "Do stage 2 operation".
+do_make egcs.bin/gcc stage2
+
+mv logs/log.make.gcc logs/log.make.gcc.stage2
+
+#-----------------------------------------------------------------------
+# At this point, assuming all is well, local_bin contains completely
+# trustworthy stuff.  We build gcc and do a check to be sure of that.
+# We also build c++, since we'll need it soon
+
+echo "Makeing check build"
+do_make egcs.bin/gcc LANGUAGES="c c++"
+
+if [ $FAIL = 1 ]
+then
+    echo "BOOTSTRAP BUILD FAILED"
+    exit 1
+fi
+
+mv logs/log.make.gcc logs/log.make.gcc.make2
+
+echo "doing Final bootstrap check"
+do_make egcs.bin/gcc compare
+if [ $FAIL = 1 ]
+then
+    echo "BOOTSTRAP COMPARE FAILED"
+    exit 1
+fi
+mv logs/log.make.gcc logs/log.make.gcc.compare
+
+#-----------------------------------------------------------------------
+mv $startdir/local_bin $startdir/local_bin_4
+
+echo Copying final pass results to local_bin
+mkdir -p $startdir/local_bin
+
+cp $startdir/egcs.bin/gcc/xgcc $startdir/local_bin/gcc-real
+cp $startdir/egcs.bin/gcc/g++ $startdir/local_bin/g++-real
+cp $startdir/gcc.script $startdir/local_bin/gcc
+cp $startdir/gcc.script $startdir/local_bin/g++
+cp $startdir/egcs.bin/gcc/cc1 $startdir/local_bin/cc1
+cp $startdir/egcs.bin/gcc/cc1plus $startdir/local_bin/cc1plus
+cp $startdir/egcs.bin/gcc/cpp $startdir/local_bin/cpp
+cp $startdir/egcs.bin/gcc/cpp0 $startdir/local_bin/cpp0
+cp $startdir/egcs.bin/gcc/tradcpp0 $startdir/local_bin/tradcpp0
+cp $startdir/egcs.bin/gcc/collect2 $startdir/local_bin/collect2
+cp $startdir/egcs.bin/gcc/libgcc.a $startdir/local_bin/libgcc.a
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/ld
+cp $startdir/egcs.bin/ld/ld-new $startdir/local_bin/real-ld
+cp $startdir/egcs.bin/gas/as-new $startdir/local_bin/as
+cp $startdir/egcs.bin/binutils/ar $startdir/local_bin/ar
+chmod 555 $startdir/local_bin/gcc
+chmod 555 $startdir/local_bin/g++
+if [ -f /usr/lib/libc.so ]
+then
+    cp /usr/lib/libc.so $startdir/local_bin/libc.so
+    cp /usr/lib/libm.so $startdir/local_bin/libm.so
+else
+    cp $startdir/libcdir/libc.so.* $startdir/local_bin
+    (cd $startdir/local_bin; $LN libc.so.* libc.so)
+    cp $startdir/libcdir/libm.so.* $startdir/local_bin
+    (cd $startdir/local_bin; $LN libm.so.* libm.so)
+fi
+cp $startdir/libexec/libdl/ld.so.* $startdir/local_bin
+(cd $startdir/local_bin; $LN ld.so.* ld.so)
+cp $startdir/libexec/libdl/ld.so $startdir/local_bin
+touch $startdir/local_bin/BUILT_WITH_STAGE3
+
+#-----------------------------------------------------------------------
+# At this point we've built g++, and installed it.
+# That permits us to do a "configure everything".
+do_configure "$EGCS_GCC_CONFIGURE" egcs.bin
+
+if [ $FAIL = 1 ]
+then
+    echo "CONFIGURE EVERYTHING FAILED"
+    exit 1
+fi
+#-----------------------------------------------------------------------
+
+# Before we can make everything, we need a build of tk so we
+# can put 'wish' where it can be found.  We need it for libgui's
+# build.  To build tk, we need tcl.  (And we need all of these
+# for gdbtk (Insight).)
+
+echo "Makeing \'wish\' support"
+do_make egcs.bin/tcl
+do_make egcs.bin/tk
+
+if [ $FAIL = 1 ]
+then
+    echo "TCL/TK BUILD FAILED."
+    exit 1
+fi
+
+cp $startdir/egcs.bin/tk/unix/wish $startdir/local_bin
+# Ahhh... success; we've bootstrapped the compilers and the tools
+# and all is well.  (Actually, we cheated a little; we used the system's
+# ar, but that can be fixed if we have to.)
+
+
+# We set CXX/CC_FOR_TARGET so we can interpose our g++ wrapper
+# (that fails soft for ICEs) in local_bin; otherwise it will
+# use the one in gcc/.
+
+echo "Makeing final build of everything"
+echo Starting new logs directory.
+mv logs logs_3
+mkdir logs
+
+# Make the compilers first, so we can capture g++ which will be
+# needed for the other steps.  (Normally the build uses the local
+# one, but because we want to fail soft on ICEs, we need to capture
+# it.)
+
+do_make egcs.bin/gcc clean
+
+do_make egcs.bin/gcc CFLAGS='-g -O2 -D_ALL_SOURCE $(WARN_CFLAGS)'
+# do_make egcs.bin/gcc  CXX_FOR_TARGET="$startdir/local_bin/g++ -B$startdir/local_bin/ -O2" GCC_FOR_TARGET="$startdir/local_bin/gcc -B$startdir/local_bin/ -O2"
+
+
+if [ $FAIL = 1 ]
+then
+    echo "COMPILER PREBUILD FOR FINAL (static) BUILD FAILED"
+    exit 1
+fi
+
+cp $startdir/egcs.bin/gcc/cc1obj $startdir/local_bin/cc1obj
+cp $startdir/egcs.bin/gcc/g++ $startdir/local_bin/g++-real
+cp $startdir/gcc.script $startdir/local_bin/g++
+cp $startdir/egcs.bin/gcc/g77 $startdir/local_bin
+cp $startdir/egcs.bin/gcc/f771 $startdir/local_bin
+chmod 555 $startdir/local_bin/g++
+
+do_make egcs.bin/libiberty clean
+do_make egcs.bin/intl clean
+do_make egcs.bin/opcodes clean
+do_make egcs.bin/bfd clean
+do_make egcs.bin/ld clean
+do_make egcs.bin/gas clean
+do_make egcs.bin/binutils clean
+do_make egcs.bin/gdb clean
+
+if [ $FAIL = 1 ]
+then
+    echo "FINAL (static) make clean FAILED"
+    exit 1
+fi
+
+do_make egcs.bin CXX_FOR_TARGET="$startdir/local_bin/g++ -B$startdir/local_bin/" \
+ CC_FOR_TARGET="$startdir/local_bin/gcc -B$startdir/local_bin/" \
+ GCC_FOR_TARGET="$startdir/local_bin/gcc -B$startdir/local_bin/" \
+ CC="$startdir/local_bin/gcc -B$startdir/local_bin/" \
+ HOST_CC="$startdir/local_bin/gcc -B$startdir/local_bin/" \
+ CFLAGS='-g -O2 $(WARN_CFLAGS) -D_ALL_SOURCE' \
+ CXXFLAGS='-g -O2 $(WARN_CFLAGS) -D_ALL_SOURCE'
+
+do_make egcs.bin/gcc proto
+mv logs/log.make.gcc logs/log.make.gcc.proto
+
+if [ $FAIL = 1 ]
+then
+    echo "FINAL (static) BUILD FAILED"
+    exit 1
+fi
+
+# Capture the additional stuff we care about into local_bin
+
+# libgcc.a got some new stuff!
+cp $startdir/egcs.bin/gcc/libgcc.a $startdir/local_bin/libgcc.a
+
+#-----------------------------------------------------------------------
+
+echo "Language Libraries builds"
+cp $startdir/egcs.bin/$arch-pc-interix3/libf2c/.libs/libg2c.a $startdir/local_bin
+cp $startdir/egcs.bin/$arch-pc-interix3/libf2c/libfrtbegin.a $startdir/local_bin
+
+cp $startdir/egcs.bin/$arch-pc-interix3/libstdc++-v3/libmath/.libs/libmath.a $startdir/local_bin
+cp $startdir/egcs.bin/$arch-pc-interix3/libstdc++-v3/libsupc++/.libs/libsupc++.a $startdir/local_bin
+cp $startdir/egcs.bin/$arch-pc-interix3/libstdc++-v3/libsupc++/.libs/libsupc++convenience.a $startdir/local_bin
+cp $startdir/egcs.bin/$arch-pc-interix3/libstdc++-v3/src/.libs/libstdc++.a $startdir/local_bin
+
+do_make egcs.bin
+if [ $FAIL = 1 ]
+then
+    echo "LANGUAGE LIBRARY BUILD FAILED"
+    exit 1
+fi
+#-----------------------------------------------------------------------
+
+# This time we build libexec for real, with stable tools.
+
+# libexec needs ld, as, ar, nm, and objdump, so put them 
+# where it can find them. (We already did as, ld.)
+# We need liblock and _G_config.h is for testing.
+cp $startdir/egcs.bin/binutils/ar $startdir/local_bin/ar
+cp $startdir/egcs.bin/binutils/objdump $startdir/local_bin/objdump
+cp $startdir/egcs.bin/binutils/objcopy $startdir/local_bin/objcopy
+cp $startdir/egcs.bin/binutils/nm-new $startdir/local_bin/nm
+cp $startdir/egcs.bin/binutils/liblock $startdir/local_bin/liblock
+cp $startdir/egcs.source/libstdc++-v3/libio/_G_config.h $startdir/local_bin/_G_config.h
+echo "libexec build"
+
+do_make libexec clean
+if [ $FAIL = 1 ]
+then
+    echo "SECOND LIBEXEC BUILD CLEAN FAILED"
+    exit 1
+fi
+
+do_configure "$GCC_CONFIGURE" libexec
+
+do_make libexec
+if [ $FAIL = 1 ]
+then
+    echo "SECOND LIBEXEC BUILD FAILED"
+    exit 1
+fi
+
+#-----------------------------------------------------------------------
+# And asa
+echo "asa build"
+do_configure "$GCC_CONFIGURE" asa
+do_make asa
+
+#-----------------------------------------------------------------------
+# Make a complete set of shared libs with the latest and greatest
+# (pic will confuse this, but for now...).
+
+echo "libc.so, again"
+mkdir -p $startdir/libcdir
+cd $startdir/libcdir
+../e.make.libc $startdir/local_bin "-$GCC_VERSION"
+
+if [ $? -ne 0 ]
+then
+    echo "Libc make failed"
+    exit 1
+fi
+
+# But we want to use the official libc and libm, if present.
+if [ -f /usr/lib/libc.so ]
+then
+    rm -f $startdir/local_bin/libc.so*
+    rm -f $startdir/local_bin/libm.so*
+
+    cp /usr/lib/libc.so $startdir/local_bin/libc.so
+    cp /usr/lib/libm.so $startdir/local_bin/libm.so
+fi
+
+cd $startdir
+
+# If we went to the backup compiler, make sure we see it!
+if [ -f $startdir/logs/ICE.LOG ]
+then
+    cat $startdir/logs/ICE.LOG
+fi
+
+#-----------------------------------------------------------------------
+# At this point we've built everything we need to deliver a product,
+
+echo Makeing image
+./e.make.image $startdir $startdir/image $PREFIX $GCC_VERSION $arch $startdir/drop.$arch.tgz 123t >logs/log.drop.1 2>&1
+
+# log.drop should be empty, but to make a point if it isn't:
+cat logs/log.drop.1
+
+#-----------------------------------------------------------------------
+# Now we regress (to childhood)
+#-----------------------------------------------------------------------
+# First build dejagnu; it's dependent on C++ so we can't do it right
+# until we get here.
+
+# We need these files where g++ can find them to build dejagnu.
+mkdir local_bin/include
+cp -r image/opt/gcc.3.2/include/g++-v3/i386-pc-interix3/* local_bin/include
+cp -r image/opt/gcc.3.2/include/g++-v3/* local_bin/include
+do_configure_bin "$EGCS_GCC_CONFIGURE" dejagnu
+do_make egcs.bin/dejagnu
+
+# First check the tools.  (There are "expected" failures.)
+
+#-----------------------------------------------------------------------
+### tcl moved to last in case it hangs, which it often does.
+
+#-----------------------------------------------------------------------
+cd $startdir/egcs.bin/expect
+echo Makeing expect check
+if make check  >$startdir/logs/log.check.expect 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of " $startdir/logs/log.check.expect
+echo "                          Expect P=19"
+
+#-----------------------------------------------------------------------
+# We set PATH and TCL_LIBRARY above to allow this to work without actually
+# having installed expect or tcl.
+
+cd $startdir/egcs.bin/dejagnu
+echo Makeing dejagnu check
+if gmake check  >$startdir/logs/log.check.dejagnu 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of " $startdir/logs/log.check.dejagnu
+echo "                          Expect P=61"
+
+#-----------------------------------------------------------------------
+cd $startdir/egcs.bin/gas
+echo Makeing gas/gasp check
+if make check  >$startdir/logs/log.check.gas 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of " $startdir/logs/log.check.gas
+echo "                          Expect (intel)P=35"
+
+#-----------------------------------------------------------------------
+cd $startdir/egcs.bin/ld
+echo Makeing ld check
+if make check  >$startdir/logs/log.check.ld 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of " $startdir/logs/log.check.ld
+echo "                          Expect P=20, U=5, UR=3"
+echo
+#   map-address: not expected PE special cases.
+#   selective* (garbage collection): 2 FAIL 3 UNRES (3 may be something else)
+#     (Only elf supports selective stuff; unres may be assembler config prob.)
+#   S-records: 2 FAIL
+
+#-----------------------------------------------------------------------
+cd $startdir/egcs.bin/binutils
+echo Makeing binutils check
+if make check  >$startdir/logs/log.check.binutils 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of " $startdir/logs/log.check.binutils
+echo "                          Expect P=26, F=1"
+# F is objcopy failure (preserves semantics, but not bit-for-bit identity)
+
+# there is no bfd test
+# there is no opcodes test
+
+#-----------------------------------------------------------------------
+cd $startdir/libexec/libdl
+echo Makeing libdl check
+if make check  >$startdir/logs/log.check.libdl 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of" $startdir/logs/log.check.libdl
+echo "                          Expect # of LOD 0"
+echo "    -- on 2.2, expect LOD 2 (collect2)"
+echo "    -- Win2k 0 or 5-or-so with "Unexpected..." are both OK."
+echo "    -- LOD 17: collect2 + fail soft compile stuff (OK)"
+echo "    -- LOD 7: fail soft (OK)"
+echo
+
+#-----------------------------------------------------------------------
+echo Makeing gdb check
+
+cd $startdir/egcs.bin/gdb/testsuite
+make site.exp
+echo "set CC_FOR_TARGET \"$startdir/local_bin/gcc -B $startdir/local_bin/\"" >>site.exp
+
+# The gdbtk (Insight) tests won't run if there's no DISPLAY variable.
+# However, if there's no server, they'll hang or do odd things.
+# See if there's a server on our DISPLAY, and if not, stomp it.
+
+if xset -q >/dev/null 2>&1
+then
+   : nothing
+else
+   unset DISPLAY
+   echo "Not Running Gdbtk tests!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+fi
+
+cd $startdir/egcs.bin/gdb
+# RUNTESTFLAGS="--verbose --verbose" 
+if make check >$startdir/logs/log.check.gdb 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of " $startdir/logs/log.check.gdb
+echo "                          Expect P=8146, U=71, X=89, XF=77, UR=12, UT=6, US=3"
+#
+# FAIL: breakpoints at multi-line if, while cond, i b. prob comp bug in x86
+#       that someone will fix, someday. (3)
+# FAIL: fails because optimized code hasn't put arg into right place yet
+#       (or because break at function breaks too early in function?) (2)
+# FAIL: call-ar-st: more "early function" problems.
+# FAIL: call-rt-st: prob test pattern error.  (line #?) (2)
+# FAIL: callfuncs: doesn't preserve eax after kbd call. (expect a fix). (2)
+# FAIL: callfuncs: args, again. (6)
+# FAIL: condbreak: args problem causes conditional to fail.
+#### Many more on "initial val of args" bug.  (Noise level too high, giving up)
+# FAIL: gdb.base/corefile.exp: print func2::coremaker_local (OF)
+# ERROR: couldn't load intarr1.srec into /dev/fs/C/home/donn.intel/gnu2.intel/egcs.bin/gdb/testsuite/../../gdb/gdb (end of file).  (srec; may be "normal"?) (12)
+# FAIL: gdb.base/relocate.exp: functions have different addresses (??)
+# FAIL: gdb.base/selftest.exp: step into xmalloc call (OF)
+# FAIL: gdb.c++/annota2.exp: watch triggered on a.x (OF)
+# FAIL: gdb.c++/classes.exp: print Foo::st (5)
+#       stabs symbol is inconsistent about leading understore: in
+#	the "real" definition, its doubled, but in the .stabs for the
+#	struct, it's not: _ZN3Foo2stE is the first example (see misc.c->s)
+#	Defer to see if it gets fixed for free... their _ bug.
+# FAIL: gdb.c++/classes.exp: print csi with static members (2)
+# FAIL: gdb.c++/cplusfuncs.exp: print &'hairyfunc5' (OF) (3)      
+# FAIL: gdb.c++/local.exp: ptype NestedInnerLocal (OF)
+# FAIL: gdb.c++/method.exp: print this in A::bar (gnats:gdb/277)
+# FAIL: gdb.c++/namespace.exp: print 'AAA::c' (OF)
+# FAIL: gdb.c++/templates.exp: constructor breakpoint (OF)
+# FAIL: gdb.c++/templates.exp: print Foo<volatile char *>::foo
+#       But omitting the space before the * makes it work!  Theirs???
+# FAIL: gdb.c++/virtfunc.exp: running to main in runto
+#       See below.
+# FAIL: gdb.c++/virtfunc.exp: ptype .* (37)
+#       Bug in gcc causing gdb to core: patch now makes it just error.
+# FAIL: gdb.c++/virtfunc.exp: setting breakpoint at 'test_calls'
+#       Cascade from above.
+# FAIL: gdb.mi/mi-break.exp: insert temp breakpoint at "<fullfilename>":6 (callee4) (OF on similar... (<filename> vs "").)
+#       This appears to be a test bug (quoting problems)
+# FAIL: gdb.mi/mi-console.exp: Hello message (known bug)  (OF)
+# FAIL: gdb.mi/mi-simplerun.exp: insert breakpoint at "<fullfilename>":6 (callee4) 204-break-list (as above)
+#       This appears to be a test bug (quoting problems)
+# FAIL: gdb.mi/mi-watch.exp: wp out of scope (2)
+#       Disagreement about which function we're in; unwind problem?
+#	(Fix reread first!)
+# FAIL: gdb.mi/mi0-break.exp: insert temp breakpoint at "<fullfilename>":6 (callee4) 
+#       This appears to be a test bug (quoting problems)
+# FAIL: gdb.mi/mi0-console.exp: Hello message (known bug) (OF)
+# FAIL: gdb.mi/mi0-simplerun.exp: insert breakpoint at "<fullfilename>":6 (callee4)
+#       This appears to be a test bug (quoting problems)
+# FAIL: gdb.mi/mi0-watch.exp: wp out of scope (2)   MINE?
+#       Disagreement about which function we're in; unwind problem?
+#	(Fix reread first!)
+
+# NO PTHREADS (2)  (Yields 3 messages each)
+
+#-----------------------------------------------------------------------
+cd $startdir/fcvs
+echo Makeing g77 check
+if driver >$startdir/logs/log.check.g77 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+grep "# of " $startdir/logs/log.check.g77
+echo "                          Expect P=3344, F=3, I=189, LOD=38"
+echo "                   LOD=83 is acceptable, for now."
+echo "                   LOD=87 is acceptable for 3.1, for now."
+echo
+# Cause: apparent buffering discrepency for most. (PAUSE/continue).
+#        warning on order of common (1 more of them in 3.1)
+#        D vs E exponents (weak test).
+#        LOD should really be zero; mostly it's fixing the script.
+
+#-----------------------------------------------------------------------
+# Some additional tests
+echo Makeing other tests
+cd $startdir/othertests
+driver "$startdir/local_bin/gcc -B$startdir/local_bin/ -D_ALL_SOURCE" \
+       "$startdir/local_bin/g++ -B$startdir/local_bin/" \
+       "$startdir/local_bin/g77 --driver=$startdir/local_bin/gcc -B $startdir/local_bin/ -B $startdir/local_bin/" \
+       "$startdir/local_bin"
+echo "                          Expect T=3, F=0"
+echo
+
+#-----------------------------------------------------------------------
+# Do the egcs/libs tests in one swell foop for the reporting tools.
+# Do them last because they take so long
+cd $startdir/egcs.bin
+echo Makeing egcs check
+if gmake -k check-libiberty \
+        check-gcc \
+        check-target-libstdc++-v3 \
+        check-target-libf2c \
+        check-target-libobjc \
+	RUNTESTFLAGS="TOOL_OPTIONS=-D_ALL_SOURCE" \
+                      >$startdir/logs/log.check.egcs 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+   echo Exit with 2 is OK... results printed below
+fi
+
+# Then print the results
+perl -e '
+print "\nlibiberty/demangle:\n";
+while ($_ = <>) {
+   if ( /regress-demangle/ ) {
+      $_ = <>;
+      print $_;
+      last;
+   }
+}
+print "                            Expect \"All 648 tests passed\".";
+
+print "\nlibf2c regression:\n";
+# search to beginning of test
+while (<>) {
+   if (/^cd libU77;.*make.*check/) {
+      last;
+   }
+}
+
+# skip a couple of lines if its gmake, so the tests below dont trip too
+# soon.
+<>;
+<>;
+
+$sawlast=0;
+while (<>) {
+   if (/Error.* 1 \(ignored\)/ && $sawlast) {
+      print "Test appears to have succeeded; manual check needed\n";
+      last;
+   }
+   if (/You should see exit status 1/) {
+      $sawlast = 1;
+   }
+   if (/libchill/ || /make/)
+   {
+      print "Apparently failed\n";
+      last;
+   }
+}
+
+print "                            Expect \"Test appears...\"\n";
+' <$startdir/logs/log.check.egcs
+
+echo 
+echo "libstdc++-v3:"
+echo
+grep "^#" <$startdir/egcs.bin/i386-pc-interix3/libstdc++-v3/testsuite/libstdc++-v3.log
+print "                     HEAD  :Expect (I) P=364 F=18 S=10 E=16 US=6"
+#
+# ... possibly a problem in money....  see patch 16.
+# FAILS: 18_support/numeric_limits.cc (long double)
+#        20_util/allocator.cc
+#        21_strings/append.cc execution test 
+#        21_strings/ctor_copy_dtor.cc execution test
+#        21_strings/element_access.cc execution test
+#        21_strings/insert.cc execution test
+#        21_strings/substr.cc execution test
+#        23_containers/bitset_ctor.cc execution test
+#        23_containers/bitset_members.cc execution test
+#        23_containers/map_operators.cc (can't match symbol)
+#        23_containers/set_operators.cc (can't match symbol)
+#        23_containers/vector_element_access.cc execution test
+#        26_numerics/complex_inserters_extractors.cc (can't match symbol)
+#        26_numerics/complex_value.cc (can't match symbol)
+#        27_io/ios_init.cc execution test
+#	 27_io/ios_members.cc execution test
+#        27_io/istringstream_members.cc execution test
+# UNSUPP: pthread (6)
+
+echo 
+echo "gcc:"
+echo
+grep "^#" <$startdir/egcs.bin/gcc/testsuite/gcc.sum
+print "                     HEAD  :Expect P=19161 F=79 S=1 E=62 US=62"
+# OF = other implementations of gcc are known to fail this test
+#      (Silence means "I don't know" whether others fail!)
+# FAIL: gcc.c-torture/execute/20020402-1.c execution,  -Os
+# FAIL: gcc.c-torture/execute/conversion.c execution (4)
+# FAIL: gcc.c-torture/execute/ieee/rbug.c execution,  -O*  (4)
+#    i386 specific; I have fix but it hasn't sold.
+# FAIL: cmdlne-dM-M.c: #define line not printed
+# FAIL: gcc.dg/inline-2.c scan-assembler-not PLT
+# FAIL: gcc.dg/noreturn-4.c (2)
+# FAIL: gcc.dg/uninit-A.c (2)
+# FAIL: gcc.dg/weak-1.c scan-assembler weak[^     ]*[     ]_?a (7)
+#    good chance of a test bug
+# FAIL: gcc.dg/weak-*.c scan-assembler weak (MANY)
+# FAIL: gcc.dg/wint_t-1.c (test for excess errors)
+#    Assignment from incompatabile pointer type.
+# FAIL: gcc.dg/format/c99-scanf-3.c vfscanf (test for warnings, line 21) (4)
+# UNRESOLVED are due to traditional fail.
+
+echo 
+echo "g++:"
+echo
+grep "^#" <$startdir/egcs.bin/gcc/testsuite/g++.sum
+print "                     HEAD  :Expect (I) P=7326 F=13 S=2 E=87 UT=15 US=3"
+# FAIL: g++.dg/abi/rtti1.C scan-assembler-dem-not
+# FAIL: g++.dg/ext/instantiate3.C scan-assembler-not 
+# FAIL: g++.dg/template/typename2.C (test for excess errors)
+# FAIL: g++.dg/warn/Wunused-2.C  (test for warnings, line 5)
+# FAIL: g++.dg/warn/weak1.C (test for excess errors)
+#    weak not supported (fix to make NS?, just fix it?) (1)
+# FAIL: g++.dg/special/initp1.C execution test
+# FAIL: g++.ext/attrib5.C (test for excess errors)
+#    weak not supported
+#    probably our headers! (1)
+# FAIL: g++.jason/pmf7.C  Execution test
+# FAIL: g++.jason/template26.C  Execution test
+# FAIL: g++.law/ctors12.C (test for excess errors)
+# FAIL: g++.law/profile1.C (test for excess errors)
+#    no gprof (1)
+# FAIL: g++.other/crash32.C caused compiler crash
+# FAIL: g++.other/unchanging1.C (test for excess errors)
+#    math.h collision on struct complex (see ctors12). (1)
+# A couple untested might check to see if we can/should pass as the are
+# both linux and freebsd on x86.
+
+
+
+echo 
+echo "g77:"
+echo
+grep "^#" <$startdir/egcs.bin/gcc/testsuite/g77.sum
+print "                     HEAD:  Expect P=1618 F=8 US=8"
+
+# FAIL: g77.f-torture/execute/6367.f execution (8)
+# UNSUPPORTED: g77.dg/20010216-1.f (8)
+
+echo 
+echo "objc"
+echo
+grep "^#" <$startdir/egcs.bin/gcc/testsuite/objc.sum
+print "                            Expect (I) P=1035, U=6 why? "
+
+#-----------------------------------------------------------------------
+### Temporarily moved here because it's prone to hanging.
+cd $startdir/egcs.bin/tcl
+echo Makeing tcl check
+if make check >$startdir/logs/log.check.tcl 2>&1
+then
+   : nothing
+else
+   echo Test exited with $?
+fi
+# Make check is currently broken, and we've hacked it there; the
+# result format is different, but if they fix it we'd want to revert.
+# This is the proper grep for right now
+#grep "# of " $startdir/logs/log.check.tcl  # The old way
+grep "all.tcl:" $startdir/logs/log.check.tcl
+echo "                          Expect: Total   8978    Passed  8138    Skipped 824     Failed  16"
+echo
+
+# Failures: cmdMZ-1.4, fCmd-4.11, unixFCmd-1.1: bypass traverse checking
+# cmdAH-19.11 is also probably BPT but showed up more recently.
+# fCmd8.2, filename-15.6: ~ problems
+# http-3.10: no -queryprogress
+# http-3.11: no -querychannel
+# http-4.14, socket-2.9, socket-3.1: socket duplication not caught.
+# socket-5.1, socket-5.3: reserved sockets (claims to be htons)
+# string-4.10, string-4.11 string-4.13: unicode characters
+# string-6.38: underflow not detected?
+# unixFCmd-1.1: more BTC
+
+
+# Clean out any dangling junk from tcl.
+sleep 5
+TCLTESTS=$(ps -ew | grep "tcltest" | cut -c1-7)
+if [ "$TCLTESTS" ]; then
+   kill $TCLTESTS
+fi
+
+# If we went to the backup compiler, make sure we see it!
+if [ -f $startdir/logs/ICE.LOG ]
+then
+    cat $startdir/logs/ICE.LOG
+fi

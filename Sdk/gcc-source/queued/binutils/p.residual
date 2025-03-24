@@ -1,0 +1,32 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/binutils/testsuite/binutils-all/ar.exp //D/home/donn.intel/gnu.intel/binutils/testsuite/binutils-all/ar.exp
+--- //Q/Gnusrc/cygwin.18/binutils/testsuite/binutils-all/ar.exp	Mon Mar 15 18:10:34 1999
++++ //D/home/donn.intel/gnu.intel/binutils/testsuite/binutils-all/ar.exp	Sun May 23 00:22:33 1999
+@@ -85,9 +85,12 @@ proc long_filenames { } {
+     }
+ 
+     verbose -log "cd tmpdir; $AR x artest.a"
+-    catch "exec /bin/sh -c \"cd tmpdir; $AR x artest.a\"" exec_output
++    # If CDPATH is set, we might get the directory name.  Also, be sure
++    # that any "chatty" aliases are suppressed.
++    catch "exec sh -c \"unset CDPATH; 'cd' tmpdir; $AR x artest.a\"" exec_output
+     set exec_output [prune_warnings $exec_output]
+     if ![string match "" $exec_output] {
++	verbose -log "extract failed"
+ 	verbose -log $exec_output
+ 	fail $testname
+ 	return
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/binutils/testsuite/binutils-all/objcopy.exp //D/home/donn.intel/gnu.intel/binutils/testsuite/binutils-all/objcopy.exp
+--- //Q/Gnusrc/cygwin.18/binutils/testsuite/binutils-all/objcopy.exp	Mon Mar 15 18:10:34 1999
++++ //D/home/donn.intel/gnu.intel/binutils/testsuite/binutils-all/objcopy.exp	Sun May 23 00:22:33 1999
+@@ -40,7 +40,10 @@ if ![string match "" $got] then {
+ } else {
+     send_log "cmp tmpdir/bintest.o tmpdir/copy.o\n"
+     verbose "cmp tmpdir/bintest.o tmpdir/copy.o"
+-    catch "exec cmp tmpdir/bintest.o tmpdir/copy.o" exec_output
++    # Deal with dates the same way gcc does.  (Better... a date setter.)
++    exec tail +16 tmpdir/bintest.o >tmpdir/foo1
++    exec tail +16 tmpdir/copy.o >tmpdir/foo2
++    catch "exec cmp tmpdir/foo1 tmpdir/foo2" exec_output
+     set exec_output [prune_warnings $exec_output]
+ 
+     # On some systems the result of objcopy will not be identical.

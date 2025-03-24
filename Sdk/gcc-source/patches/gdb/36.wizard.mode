@@ -1,0 +1,184 @@
+Normally it's a bad idea that breakpoints are left in shared libraries
+while the shared library initialization is going on (for example, a 
+breakpoint could be set on something that's relocated).  That's turned
+off elsewhere.  However, when debugging the shared library initialization
+itself, it's desireable to leave them (and enable them one at a time
+by hand, if necessary).  
+
+Debugging trampoline code and signal handler callers presents the 
+same sort of problem.
+
+Wizard mode informs the debugger that you really (really, really!)
+know what you're doing, and that it shouldn't protect you from
+yourself (as much).
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* defs.h(wizard_mode): define.
+	* infrun.c(wait_for_inferior, step_into_function): allow single 
+	step thru trampoline when in wizard mode.
+	* stack.c(print_frame_info): show dummys and signal handler
+	callers in stack for wizard mode.
+	* top.c(init_main): init wizard_mode, print appropriate help.
+	* breakpoint.c(disable_breakpoints_in_shlibs): Honor wizard mode.
+
+Index: src/gdb/breakpoint.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/breakpoint.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 breakpoint.c
+--- src/gdb/breakpoint.c	2001/12/23 23:31:08	1.2
++++ src/gdb/breakpoint.c	2001/12/24 02:09:01
+@@ -4098,6 +4098,12 @@ disable_breakpoints_in_shlibs (int silen
+   struct breakpoint *b;
+   int disabled_shlib_breaks = 0;
+ 
++  if (wizard_mode)
++    {
++      printf_filtered ("Breakpoints NOT DISABLED during relocation.\n");
++      return;
++    }
++
+   /* See also: insert_breakpoints, under DISABLE_UNSETTABLE_BREAK. */
+   ALL_BREAKPOINTS (b)
+   {
+Index: src/gdb/defs.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/defs.h,v
+retrieving revision 1.2
+diff -p -u -r1.2 defs.h
+--- src/gdb/defs.h	2001/12/23 23:01:19	1.2
++++ src/gdb/defs.h	2001/12/24 02:09:01
+@@ -175,6 +175,7 @@ extern int dbx_commands;
+ extern int quit_flag;
+ extern int immediate_quit;
+ extern int sevenbit_strings;
++extern int wizard_mode;
+ 
+ extern void quit (void);
+ 
+Index: src/gdb/infrun.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/infrun.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 infrun.c
+--- src/gdb/infrun.c	2001/12/24 01:44:40	1.2
++++ src/gdb/infrun.c	2001/12/24 02:09:01
+@@ -2626,6 +2626,7 @@ process_event_stop_test:
+   /* Did we just take a signal?  */
+   if (PC_IN_SIGTRAMP (stop_pc, ecs->stop_func_name)
+       && !PC_IN_SIGTRAMP (prev_pc, prev_func_name)
++ 	&& !wizard_mode
+       && INNER_THAN (read_sp (), step_sp))
+     {
+       /* We've just taken a signal; go until we are back to
+@@ -2759,7 +2760,7 @@ process_event_stop_test:
+          function.  That's what tells us (a) whether we want to step
+          into it at all, and (b) what prologue we want to run to
+          the end of, if we do step into it.  */
+-      tmp = SKIP_TRAMPOLINE_CODE (stop_pc);
++	tmp = wizard_mode ? 0 : SKIP_TRAMPOLINE_CODE (stop_pc);
+       if (tmp != 0)
+ 	ecs->stop_func_start = tmp;
+       else
+@@ -2837,8 +2838,8 @@ process_event_stop_test:
+       CORE_ADDR tmp;
+ 
+       /* Determine where this trampoline returns.  */
+-      tmp = SKIP_TRAMPOLINE_CODE (stop_pc);
+-
++	tmp = wizard_mode ? 0 : SKIP_TRAMPOLINE_CODE (stop_pc);
++
+       /* Only proceed through if we know where it's going.  */
+       if (tmp)
+ 	{
+@@ -4317,6 +4318,12 @@ step == scheduler locked during every si
+ function without debug line information will stop at the first\n\
+ instruction of that function. Otherwise, the function is skipped and\n\
+ the step command stops at a different source line.", &setlist);
++  add_show_from_set (c, &showlist);
++
++  c =  add_set_cmd ("wizard-mode", class_support, 
++		    var_boolean,  (char *) &wizard_mode,
++		    "Set debugging of trampolines and other infrastructure.",
++		    &setlist);
+   add_show_from_set (c, &showlist);
+ 
+   /* ptid initializations */
+Index: src/gdb/stack.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/stack.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 stack.c
+--- src/gdb/stack.c	2001/12/23 00:34:56	1.1.1.1
++++ src/gdb/stack.c	2001/12/24 02:09:01
+@@ -350,7 +350,7 @@ print_frame_info_base (struct frame_info
+      to check for a bp_call_dummy breakpoint.  */
+   if (PC_IN_CALL_DUMMY (fi->pc, sp, fi->frame))
+ #else
+-  if (deprecated_frame_in_dummy (fi))
++  if (!wizard_mode && deprecated_frame_in_dummy (fi))
+ #endif
+     {
+       annotate_frame_begin (level == -1 ? 0 : level, fi->pc);
+@@ -354,7 +354,7 @@ print_frame_info_base (struct frame_info
+       annotate_frame_end ();
+       return;
+     }
+-  if (fi->signal_handler_caller)
++  if (!wizard_mode && fi->signal_handler_caller)
+     {
+       annotate_frame_begin (level == -1 ? 0 : level, fi->pc);
+ 
+Index: src/gdb/top.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/top.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 top.c
+--- src/gdb/top.c	2001/12/23 23:01:19	1.2
++++ src/gdb/top.c	2001/12/24 02:09:01
+@@ -93,6 +93,12 @@ extern char lang_frame_mismatch_warn[];	
+ 
+ int caution = 1;		/* Default is yes, sigh. */
+ 
++/* This is non-zero when we want to debug the infrastructure, such as
++   single-step trampoline code (either signal or function call), see the
++   stack unwind thru a signal trampoline, etc. */
++
++int wizard_mode = 0;
++
+ /* stdio stream that command input is being read from.  Set to stdin normally.
+    Set by source_command to the file we are sourcing.  Set to NULL if we are
+    executing a user-defined command or interacting via a GUI.  */
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files src/gdb.saved/doc/gdb.texinfo src/gdb/doc/gdb.texinfo
+--- src/gdb.saved/doc/gdb.texinfo	Wed Mar 13 14:25:02 2002
++++ src/gdb/doc/gdb.texinfo	Wed Mar 13 16:09:36 2002
+@@ -2586,6 +2586,29 @@ starting with @code{-1}; @samp{info brea
+ You can see these breakpoints with the @value{GDBN} maintenance command
+ @samp{maint info breakpoints} (@pxref{maint info breakpoints}).
+ 
++@cindex wizard  mode
++@cindex shared libraries
++@cindex dynamic loading
++@cindex dlopen
++@kindex set wizard-mode
++@item set wizard-mode @var{mode}
++@value{GDBN} will normally disable and re-enable breakpoints when loading and 
++unloading shared libraries and during process initialization.  If
++you need to debug the shared library mechanism or otherwise want to
++completely manage your own breakpoints, @code{set wizard-mode on} tells
++@value{GDBN} to simply leave breakpoints alone at such times.  This will cause
++@value{GDBN} to complain that it cannot set breakpoints at addresses
++in shared libraries that are not yet loaded.  However, by using the
++@code{enable} and @code{disable} commands, you can control the breakpoints
++manually.  This is best used by setting a breakpoint just after a shared
++library is loaded into memory, but before the code you are debugging
++runs, and then setting or enabling the breakpoints in the shared library
++upon reaching the first breakpoint.
++
++@emph(NOTE): Unless you are working on the shared library or other
++"under the covers" mechanisms provided by the operating system or the
++compiler, you almost assuredly do not need this, and using it will
++make your life much more difficult.
+ 
+ @node Set Watchpoints
+ @subsection Setting watchpoints

@@ -1,0 +1,825 @@
+Submitted 6/6
+Resubmitted 8/14
+
+Feature: MSVC-style bit field packing.
+
+This is a resubmit of a rather old patch, cleaned up to match the
+current sources.  (And... that was a revision of an even earlier one.)
+I have just run a 3-stage boot and regression with no changes with this
+patch applied.
+
+There are a few places where the indentation of a block of code needs
+to be changed.  Since applying the patch (and maintaining it) is easier
+if indentation doesn't change, I've deferred that until the last possible
+minute.  I'll be happy to do the mechanics at the time that someone
+actually gets around to applying the change, or they can do it if they
+wish.  (The changes are obvious.)  There are comments flagging the places
+where indentation should be changed; those should be removed as well.
+(Over the last year, this particular block of code has proven to be
+particularly volitile, so minimizing the unnecessary changes was useful.)
+
+
+Don't blame me for the packing rules, it matches MSVC output.
+
+Thanks to Mumit Khan, Alastair Houghton, and "Mikey" (don't know which)
+for their contributions to the tests and identifying some of the
+less intuitive special cases so they could be fixed.
+
+I realize that Jeff has said that the default should be "native"
+(match the ABI), but these structure packing rules are so different
+from the current default that some transition time is needed if they
+ever become the default.  Thus, the option is retained.
+
+The patch also provides compile line and attribute options to set the option.
+
+Details:
+	MSVC (and maybe other) compilers don't align bitfields to match
+	any of the "normal" gcc modes.  In addition, there are good arguments
+	on both sides of whether "gnu" or "native" packing should be provided
+	(and what the default should be).  Rather than making a commitment...
+
+	I chose the names "native" and "gnu" rather than "native" and
+	"no-native" or some other variation both because it seemed more
+	extensible and because it asserted what was being done directly.
+
+	As a note: both the alpha and the i386 seem to already use
+	PCC_BITFIELD_TYPE_MATTERS as 1, so I did not change that.  However,
+	this is set up so that it would be a one line change in the
+	the configuration files to make it track the setting of the
+	"native" flag I introduce below.  (I don't see a reason to
+	provide a bunch of options along these lines: the native mode
+	and the gcc default seem to be the only two interesting ones.
+	However, if there's more than one native mode, then there may
+	be a need.) (No recommendation, just an observation.)
+
+	1)  Add command line --native-struct and --gnu-struct, and
+	    corresponding __attribute__ native_struct and gnu_struct.
+	    Let the end-user choose which format he wants.  These are
+	    exactly parallel to --packed/packed, except that they apply
+	    ONLY to whole structs (__attribute__((packed)) can be applied
+	    to a single field).
+	    tree.h: add new bit native_flag to struct tree_type, 
+	      TYPE_NATIVE macro to maintain it.
+	    flags.h: add new flag_native_struct for global setting of
+	      the mode.
+	    attribs.c: add native and gcc_pack attribute handling functions,
+	      add the fields in c_common_attribute_table, and the cases 
+	      to decl_attributes.  These set/clear TYPE_NATIVE
+	    c-decl.c: set TYPE_NATIVE from flag_native_struct
+	    toplev.c: parse the new keywords (add to table) and initialize
+	      flag_native_struct to DEFAULT_NATIVE_STRUCT (0 if not defined)
+	      so that the compiler's default can be controlled from the
+	      configuration.
+
+	2)  Add a new packing mode, enabled by GROUP_BITFIELDS_BY_ALIGN
+	    which aligns bitfields so that fields with underlying type
+	    of the same alignment are packed together (but a new alignment
+	    starts a new group of bitfields).  (This is an abstraction
+	    of the MSVC semantics.)  There are also a large number of
+	    special cases having to do with adjacent (or not) and zero
+	    size bitfields.
+
+	3)  C++ was not honoring the command line --packed-struct option
+	    (just ignoring it).  It also needed to propigate native type.
+
+	    * cp/decl.c:xref_tag(): set the NATIVE and PACKED bits for the
+	      type in the analogous place that in c-decl.c.  (I don't
+	      see a reason not to honor the command line option if the
+	      attribute works, but if there is one....)
+	    * cp/pt.c: instantiate_class_template().  Propigate the 
+	      native property the same way packed is.
+
+	4)  (The flags to turn this on for Interix were already present,
+	    but needed a tweak.)
+
+	I have a testcase, which I have informally attached.
+
+	Part of the testcase should be compiled with the native
+	compiler, part with gcc, and the two linked together and
+	run to check the results.  I'll provide a testsuite patch
+	if someone will recommend a way to set up that mixed
+	compilation in the testsuite environment (or is that asking
+	too much?)  The test case is set up to use both the attribute
+	and command line forms easily.  As it appears below, it's
+	set up for command line.
+
+	Note: gcc would have to treat "long double" as a 64-bit type
+	to get structures containing "long double" to match MSVC.
+	It was (currently) felt that having long double be an 80 bit type
+	was preferable, since double does the job nicely.
+
+ChangeLog gcc
+
+Mon Apr 26 12:25:41 1999 Donn Terry (donn@interix.com)
+Refreshed 11-14-2001 Douglas Rupp (rupp@gnat.com)
+
+	* flags.h (flag_native_struct): New boolean.
+	* tree.h (TYPE_NATIVE): New macro.
+	(tree_type): Add native_flag.
+	(record_layout_info): Add new field.
+	* attribs.c (handle_native_attribute): New function.
+	(handle_gcc_pack_attribute): New function.
+	(c_common_attribute_table[]): Add fields for native and gcc_pack.
+	* c-decl.c (start_struct): Propagate TYPE_NATIVE.
+	* stor-layout.c (start_record_layout): Honor GROUP_BITFIELDS_BY_ALIGN.
+	(place_union_field): Likewise.
+	(place_field): Likewise.
+	* toplev.c (lang_independent_options): Add native-struct and
+	gcc-struct flags.
+	(flag_native_struct): Initialize.
+	* config/i386/i386-interix.h (PCC_BITFIELD_TYPE_TEST): remove.
+	* config/alpha/alpha-interix.h (PCC_BITFIELD_TYPE_TEST): remove.
+
+ChangeLog gcc/cp
+
+Mon Apr 26 12:25:41 1999 Donn Terry (donn@interix.com)
+
+	* decl.c (xref_tag): Init TYPE_PACKED and TYPE_NATIVE from globals.
+	* pt.c (instantiate_class_template): Propigate TYPE_NATIVE.
+
+Index: gcc/gcc/attribs.c
+===================================================================
+RCS file: /H/rupp/devel-local-repository/gcc/gcc/attribs.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 attribs.c
+--- gcc/gcc/attribs.c	2001/11/14 22:28:11	1.1.1.1
++++ gcc/gcc/attribs.c	2001/11/15 01:45:25
+@@ -43,6 +43,10 @@ static bool attributes_initialized = fal
+ 
+ static tree handle_packed_attribute	PARAMS ((tree *, tree, tree, int,
+ 						 bool *));
++static tree handle_native_attribute	PARAMS ((tree *, tree, tree, int,
++						 bool *));
++static tree handle_gcc_pack_attribute	PARAMS ((tree *, tree, tree, int,
++						 bool *));
+ static tree handle_nocommon_attribute	PARAMS ((tree *, tree, tree, int,
+ 						 bool *));
+ static tree handle_common_attribute	PARAMS ((tree *, tree, tree, int,
+@@ -91,6 +95,10 @@ static const struct attribute_spec c_com
+   /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */
+   { "packed",                 0, 0, false, false, false,
+       			      handle_packed_attribute },
++  { "native",                 0, 0, false, false, false,
++      			      handle_native_attribute },
++  { "gcc_pack",               0, 0, false, false, false,
++      			      handle_gcc_pack_attribute },
+   { "nocommon",               0, 0, true,  false, false,
+ 			      handle_nocommon_attribute },
+   { "common",                 0, 0, true,  false, false,
+@@ -433,6 +441,76 @@ handle_packed_attribute (node, name, arg
+     DECL_PACKED (*node) = 1;
+   /* We can't set DECL_PACKED for a VAR_DECL, because the bit is
+      used for DECL_REGISTER.  It wouldn't mean anything anyway.  */
++  else
++    {
++      warning ("`%s' attribute ignored", IDENTIFIER_POINTER (name));
++      *no_add_attrs = true;
++    }
++
++  return NULL_TREE;
++}
++
++/* Handle a "native" attribute; arguments as in
++   struct attribute_spec.handler.  */
++
++static tree
++handle_native_attribute (node, name, args, flags, no_add_attrs)
++     tree *node;
++     tree name;
++     tree args ATTRIBUTE_UNUSED;
++     int flags;
++     bool *no_add_attrs;
++{
++  tree *type = NULL;
++  if (DECL_P (*node))
++    {
++      if (TREE_CODE (*node) == TYPE_DECL)
++	type = &TREE_TYPE (*node);
++    }
++  else
++    type = node;
++
++  if (type)
++    {
++      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
++	*type = build_type_copy (*type);
++      TYPE_NATIVE (*type) = 1;
++    }
++  else
++    {
++      warning ("`%s' attribute ignored", IDENTIFIER_POINTER (name));
++      *no_add_attrs = true;
++    }
++
++  return NULL_TREE;
++}
++
++/* Handle a "gcc_pack" attribute; arguments as in
++   struct attribute_spec.handler.  */
++
++static tree
++handle_gcc_pack_attribute (node, name, args, flags, no_add_attrs)
++     tree *node;
++     tree name;
++     tree args ATTRIBUTE_UNUSED;
++     int flags;
++     bool *no_add_attrs;
++{
++  tree *type = NULL;
++  if (DECL_P (*node))
++    {
++      if (TREE_CODE (*node) == TYPE_DECL)
++	type = &TREE_TYPE (*node);
++    }
++  else
++    type = node;
++
++  if (type)
++    {
++      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
++	*type = build_type_copy (*type);
++      TYPE_NATIVE (*type) = 0;
++    }
+   else
+     {
+       warning ("`%s' attribute ignored", IDENTIFIER_POINTER (name));
+Index: gcc/gcc/c-decl.c
+===================================================================
+RCS file: /H/rupp/devel-local-repository/gcc/gcc/c-decl.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 c-decl.c
+--- gcc/gcc/c-decl.c	2001/11/14 22:28:11	1.1.1.1
++++ gcc/gcc/c-decl.c	2001/11/15 01:33:48
+@@ -5369,6 +5369,7 @@ start_struct (code, name)
+     {
+       C_TYPE_BEING_DEFINED (ref) = 1;
+       TYPE_PACKED (ref) = flag_pack_struct;
++      TYPE_NATIVE (ref) = flag_native_struct;
+       if (TYPE_FIELDS (ref))
+         {
+ 	  if (code == UNION_TYPE)
+@@ -5388,6 +5389,7 @@ start_struct (code, name)
+   pushtag (name, ref);
+   C_TYPE_BEING_DEFINED (ref) = 1;
+   TYPE_PACKED (ref) = flag_pack_struct;
++  TYPE_NATIVE (ref) = flag_native_struct;
+   return ref;
+ }
+ 
+Index: gcc/gcc/flags.h
+===================================================================
+RCS file: /H/rupp/devel-local-repository/gcc/gcc/flags.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 flags.h
+--- gcc/gcc/flags.h	2001/11/14 22:28:19	1.1.1.1
++++ gcc/gcc/flags.h	2001/11/15 01:33:48
+@@ -502,6 +502,9 @@ extern int flag_gnu_linker;
+ /* Tag all structures with __attribute__(packed) */
+ extern int flag_pack_struct;
+ 
++/* Tag all structures with __attribute__(native_struct) */
++extern int flag_native_struct;
++
+ /* This flag is only tested if alias checking is enabled.
+    0 if pointer arguments may alias each other.  True in C.
+    1 if pointer arguments may not alias each other but may alias
+Index: gcc/gcc/tree.h
+===================================================================
+RCS file: /H/rupp/devel-local-repository/gcc/gcc/tree.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 tree.h
+--- gcc/gcc/tree.h	2001/11/14 22:28:27	1.1.1.1
++++ gcc/gcc/tree.h	2001/11/15 04:41:01
+   (TYPE_CHECK (NODE)->type.needs_constructing_flag)
+@@ -1092,10 +1092,15 @@ struct tree_block
+ #define TYPE_NONALIASED_COMPONENT(NODE) \
+   (ARRAY_TYPE_CHECK (NODE)->type.transparent_union_flag)
+ 
+-/* Indicated that objects of this type should be laid out in as
++/* Indicates that objects of this type should be laid out in as
+    compact a way as possible.  */
+ #define TYPE_PACKED(NODE) (TYPE_CHECK (NODE)->type.packed_flag)
+ 
++/* Indicates that objects of this type should be layed out as the
++   native compiler does; if a compile line option (or default state)
++   turns this on, then turning it OFF should result in gnu alignment. */
++#define TYPE_NATIVE(NODE) ((NODE)->type.native_flag)
++
+ /* A bounded pointer or bounded reference type (collectively called
+    indirect types) is represented as a RECORD_TYPE node containing
+    three pointer fields whose type is the corresponding unbounded
+@@ -1172,6 +1177,7 @@ struct tree_type
+   unsigned needs_constructing_flag : 1;
+   unsigned transparent_union_flag : 1;
+   unsigned packed_flag : 1;
++  unsigned native_flag : 1;
+   unsigned restrict_flag : 1;
+   unsigned pointer_depth : 2;
+ 
+Index: gcc/gcc/cp/decl.c
+===================================================================
+RCS file: /H/rupp/devel-local-repository/gcc/gcc/cp/decl.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 decl.c
+--- gcc/gcc/cp/decl.c	2001/11/14 22:30:04	1.1.1.1
++++ gcc/gcc/cp/decl.c	2001/11/15 01:33:48
+@@ -12780,6 +12780,9 @@ xref_tag (code_type_node, name, globaliz
+ 	  /* Class types don't nest the way enums do.  */
+ 	  class_binding_level = (struct binding_level *)0;
+ #endif
++	  TYPE_PACKED (ref) = flag_pack_struct;
++	  TYPE_NATIVE (ref) = flag_native_struct;
++
+ 	  pushtag (name, ref, globalize);
+ 	  class_binding_level = old_b;
+ 	}
+Index: gcc/gcc/cp/pt.c
+===================================================================
+RCS file: /H/rupp/devel-local-repository/gcc/gcc/cp/pt.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 pt.c
+--- gcc/gcc/cp/pt.c	2001/11/14 22:30:05	1.1.1.1
++++ gcc/gcc/cp/pt.c	2001/11/15 01:33:48
+@@ -5033,6 +5033,7 @@ instantiate_class_template (type)
+   TYPE_USES_VIRTUAL_BASECLASSES (type)
+     = TYPE_USES_VIRTUAL_BASECLASSES (pattern);
+   TYPE_PACKED (type) = TYPE_PACKED (pattern);
++  TYPE_NATIVE (type) = TYPE_NATIVE (pattern);
+   TYPE_ALIGN (type) = TYPE_ALIGN (pattern);
+   TYPE_USER_ALIGN (type) = TYPE_USER_ALIGN (pattern);
+   TYPE_FOR_JAVA (type) = TYPE_FOR_JAVA (pattern); /* For libjava's JArray<T> */
+
+Index: gcc/gcc/doc/extend.texi
+===================================================================
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc/gcc/doc/extend.texi egcs.source/gcc/gcc/doc/extend.texi
+--- gcc/gcc/doc/extend.texi	Fri Jan 11 15:41:42 2002
++++ gcc/gcc/doc/extend.texi	Sat Jan 12 19:47:36 2002
+@@ -2782,9 +2782,10 @@ section.
+ 
+ The keyword @code{__attribute__} allows you to specify special
+ attributes of variables or structure fields.  This keyword is followed
+-by an attribute specification inside double parentheses.  Ten
++by an attribute specification inside double parentheses.  Twelve
+ attributes are currently defined for variables: @code{aligned},
+-@code{mode}, @code{nocommon}, @code{packed}, @code{section},
++@code{mode}, @code{nocommon}, @code{packed},
++@code{native_struct}, @code{gnu_struct}, @code{section},
+ @code{transparent_union}, @code{unused}, @code{deprecated},
+ @code{vector_size}, and @code{weak}.  Some other attributes are defined
+ for variables on particular target systems.  Other attributes are
+@@ -2904,6 +2905,31 @@ struct foo
+ @};
+ @end example
+ 
++@item native_struct
++@itemx gnu_struct
++@cindex @code{native_struct}
++@cindex @code{gnu_struct}
++If @code(packed) is used on a structure
++pragmas), it may be that the system ABI packs them differently
++than gcc would normally pack them.  Particularly when moving packed
++data between functions compiled with gcc and the native compiler (either via
++function call or as data in a file), it may be necessary to access
++either format.  For many implementations of gcc, either there is
++only one packing convention, or gcc is the native compiler, and these
++flags then have no effect.  However, if the native compiler would
++yield different results than gcc would, these flags allow the packing
++rule for structures to be specified.  (This situation also applies when
++older versions of gcc which did not support the native order are involved.)
++The designers of gcc have indicated that the "native" form should be the
++preferred packing rules, but in situations where there may be
++several ABIs (in particular, the x86), the default gcc rules
++may provide a common format (when packed structures must be used) 
++that can be used for interchange.  The exact packing rules are
++architecture dependent.
++
++Currently --native-struct is provided for the Windows X86 compilers
++to match the native Microsoft compiler.
++
+ @item section ("@var{section-name}")
+ @cindex @code{section} variable attribute
+ Normally, the compiler places the objects it generates in sections like
+@@ -3071,8 +3097,9 @@ packed))}.
+ The keyword @code{__attribute__} allows you to specify special
+ attributes of @code{struct} and @code{union} types when you define such
+ types.  This keyword is followed by an attribute specification inside
+-double parentheses.  Five attributes are currently defined for types:
+-@code{aligned}, @code{packed}, @code{transparent_union}, @code{unused},
++double parentheses.  Seven attributes are currently defined for types:
++@code{aligned}, @code{packed}, @code{native_struct}, @code{gnu_struct},
++@code{transparent_union}, @code{unused},
+ and @code{deprecated}.  Other attributes are defined for functions
+ (@pxref{Function Attributes}) and for variables (@pxref{Variable Attributes}).
+ 
+@@ -3085,7 +3112,8 @@ instead of @code{aligned}.
+ You may specify the @code{aligned} and @code{transparent_union}
+ attributes either in a @code{typedef} declaration or just past the
+ closing curly brace of a complete enum, struct or union type
+-@emph{definition} and the @code{packed} attribute only past the closing
++@emph{definition} and the @code{packed} (and it's modifiers 
++@code{native_struct} and @code{gnu_struct}) attribute only past the closing
+ brace of a definition.
+ 
+ You may also specify attributes between the enum, struct or union
+@@ -3178,6 +3206,31 @@ alignment.  See your linker documentatio
+ This attribute, attached to an @code{enum}, @code{struct}, or
+ @code{union} type definition, specified that the minimum required memory
+ be used to represent the type.
++
++@item native_struct
++@itemx gnu_struct
++@cindex @code{native_struct}
++@cindex @code{gnu_struct}
++If @code{packed} is used on a structure
++pragmas), it may be that the system ABI packs them differently
++than gcc would normally pack them.  Particularly when moving packed
++data between functions compiled with gcc and the native compiler (either via
++function call or as data in a file), it may be necessary to access
++either format.  For many implementations of gcc, either there is
++only one packing convention, or gcc is the native compiler, and these
++flags then have no effect.  However, if the native compiler would
++yield different results than gcc would, these flags allow the packing
++rule for structures to be specified.  (This situation also applies when
++older versions of gcc which did not support the native order are involved.)
++The designers of gcc have indicated that the "native" form should be the
++preferred packing rules, but in situations where there may be
++several ABIs (in particular, the x86), the default gcc rules
++may provide a common format (when packed structures must be used) 
++that can be used for interchange.  The exact packing rules are
++architecture dependent.
++
++Currently --native-struct is provided for the Windows X86 compilers
++to match the native Microsoft compiler.
+ 
+ @opindex fshort-enums
+ Specifying this attribute for @code{struct} and @code{union} types is
+
+
+
+
+
+
+
+
+
+
+
+--------- TEST CASE bittest.h --------------
+struct a_type {
+   int a;
+   unsigned char b;
+   unsigned c:7;
+   int d;
+   unsigned e:3;
+   unsigned f:9;
+   unsigned char g:7;
+   int h;
+   unsigned int i:6;
+   unsigned int :0;
+   unsigned int j:6;
+} NATIVE ;
+
+struct b_type {
+   int a;
+   unsigned char b;
+   unsigned int c:7;
+   int d;
+   unsigned int e:3;
+   unsigned int f:9;
+   unsigned char g:7;
+   int h;
+   unsigned char i:6;
+   unsigned char :0;
+   unsigned char j:6;
+
+} NATIVE ;
+
+struct c_type {
+   int a;
+   unsigned char b;
+   unsigned short c:7;
+   int d;
+   unsigned short e:3;
+   unsigned short f:9;
+   unsigned char g:7;
+   short h;
+   unsigned short i:6;
+   unsigned short :0;
+   unsigned short j:6;
+} NATIVE ;
+
+struct d_type {
+   int a:3;
+   int b:4;
+   int c:4;
+   int d:6;
+   int e:5;
+   int f:5;
+   int g:5;
+} NATIVE ;
+
+/* Bitfields of size 0 have some truly odd behaviors. */
+
+struct e_type {   /* should be size 2! */
+   char a;
+   int :0;        /* ignored; prior field is not a bitfield. */
+   char b;
+};
+
+struct f_type {   /* should be size 8! */
+   char a:8;
+   int :0;	  /* not ignored; prior field IS a bitfield, causes struct
+		     alignment as well. */
+   char b;
+};
+
+struct g_type {   /* should be size 2! */
+   char a:8;
+   char :0;
+   int  :0;	  /* Ignored; prior field is zero size bitfield. */
+   char b;
+};
+
+struct h_type {   /* should be size 3! */
+   short a:3;
+   char  b;
+};
+
+#ifdef _MSC_VER
+#define LONGLONG __int64
+#else
+#define LONGLONG long long
+#endif
+
+union i_type {   /* should be size 2! */
+   LONGLONG a:3;
+   char  b;
+} NATIVE ;
+
+struct j_type {
+   union i_type i;
+   int j;
+} NATIVE ;
+--------- TEST CASE bittest_gcc.c --------------
+#define NATIVE 
+//#define NATIVE __attribute__((__native_struct__))
+#include "bittest.h"
+#include <stddef.h>
+
+#define check(s,f,v) if (s.f != v) { \
+        printf(#s"."#f " was %d not " #v "\n", s.f); exit_code = 1;}
+
+#define ckoff(a) for (ii=0; ii<3; ii++) { \
+		if (a##_offsets[ii] != my_##a##_offsets[ii]) {\
+		    printf(#a" offset field %d did not match: nat: %d v gcc: %d\n", \
+			ii, a##_offsets[ii], my_##a##_offsets[ii]); \
+			exit_code = 1; } }
+
+#define cksize(a) if (a##_size != my_##a##_size) { \
+		    printf(#a" size did not match: nat %d v gcc %d\n", \
+		       a##_size, my_##a##_size); \
+		       exit_code = 1; } 
+
+extern int a_offsets[];
+extern int b_offsets[];
+extern int c_offsets[];
+
+int my_a_offsets[]={offsetof(struct a_type,b),
+             offsetof(struct a_type,d),
+             offsetof(struct a_type,h),
+	     sizeof(struct a_type)};
+
+int my_b_offsets[]={offsetof(struct b_type,b),
+             offsetof(struct b_type,d),
+             offsetof(struct b_type,h),
+	     sizeof(struct b_type)};
+
+int my_c_offsets[]={offsetof(struct c_type,b),
+             offsetof(struct c_type,d),
+             offsetof(struct c_type,h),
+	     sizeof(struct c_type)};
+
+int my_d_size = sizeof(struct d_type);
+int my_e_size = sizeof(struct e_type);
+int my_f_size = sizeof(struct f_type);
+int my_g_size = sizeof(struct g_type);
+int my_h_size = sizeof(struct h_type);
+int my_i_size = sizeof(union i_type);
+int my_j_size = sizeof(struct j_type);
+
+extern int d_size;
+extern int e_size;
+extern int f_size;
+extern int g_size;
+extern int h_size;
+extern int i_size;
+extern int j_size;
+
+extern struct a_type a;
+extern struct b_type b;
+extern struct c_type c;
+extern struct d_type d;
+extern struct e_type e;
+extern struct f_type f;
+extern struct g_type g;
+extern struct h_type h;
+extern union i_type i;
+extern struct j_type j;
+
+check_results()
+{
+    int ii;
+    int exit_code = 0;
+
+    ckoff(a);
+    ckoff(b);
+    ckoff(c);
+
+    cksize(d);
+    cksize(e);
+    cksize(f);
+    cksize(g);
+    cksize(h);
+    cksize(i);
+    cksize(j);
+
+    check(a,a,1);
+    check(a,b,2);
+    check(a,c,3);
+    check(a,d,4);
+    check(a,e,5);
+    check(a,f,6);
+    check(a,g,7);
+    check(a,h,8);
+    check(a,i,9);
+    check(a,j,10);
+
+    check(b,a,1);
+    check(b,b,2);
+    check(b,c,3);
+    check(b,d,4);
+    check(b,e,5);
+    check(b,f,6);
+    check(b,g,7);
+    check(b,h,8);
+    check(b,i,9);
+    check(b,j,10);
+
+    check(c,a,1);
+    check(c,b,2);
+    check(c,c,3);
+    check(c,d,4);
+    check(c,e,5);
+    check(c,f,6);
+    check(c,g,7);
+    check(c,h,8);
+    check(c,i,9);
+    check(c,j,10);
+
+    check(d,a,1);
+    check(d,b,2);
+    check(d,c,3);
+    check(d,d,4);
+    check(d,e,5);
+    check(d,f,6);
+    check(d,g,7);
+
+    check(e,a,1);
+    check(e,b,2);
+
+    check(f,a,1);
+    check(f,b,2);
+
+    check(g,a,1);
+    check(g,b,2);
+
+    check(h,a,1);
+    check(h,b,2);
+
+    check(i,b,2);
+
+    check(j,i.a,1);
+    check(j,j,3);
+
+    exit(exit_code);
+}
+--------- TEST CASE bittest_nat.c --------------
+#define NATIVE   /* as nothing */
+#include "bittest.h"
+#include <stddef.h>
+#define poffset(a,b) printf("   %s: %d\n", #b, offsetof(struct a,b));
+
+struct a_type a;
+struct b_type b;
+struct c_type c;
+struct d_type d;
+struct e_type e;
+struct f_type f;
+struct g_type g;
+struct h_type h;
+union i_type i;
+struct j_type j;
+
+int a_offsets[]={offsetof(struct a_type,b),
+             offsetof(struct a_type,d),
+             offsetof(struct a_type,h),
+	     sizeof(struct a_type)};
+
+int b_offsets[]={offsetof(struct b_type,b),
+             offsetof(struct b_type,d),
+             offsetof(struct b_type,h),
+	     sizeof(struct b_type)};
+
+int c_offsets[]={offsetof(struct c_type,b),
+             offsetof(struct c_type,d),
+             offsetof(struct c_type,h),
+	     sizeof(struct c_type)};
+
+int d_size = sizeof(struct d_type);
+int e_size = sizeof(struct e_type);
+int f_size = sizeof(struct f_type);
+int g_size = sizeof(struct g_type);
+int h_size = sizeof(struct h_type);
+int i_size = sizeof(union i_type);
+int j_size = sizeof(struct j_type);
+
+main()
+{
+
+    a.a=1;
+    a.b=2;
+    a.c=3;
+    a.d=4;
+    a.e=5;
+    a.f=6;
+    a.g=7;
+    a.h=8;
+    a.i=9;
+    a.j=10;
+
+    b.a=1;
+    b.b=2;
+    b.c=3;
+    b.d=4;
+    b.e=5;
+    b.f=6;
+    b.g=7;
+    b.h=8;
+    b.i=9;
+    b.j=10;
+
+    c.a=1;
+    c.b=2;
+    c.c=3;
+    c.d=4;
+    c.e=5;
+    c.f=6;
+    c.g=7;
+    c.h=8;
+    c.i=9;
+    c.j=10;
+
+    d.a=1;
+    d.b=2;
+    d.c=3;
+    d.d=4;
+    d.e=5;
+    d.f=6;
+    d.g=7;
+
+    e.a=1;
+    e.b=2;
+
+    f.a=1;
+    f.b=2;
+
+    g.a=1;
+    g.b=2;
+
+    h.a=1;
+    h.b=2;
+
+    i.a=1;
+    i.b=2;
+
+    j.i.a=1;
+    /* j.i.b=2;  So we can look at i.i.a */
+    j.j=3;
+
+    check_results();
+}
+--------- TEST CASE cmd --------------
+cc -c bittest_nat.c
+# be sure to point gcc at the right gcc.
+
+#This should pass and say nothing.
+gcc -c -fnative-struct bittest_gcc.c 
+echo NATIVE:
+gcc bittest_nat.o bittest_gcc.o
+a.out
+
+#...This should fail and list errors.
+gcc -c -fgcc-struct bittest_gcc.c 
+echo GNU:
+gcc bittest_nat.o bittest_gcc.o
+a.out

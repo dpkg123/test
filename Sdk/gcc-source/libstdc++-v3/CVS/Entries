@@ -1,0 +1,24 @@
+D/config////
+D/docs////
+D/include////
+D/libio////
+D/libmath////
+D/libsupc++////
+D/po////
+D/src////
+D/testsuite////
+/ChangeLog/1.1464.2.108/Fri May 16 11:25:30 2003//Tgcc_3_3_release
+/ChangeLog-2000/1.2/Fri Nov 23 16:29:00 2001//Tgcc_3_3_release
+/ChangeLog-2001/1.2/Thu Jan 31 02:05:16 2002//Tgcc_3_3_release
+/Makefile.am/1.37.4.2/Fri May 16 11:25:30 2003//Tgcc_3_3_release
+/Makefile.in/1.112.4.4/Fri May 16 11:25:30 2003//Tgcc_3_3_release
+/README/1.14/Fri May 16 11:25:30 2003//Tgcc_3_3_release
+/acconfig.h/1.27.2.1/Fri May 16 11:25:30 2003//Tgcc_3_3_release
+/acinclude.m4/1.223.2.7/Fri May 16 11:25:31 2003//Tgcc_3_3_release
+/aclocal.m4/1.235.2.8/Fri May 16 11:25:32 2003//Tgcc_3_3_release
+/config.h.in/1.60.2.1/Fri May 16 11:25:32 2003//Tgcc_3_3_release
+/configure/1.286.2.10/Fri May 16 11:25:35 2003//Tgcc_3_3_release
+/configure.in/1.110.2.5/Fri May 16 11:25:35 2003//Tgcc_3_3_release
+/configure.target/1.56.2.1/Fri May 16 11:25:35 2003//Tgcc_3_3_release
+/mkcheck.in/1.63/Fri May 16 11:25:35 2003//Tgcc_3_3_release
+/testsuite_flags.in/1.12.20.1/Fri May 16 11:25:35 2003//Tgcc_3_3_release

@@ -1,0 +1,179 @@
+The check in coff_swap_filehdr_in doesn't work for MSVC5 and up because
+the location floats in several different ways.  Don't try to force fit
+coff_object_p, just copy and edit it for the different rules of PE.
+There's more cleanup (noted in the file) to be done to recover from
+cramming two independent data structures into a single structure, now
+that their relative position can float, but for now this works.
+Also, detect and die on a format we can't handle, rather than proceeding
+into never-never land.
+
+
+	* peicode.h (coff_swap_filehdr_in): check for PE signature; explain.
+	(pe_bfd_object_p): check for DOS signature.
+        * coffgen.c (coff_real_object_p): remove static qualifier.
+	* peXXigen.c (pei_swap_aouthdr_in): believe count of entries.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.thru.49/coffgen.c bfd/coffgen.c
+--- bfd.thru.49/coffgen.c	Fri Jan 18 10:01:42 2002
++++ bfd/coffgen.c	Fri Jan 18 10:45:09 2002
+@@ -60,7 +60,7 @@ static void coff_pointerize_aux
+ 	   unsigned int, combined_entry_type *));
+ static boolean make_a_section_from_file
+   PARAMS ((bfd *, struct internal_scnhdr *, unsigned int));
+-static const bfd_target *coff_real_object_p
++const bfd_target *coff_real_object_p
+   PARAMS ((bfd *, unsigned, struct internal_filehdr *,
+ 	   struct internal_aouthdr *));
+ static void fixup_symbol_value
+@@ -168,7 +168,7 @@ make_a_section_from_file (abfd, hdr, tar
+ /* Read in a COFF object and make it into a BFD.  This is used by
+    ECOFF as well.  */
+ 
+-static const bfd_target *
++const bfd_target *
+ coff_real_object_p (abfd, nscns, internal_f, internal_a)
+      bfd *abfd;
+      unsigned nscns;
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.thru.49/peXXigen.c bfd/peXXigen.c
+--- bfd.thru.49/peXXigen.c	Fri Jan 18 10:01:43 2002
++++ bfd/peXXigen.c	Fri Jan 18 10:47:07 2002
+@@ -481,7 +481,8 @@ _bfd_XXi_swap_aouthdr_in (abfd, aouthdr_
+   {
+     int idx;
+ 
+-    for (idx = 0; idx < 16; idx++)
++    /* Believe the count that's in the file */
++    for (idx = 0; idx < a->NumberOfRvaAndSizes; idx++)
+       {
+         /* If data directory is empty, rva also should be 0.  */
+ 	int size =
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.thru.49/peicode.h bfd/peicode.h
+--- bfd.thru.49/peicode.h	Fri Jan 18 10:01:43 2002
++++ bfd/peicode.h	Fri Jan 18 13:36:12 2002
+@@ -144,6 +144,10 @@ static const bfd_target * pe_ILF_object_
+ static const bfd_target * pe_bfd_object_p 	  PARAMS ((bfd *));
+ #endif /* COFF_IMAGE_WITH_PE */
+ 
++const bfd_target *coff_real_object_p
++  PARAMS ((bfd *, unsigned, struct internal_filehdr *,
++          struct internal_aouthdr *));
++
+ /**********************************************************************/
+ 
+ #ifndef NO_COFF_RELOCS
+@@ -189,6 +193,11 @@ coff_swap_reloc_out (abfd, src, dst)
+ }
+ #endif /* not NO_COFF_RELOCS */
+ 
++#ifdef COFF_IMAGE_WITH_PE
++#undef FILHDR
++#define FILHDR struct external_PEI_IMAGE_hdr
++#endif
++
+ static void
+ coff_swap_filehdr_in (abfd, src, dst)
+      bfd            *abfd;
+@@ -1228,11 +1237,22 @@ _("%s: Recognised but unhandled machine 
+ static const bfd_target *
+ pe_bfd_object_p (bfd * abfd)
+ {
++  /* It used to be the case that the front of the PE image was a fixed
++     size (up to the beginning of the section header table).  In principle
++     it was more complex than that, but other PE linkers didn't take
++     advantage of that.  Now they do.  We need to adapt bfd's conventions
++     on COFF executable headers to deal with that change.  An earlier
++     version of this dealt with variability in just one of the several
++     places it could occur.  That no longer serves, either. */
++
+   bfd_byte buffer[4];
+   struct external_PEI_DOS_hdr dos_hdr;
+   struct external_PEI_IMAGE_hdr image_hdr;
++  struct internal_filehdr internal_f;
++  struct internal_aouthdr internal_a;
+   file_ptr offset;
+-
++  file_ptr opt_hdr_size;
++
+   /* Detect if this a Microsoft Import Library Format element.  */
+   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
+       || bfd_bread (buffer, (bfd_size_type) 4, abfd) != 4)
+@@ -1245,6 +1265,7 @@ pe_bfd_object_p (bfd * abfd)
+   if (H_GET_32 (abfd, buffer) == 0xffff0000)
+     return pe_ILF_object_p (abfd);
+ 
++  /* Read the DOS header */
+   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
+       || bfd_bread (&dos_hdr, (bfd_size_type) sizeof (dos_hdr), abfd)
+ 	 != sizeof (dos_hdr))
+@@ -1270,6 +1291,8 @@ pe_bfd_object_p (bfd * abfd)
+       return NULL;
+     }
+ 
++  /* Get the location of the NT image header out of the DOS header,
++     and read that */
+   offset = H_GET_32 (abfd, dos_hdr.e_lfanew);
+   if (bfd_seek (abfd, offset, SEEK_SET) != 0
+       || (bfd_bread (&image_hdr, (bfd_size_type) sizeof (image_hdr), abfd)
+@@ -1280,23 +1303,54 @@ pe_bfd_object_p (bfd * abfd)
+       return NULL;
+     }
+ 
++  /* Look for the NT magic number. */
+   if (H_GET_32 (abfd, image_hdr.nt_signature) != 0x4550)
+     {
+       bfd_set_error (bfd_error_wrong_format);
+       return NULL;
+     }
+ 
+-  /* Here is the hack.  coff_object_p wants to read filhsz bytes to
+-     pick up the COFF header for PE, see "struct external_PEI_filehdr"
+-     in include/coff/pe.h.  We adjust so that that will work. */
+-  if (bfd_seek (abfd, (file_ptr) (offset - sizeof (dos_hdr)), SEEK_SET) != 0)
++  /* To call real_object_p we need a swapped file header, which is
++     the composite of the DOS and Image headers.  */
++  bfd_coff_swap_filehdr_in (abfd, (PTR)&image_hdr, &internal_f);
++
++  /* If there's an optional header (size not zero) read it; the size
++     varies. */
++
++  opt_hdr_size = internal_f.f_opthdr;
++
++  if (opt_hdr_size != 0)
+     {
+-      if (bfd_get_error () != bfd_error_system_call)
+-	bfd_set_error (bfd_error_wrong_format);
+-      return NULL;
++      PTR opthdr;
++
++      opthdr = bfd_alloc (abfd, opt_hdr_size);
++      if (opthdr == NULL)
++       return NULL;
++
++      if (bfd_bread (opthdr, 1, opt_hdr_size, abfd) != opt_hdr_size)
++       {
++         return NULL;
++       }
++
++      bfd_coff_swap_aouthdr_in (abfd, opthdr, (PTR) & internal_a);
++
++#if 0
++      /* If it's 0x20b (documented in the 1999 spec) we don't have
++        a chance (64 bit data structs vary widely); just give up now. */
++      if (internal_a.magic == 0x20b)
++       {
++         return NULL;
++       }
++#endif
+     }
+ 
+-  return coff_object_p (abfd);
++  /* The section headers follow immediately, and coff_real_object_p
++     will read them. */
++
++  return coff_real_object_p (abfd, internal_f.f_nscns, &internal_f,
++                            (opt_hdr_size != 0
++                             ? &internal_a
++                             : (struct internal_aouthdr *) NULL));
+ }
+ 
+ #define coff_object_p pe_bfd_object_p

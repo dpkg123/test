@@ -1,0 +1,4 @@
+# q-patch libiberty 01 5
+# q-patch libiberty 02 5 # looks as if someone finally did it.
+# q-patch libiberty 03 1 # Alloca; OBE: don't use alloca here(?)
+

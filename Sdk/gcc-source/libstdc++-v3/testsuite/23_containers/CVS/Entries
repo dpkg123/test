@@ -1,0 +1,22 @@
+/adaptors.cc/1.1/Sat Jun 29 01:10:51 2002//Tgcc_3_3_release
+/bitset_ctor.cc/1.6/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/bitset_members.cc/1.5.22.1/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/bitset_shift.cc/1.3.44.1/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/deque_ctor.cc/1.2.2.1/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/deque_operators.cc/1.3/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/list_capacity.cc/1.1/Thu Nov 22 19:19:23 2001//Tgcc_3_3_release
+/list_ctor.cc/1.1/Thu Nov 22 19:19:23 2001//Tgcc_3_3_release
+/list_modifiers.cc/1.2.20.1/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/list_operators.cc/1.1/Thu Nov 22 19:19:23 2001//Tgcc_3_3_release
+/map_insert.cc/1.1/Fri Aug 24 17:40:31 2001//Tgcc_3_3_release
+/map_operators.cc/1.9/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/map_operators_neg.cc/1.1/Thu Jul  4 07:25:19 2002//Tgcc_3_3_release
+/multiset.cc/1.3/Tue Jun 26 21:22:57 2001//Tgcc_3_3_release
+/set_operators_neg.cc/1.1/Thu Jul  4 07:25:19 2002//Tgcc_3_3_release
+/vector_bool.cc/1.2/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/vector_capacity.cc/1.6.2.2/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/vector_ctor.cc/1.9.2.1/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+/vector_element_access.cc/1.4/Tue Aug  7 03:38:30 2001//Tgcc_3_3_release
+/vector_modifiers.cc/1.5/Tue Aug  7 03:38:30 2001//Tgcc_3_3_release
+/vector_resize.cc/1.1.4.1/Fri May 16 11:26:12 2003//Tgcc_3_3_release
+D

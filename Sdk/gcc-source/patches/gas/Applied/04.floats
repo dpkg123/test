@@ -1,0 +1,63 @@
+atof_ieee() was declared (in as.h) inconsistently with its definition
+(in atof-ieee.c).  Fix declaration, fix warnings in other places.
+(These are cosmetic, but found by MSVC.)
+
+	* as.h (atof_ieee): Make prototype match actual function (char arg).
+	* config/tc-i386.c (md_atof): Shut up warning.
+	* config/atof-vax.c (atof_vax): Ditto.
+	* config/tc-i386.c (md_atof): Ditto.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/as.h gas/as.h
+--- gas.orig/as.h	Fri Aug 20 14:00:44 1999
++++ gas/as.h	Fri Aug 20 14:01:22 1999
+@@ -555,7 +555,7 @@ int had_warnings PARAMS ((void));
+ 
+ void print_version_id PARAMS ((void));
+ char *app_push PARAMS ((void));
+-char *atof_ieee PARAMS ((char *str, int what_kind, LITTLENUM_TYPE * words));
++char *atof_ieee PARAMS ((char *str, char what_kind, LITTLENUM_TYPE * words));
+ char *input_scrub_include_file PARAMS ((char *filename, char *position));
+ char *input_scrub_new_file PARAMS ((char *filename));
+ char *input_scrub_next_buffer PARAMS ((char **bufp));
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/atof-vax.c gas/config/atof-vax.c
+--- gas.orig/config/atof-vax.c	Fri Aug 20 14:00:38 1999
++++ gas/config/atof-vax.c	Fri Aug 20 14:01:23 1999
+@@ -260,7 +260,7 @@ atof_vax (str, what_kind, words)
+ 
+ int				/* 0: OK. */
+ flonum_gen2vax (format_letter, f, words)
+-     char format_letter;	/* One of 'd' 'f' 'g' 'h'. */
++     int format_letter;	/* One of 'd' 'f' 'g' 'h'. */
+      FLONUM_TYPE *f;
+      LITTLENUM_TYPE *words;	/* Deliver answer here. */
+ {
+@@ -511,7 +511,7 @@ md_atof (what_statement_type, literalP, 
+     };
+ 
+   *sizeP = number_of_chars;
+-  return kind_of_float ? 0 : _("Bad call to md_atof()");
++  return kind_of_float ? (char *)0 : _("Bad call to md_atof()");
+ }
+ 
+ /* end of atof-vax.c */
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -4067,7 +4075,7 @@ md_chars_to_number (con, nbytes)
+    is stored in *sizeP .  An error message is returned, or NULL on OK.  */
+ char *
+ md_atof (type, litP, sizeP)
+-     char type;
++     int type;
+      char *litP;
+      int *sizeP;
+ {
+@@ -4097,7 +4105,7 @@ md_atof (type, litP, sizeP)
+       *sizeP = 0;
+       return _("Bad call to md_atof ()");
+     }
+-  t = atof_ieee (input_line_pointer, type, words);
++  t = atof_ieee (input_line_pointer, (char)type, words);
+   if (t)
+     input_line_pointer = t;
+ 

@@ -1,0 +1,67 @@
+Index: cli-cmds.c
+===================================================================
+RCS file: /cvs/src/src/gdb/cli/cli-cmds.c,v
+retrieving revision 1.23
+diff -c -3 -p -r1.23 cli-cmds.c
+*** cli-cmds.c	8 Nov 2002 03:21:33 -0000	1.23
+--- cli-cmds.c	8 Nov 2002 19:43:05 -0000
+*************** disassemble_command (char *arg, int from
+*** 868,874 ****
+  #endif
+        low += FUNCTION_START_OFFSET;
+      }
+!   else
+      {
+        /* Two arguments.  */
+        *space_index = '\0';
+--- 868,899 ----
+  #endif
+        low += FUNCTION_START_OFFSET;
+      }
+!   else if (strncmp("line", arg, space_index-arg) == 0)
+!     {
+!       /* Two args, the first is (abbreviated) "line" */
+!       struct symtab_and_line sal;
+!       struct symtabs_and_lines sals;
+! 
+!       sals = decode_line_spec_1 (space_index + 1, 0);
+!       if (sals.nelts <= 0) 
+! 	{
+! 	   error ("Invalid line spec.\n");
+! 	}
+!       if (sals.nelts > 1) 
+! 	{
+! 	   printf_filtered ("More than one line resulted; doing first.\n");
+!         }
+!       sal = sals.sals[0];
+!       if (!(sal.line > 0 && find_line_pc_range (sal, &low, &high)))
+! 	{
+! 	   error ("Line not found.\n");
+! 	}
+!       if (low == high)
+! 	{
+! 	   error ("Line contains no code.\n");
+! 	}
+!     }
+!   else 
+      {
+        /* Two arguments.  */
+        *space_index = '\0';
+*************** With two args if one is empty it stands 
+*** 1250,1256 ****
+  	       "Disassemble a specified section of memory.\n\
+  Default is the function surrounding the pc of the selected frame.\n\
+  With a single argument, the function surrounding that address is dumped.\n\
+! Two arguments are taken as a range of memory to dump.");
+    set_cmd_completer (c, location_completer);
+    if (xdb_commands)
+      add_com_alias ("va", "disassemble", class_xdb, 0);
+--- 1275,1282 ----
+  	       "Disassemble a specified section of memory.\n\
+  Default is the function surrounding the pc of the selected frame.\n\
+  With a single argument, the function surrounding that address is dumped.\n\
+! If the first argument is \"line\" (or \"l\") dump that line.\n\
+! Two other arguments are taken as a range of memory to dump.");
+    set_cmd_completer (c, location_completer);
+    if (xdb_commands)
+      add_com_alias ("va", "disassemble", class_xdb, 0);

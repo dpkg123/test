@@ -1,0 +1,64 @@
+Stuff for shared libraries, currently being applied.
+
+Index: src/include/bfdlink.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/include/bfdlink.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 bfdlink.h
+--- src/include/bfdlink.h	2001/12/23 00:35:29	1.1.1.1
++++ src/include/bfdlink.h	2001/12/24 03:59:13
+@@ -114,7 +114,10 @@ struct bfd_link_hash_entry
+       struct
+ 	{
+ 	  struct bfd_link_hash_entry *link;	/* Real symbol.  */
+-	  const char *warning;	/* Warning (bfd_link_hash_warning only).  */
++	  union {
++	      const char *warning;	/* Warning (..._warning only).  */
++	      boolean alias;		/* Alias flag (..._indirect only). */
++	  } info;
+ 	} i;
+       /* bfd_link_hash_common.  */
+       struct
+Index: src/include/coff/internal.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/include/coff/internal.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 internal.h
+--- src/include/coff/internal.h	2001/12/23 00:35:31	1.1.1.1
++++ src/include/coff/internal.h	2001/12/24 04:00:55
+@@ -83,6 +83,7 @@ struct internal_filehdr
+  	F_AR32W		file is 32-bit big-endian
+  	F_DYNLOAD	rs/6000 aix: dynamically loadable w/imports & exports
+  	F_SHROBJ	rs/6000 aix: file is a shared object
++ 	F_SHRLIB	DYNAMIC_LINKING: shared library
+         F_DLL           PE format DLL.  */
+ 
+ #define	F_RELFLG	(0x0001)
+@@ -95,6 +96,7 @@ struct internal_filehdr
+ #define	F_DYNLOAD	(0x1000)
+ #define	F_SHROBJ	(0x2000)
+ #define F_DLL           (0x2000)
++#define	F_SHRLIB	(0x4000)
+ 
+ /* Extra structure which is used in the optional header.  */
+ typedef struct _IMAGE_DATA_DIRECTORY 
+@@ -614,6 +616,19 @@ struct internal_reloc
+ #define R_JUMPTARG	32	/* strange 29k 00xx00xx reloc */
+ #define R_PARTLS16      32
+ #define R_PARTMS8       33
++ 
++/* For interix, these collied and will have to be renumbered at
++   some point, but that requires breaking binary compatability */
++
++/* These must be in the same order as the corr. BFD_RELOC_386... symbols */
++#define R_GNU_GOT32     030  /* 24 */
++#define R_GNU_PLT32     031
++#define R_GNU_COPY      032
++#define R_GNU_GLOB_DAT  033
++#define R_GNU_JUMP_SLOT 034
++#define R_GNU_RELATIVE  035
++#define R_GNU_GOTOFF    036
++#define R_GNU_GOTPC     037
+ 
+ #define R_PCR16L       128
+ #define R_PCR26L       129

@@ -1,0 +1,65 @@
+Attached is a gzipped tar archive containing the patches I currently
+apply to the various parts of the Gnu toolchain.  With those patches
+applied, I can do a 3 stage bootstrap of both the compilers and
+the binutils family of tools, and pass at a fairly reasonable level
+all the various testsuites.  I applied the complete set successfully
+about a week ago (roughly Nov 5).  I expect to continue this process
+indefinitely, so if there are any patch breakages, they will be
+updated fairly soon.
+
+1) The files are grouped into obvious directories by sub-area.
+   They're intended to be applied in numeric order.  The additional
+   fb patch is intented to be applied over the whole tree to deal
+   with the differences between the current (2.2) version and the
+   under-development version.  (I haven't done any work on the
+   2.2 variation for some time.)
+
+2) In each directory you'll find an applyem script.  All it does
+   is call q-patch on each patch file that I'm applying.
+   q-patch is just a "typing minimizer" wrapper for the patch command.
+   (The third argument corresponds to the -p argument.)
+
+3) I've made no signifcant changes to any of these patches in
+   many months.  For gdb, it's the same as what Doug got from
+   me several months ago except for any mechanical changes I needed
+   to make in the meantime.  File dates should be sufficient to sort
+   that out.  (There was a change made to the shared library support
+   in gdb that required a bit of work on my part, but I don't know
+   if Doug did shared libs at all.)
+
+4) I use only one version of binutils (bfd) and libiberty for everything,
+   and these patches are applied to what I believe is the leading edge
+   of each version.  (This is a bit tricky for libiberty because the
+   binutils version of libiberty and the gcc version of libiberty don't
+   always stay in sync; a patch or two may exist to paint over temporary
+   inconsistencies.)
+
+5) I have a few patches still "hanging fire" that you're more than
+   welcome to have, but since I'm not currently applying them, I
+   omitted them at this time.  (They are mentioned as comments in the
+   applyem scripts.)  
+
+   (The bulk of them are cleanups for getting better regression pass
+   levels, one way or another.)
+
+   The one exception to this is the issue of handling constructors
+   and destructors.  Pending getting all the binutils patches sorted out
+   this patch may or may not prove useful.  This *IS* included for
+   your evaluation, even though it's not being applied.  (Closure on
+   this one is the critical one for gcc proper, but we need to be sure
+   we've got a corresponding bfd for it to work with.)
+
+6) The patches to things like DejaGnu and TIX are minor, but are needed
+   for one reason or another to make the whole thing work.  Whether these
+   are included in the actual work to be done is your call, but you're
+   likely to need them to be able to do all the testing needed.
+
+7) Feel free to contact me about details; I haven't done all the 
+   "packaging" needed for all the patches, simply because until I could
+   get the earlier ones applied, doing the packaging was a waste of time.
+   That means that some explanations may be a bit sketchy.
+
+egcs.source/77: this is a workaround for a bug unique to Interix: munmap() 
+does bad things when doing partial frees (the details escape me at the
+moment).  However, I'm not sure in the case of a compiler it's a good
+thing to give back the pages anyway.  (The bug is being worked.)

@@ -1,0 +1,21 @@
+diff -drupP binutils.unmod/objcopy.c binutils/objcopy.c
+--- binutils.unmod/objcopy.c	Mon Jun 14 15:00:27 1999
++++ binutils/objcopy.c	Mon Jun 14 15:56:00 1999
+@@ -307,6 +307,8 @@ copy_usage (stream, exit_status)
+   -g --strip-debug                 Remove all debugging symbols\n\
+      --strip-unneeded              Remove all symbols not needed by relocations\n\
+   -N --strip-symbol <name>         Do not copy symbol <name>\n\
++"));
++  fprintf (stream, _("\
+   -K --keep-symbol <name>          Only copy symbol <name>\n\
+   -L --localize-symbol <name>      Force symbol <name> to be marked as a local\n\
+   -W --weaken-symbol <name>        Force symbol <name> to be marked as a weak\n\
+@@ -328,6 +330,8 @@ copy_usage (stream, exit_status)
+                                    Change the LMA of section <name> by <val>\n\
+      --change-section-vma <name>{=|+|-}<val>\n\
+                                    Change the VMA of section <name> by <val>\n\
++"));
++  fprintf (stream, _("\
+     {--[no-]change-warnings|--[no-]adjust-warnings}\n\
+                                    Warn if a named section does not exist\n\
+      --set-section-flags <name>=<flags>\n\

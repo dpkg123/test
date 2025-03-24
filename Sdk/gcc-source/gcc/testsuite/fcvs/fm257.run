@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Test 257 does PAUSE statements.  Run the test, then clear the PAUSES
+# (5 of them).
+(./a.out &
+PID=$!
+sleep 2
+kill -15 $PID
+sleep 1
+kill -15 $PID
+sleep 1
+kill -15 $PID
+sleep 1
+kill -15 $PID
+sleep 1
+kill -15 $PID) 2>&1 | 
+sed -e 's/execute a   kill -15 [0-9]*/execute a   kill -15 ?/'

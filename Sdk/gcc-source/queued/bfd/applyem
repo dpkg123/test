@@ -1,0 +1,33 @@
+# 06: skipping
+# 07: skipping
+q-patch bfd 02 2 # Misc little things
+q-patch bfd 10 0 # Line number problem.  Sent Ian a testcase. (sitting)
+q-patch bfd 12 2 # flags.3; submitted; needs resubmit
+q-patch bfd 14 2 # sort; residual; asked Ian why; applied
+q-patch bfd 16 2 # debug; residual; low pri; defer for moment; (testcase)
+# 32: skipping
+q-patch bfd 39 2 # Ian isn't biteing on this yet; discussing
+q-patch bfd 43 2 # idata
+q-patch bfd 44 2 # alignment power
+# What's the story on 45
+q-patch bfd 46 2 # Image base for gdb
+q-patch bfd 47 2 # fileno for gdb
+q-patch bfd 48 1 # NO READ flag bit
+q-patch bfd 49 2 # Weak in archive.
+q-patch bfd 50 1 # New PE formats...
+q-patch bfd 51 2 # .lib symbols
+q-patch bfd 52 2 # .bss
+q-patch bfd 53 1 # configure
+q-patch bfd 54 0 # stabs order
+q-patch bfd 55 0 # .ctor alignment
+q-patch bfd 56 0 # section/stdcall
+q-patch bfd 57 1 # core support
+q-patch bfd 58 0 # Relink of PE comdat
+q-patch bfd 60 1 # dynlink
+q-patch bfd 61 0 # dynlink 2
+q-patch bfd 62 0 # dynlink 3
+q-patch bfd 63 0 # mark relocs bug
+# q-patch bfd 64 0 # pei comdat  already in 51... why again
+q-patch bfd 65 0 # clobbered data dict bug
+q-patch bfd 66 2 # NULL pointer ref (id6); nm/ld used to crash 
+q-patch bfd 67 1 # Wrong offset is being added and missing some DLLs from table.

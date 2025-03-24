@@ -1,0 +1,40 @@
+More testsuite patches; srec was failing mysteriously with alloca missing.
+(It still doesn't pass on interix, but at least now it doesn't "feel" like
+a build bug.)
+
+--- testsuite/ld-srec/sr1.c.orig	Sat Feb 23 13:33:23 2002
++++ testsuite/ld-srec/sr1.c	Sat Feb 23 13:38:48 2002
+@@ -19,7 +19,16 @@ main ()
+   return e1 + e2 + i + j + k + l;
+ }
+ 
++/* We're not linking against the real libs, and main() may have called 
++   either of the below "magically", so provide them. (__main is used
++   for constructor stuff on many systems, and _alloca is used as part
++   of the initial stack frame alignment code.) */
+ void
+ __main ()
++{
++}
++
++void
++_alloca ()
+ {
+ }
+--- testsuite/ld-srec/sr3.cc.orig	Sat Feb 23 13:33:23 2002
++++ testsuite/ld-srec/sr3.cc	Sat Feb 23 13:38:48 2002
+@@ -35,8 +35,14 @@ terminate(void)
+ }
+ 
+ extern "C" {
++/* See sr1.c for why the next 2 exist (and implicitly the rest) */
+ void
+ __main ()
++{
++}
++
++void
++_alloca ()
+ {
+ }
+ 

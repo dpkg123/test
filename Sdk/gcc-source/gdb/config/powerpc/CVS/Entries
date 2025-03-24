@@ -1,0 +1,27 @@
+/aix.mh/1.5/Fri Jan 18 04:51:05 2002/-ko/
+/aix.mt/1.6/Thu May 30 01:21:53 2002/-ko/
+/aix432.mh/1.1/Tue Jul 30 19:59:06 2002//
+/gdbserve.mt/1.1.1.1/Fri Apr 16 01:34:24 1999/-ko/
+/linux.mh/1.12/Tue Jul 30 19:03:49 2002/-ko/
+/linux.mt/1.6/Tue Jul 30 19:03:49 2002//
+/nbsd.mh/1.11/Thu May 30 01:21:53 2002//
+/nbsd.mt/1.11/Thu May 30 01:21:53 2002//
+/nm-aix.h/1.2/Tue Mar  6 08:21:34 2001/-ko/
+/nm-linux.h/1.11/Wed Jun  5 19:18:27 2002//
+/nm-nbsd.h/1.3/Wed May 22 03:59:55 2002//
+/ppc-eabi.mt/1.5/Thu May 30 01:21:53 2002/-ko/
+/ppc-sim.mt/1.5/Thu May 30 01:21:53 2002/-ko/
+/ppcle-eabi.mt/1.5/Thu May 30 01:21:53 2002/-ko/
+/ppcle-sim.mt/1.5/Thu May 30 01:21:53 2002/-ko/
+/tm-linux.h/1.11/Wed Jun  5 19:18:27 2002//
+/tm-nbsd.h/1.2/Wed May 22 03:59:55 2002//
+/tm-ppc-aix.h/1.4/Tue Mar  6 08:21:34 2001/-ko/
+/tm-ppc-eabi.h/1.10/Fri Apr 12 19:48:37 2002/-ko/
+/tm-ppc-sim.h/1.1.1.2/Wed Jul  7 20:16:34 1999/-ko/
+/tm-ppcle-eabi.h/1.4/Fri Feb  8 00:46:39 2002/-ko/
+/tm-ppcle-sim.h/1.1.1.2/Wed Jul  7 20:16:36 1999/-ko/
+/tm-vxworks.h/1.2/Wed Jun  5 19:18:27 2002/-ko/
+/vxworks.mt/1.4/Thu May 30 01:21:53 2002/-ko/
+/xm-aix.h/1.4/Wed Jun  5 19:18:27 2002/-ko/
+/xm-linux.h/1.8/Sun Dec  2 02:57:16 2001/-ko/
+D

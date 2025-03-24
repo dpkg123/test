@@ -1,0 +1,183 @@
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.before/coffread.c gdb/coffread.c
+--- gdb.before/coffread.c	Sun Mar  3 10:31:51 2002
++++ gdb/coffread.c	Mon Mar  4 19:41:36 2002
+@@ -230,7 +230,7 @@ static void coff_symfile_read (struct ob
+ 
+ static void coff_symfile_finish (struct objfile *);
+ 
+-static void record_minimal_symbol (char *, CORE_ADDR,
++static struct minimal_symbol * record_minimal_symbol (char *, CORE_ADDR,
+ 				   enum minimal_symbol_type,
+ 				   struct objfile *,
+ 				   asection *);
+@@ -489,18 +489,40 @@ coff_end_symtab (struct objfile *objfile
+   last_source_file = NULL;
+ }
+ 
+-static void
++static struct minimal_symbol *
+ record_minimal_symbol (char *name, CORE_ADDR address,
+ 		       enum minimal_symbol_type type, struct objfile *objfile,
+ 		       asection *bfd_section)
+ {
++  int section;
+   /* We don't want TDESC entry points in the minimal symbol table */
+   if (name[0] == '@')
+-    return;
+-
+-  prim_record_minimal_symbol (name, address, type, objfile, bfd_section);
+-}
+-
++    return NULL;
++
++//  This may not be the best way to do this, but I need the msym to record!
++  switch (type)
++    {
++    case mst_text:
++    case mst_file_text:
++    case mst_solib_trampoline:
++      section = SECT_OFF_TEXT (objfile);
++      break;
++    case mst_data:
++    case mst_file_data:
++      section = SECT_OFF_DATA (objfile);
++      break;
++    case mst_bss:
++    case mst_file_bss:
++      section = SECT_OFF_BSS (objfile);
++      break;
++    default:
++      section = -1;
++    }
++
++  return prim_record_minimal_symbol_and_info (name, address, type,
++				       NULL, section, bfd_section, objfile);
++}
++
+ /* coff_symfile_init ()
+    is the coff-specific initialization routine for reading symbols.
+    It is passed a struct objfile which contains, among other things,
+@@ -763,7 +785,9 @@ coff_symtab_read (long symtab_offset, un
+   long fcn_line_ptr = 0;
+   int val;
+   CORE_ADDR tmpaddr;
+-
++  struct minimal_symbol **msyms;   /* A temporary array of the results,
++				       see C_NT_WEAK. */
++
+   /* On the use of the following symbols:  Earlier versions of this routine
+      tried to key off .text entries to determine the size of a "file"
+      (an original source file).  This implied that there were as many
+@@ -836,6 +860,9 @@ coff_symtab_read (long symtab_offset, un
+   first_function_last_file = ANOFFSET2 (objfile->section_offsets, SECT_OFF_TEXT(objfile));
+ 
+   symnum = 0;
++  msyms = xmalloc (sizeof(struct msymbol *) * nsyms);
++  memset(msyms, 0, sizeof(struct msymbol *) * nsyms);
++
+   while (symnum < nsyms)
+     {
+       QUIT;			/* Make this command interruptable.  */
+@@ -870,12 +897,13 @@ coff_symtab_read (long symtab_offset, un
+       /* Typedefs should not be treated as symbol definitions.  */
+       if (ISFCN (cs->c_type) && cs->c_sclass != C_TPDEF)
+ 	{
+-
++	  struct minimal_symbol *msym;
++
+ 	  if (first_function_this_file == 0)
+ 	     first_function_this_file = cs->c_value;
+ 	  else 
+ 	    {
+-	      /* most_recent_function _nd should be AT LEAST the beginning
++	      /* most_recent_function_end should be AT LEAST the beginning
+ 		 of the current function if we're on other than the first
+ 		 function in the file.  We'll try to do better below. */
+ 	     most_recent_function_end = cs->c_value;
+@@ -887,10 +915,11 @@ coff_symtab_read (long symtab_offset, un
+ 	     functions (usually) so that the special handling of them
+ 	     works correctly.  At this point, dynamic == undefined;
+ 	     if it's really undefined, we deal with that later. */
+- 	  record_minimal_symbol (cs->c_name, tmpaddr, 
++ 	  msym = record_minimal_symbol (cs->c_name, tmpaddr, 
+ 	     cs->c_secnum == 0 ? mst_solib_trampoline : mst_text, objfile,
+   	     coff_section_from_bfd_index(objfile->obfd, cs->c_secnum));
+-
++	  msyms[cs->c_symnum] = msym;
++
+ 	  if (cs->c_naux > 0) 
+ 	    {
+ 	      fcn_line_ptr = main_aux.x_sym.x_fcnary.x_fcn.x_lnnoptr;
+@@ -1048,6 +1077,7 @@ coff_symtab_read (long symtab_offset, un
+ 		if (target_lookup_symbol (cs->c_name, &reladdr))
+ 		  {
+ 		    /* Error in lookup; ignore symbol.  */
++                    msyms[cs->c_symnum] = (struct minimal_symbol *)-1;
+ 		    break;
+ 		  }
+ 		tmpaddr = reladdr;
+@@ -1116,6 +1146,7 @@ coff_symtab_read (long symtab_offset, un
+ 		 (cs->c_name, tmpaddr, ms_type, (void *) (long) cs->c_sclass,
+ 	         sec, coff_section_from_bfd_index (objfile->obfd, cs->c_secnum),
+ 	         objfile);
++		msyms[cs->c_symnum] = msym;
+ 		if (msym)
+ 		  COFF_MAKE_MSYMBOL_SPECIAL (cs->c_sclass, msym);
+ 	      }
+@@ -1256,12 +1287,47 @@ coff_symtab_read (long symtab_offset, un
+ 	    }
+ 	  break;
+ 
++	case C_NT_WEAK:
++	  {
++	    /* NT Weaks are really indirect symbols; aux contains the target. */
++	    int realsym;
++	    struct minimal_symbol *msym;
++
++	    realsym = main_aux.x_sym.x_tagndx.l;
++	    if (msyms[realsym] == NULL)
++	      {
++		warning ("\"%s\": indirect symbol does not have real one (%d)\n", 
++		  cs->c_name, realsym);
++	      }
++	    else if (msyms[realsym] == (struct minimal_symbol *)-1)
++	      {
++		/* nothing; just ignore it. (We discarded the undefined
++		   real symbol, so do the same with this.) */
++	      }
++	    else
++	      {
++		msym = prim_record_minimal_symbol_and_info
++		  (cs->c_name, 
++		  SYMBOL_VALUE_ADDRESS(msyms[realsym]),
++		  MSYMBOL_TYPE (msyms[realsym]),
++		  MSYMBOL_INFO (msyms[realsym]),  /* c_sclass for us. */
++		  SYMBOL_SECTION (msyms[realsym]),
++		  SYMBOL_BFD_SECTION (msyms[realsym]),
++		  objfile);
++		msyms[cs->c_symnum] = msym;
++	      }
++	    break;
++	  }
++
+ 	default:
+ 	  process_coff_symbol (cs, &main_aux, objfile);
+ 	  break;
+ 	}
+     }
+ 
++    /* All we needed these for was a lookup, we're done now. */
++    xfree (msyms);
++
+     if (first_function_this_file != 0)
+ 	  complete_symtab (filestring,
+ 	     first_function_this_file
+@@ -2357,7 +2423,7 @@ coff_symfile_offsets (objfile, addrs)
+ #ifdef COFF_IMAGE_WITH_PE
+   image_base = bfd_getImageBase(objfile->obfd);
+ 
+-// Does this still apply???
++// Does this still apply???   YES! (to non shared, minsyms, in particular)
+   for (s = objfile->sections; s < objfile->sections_end; ++s)
+      {
+        s->addr += image_base;

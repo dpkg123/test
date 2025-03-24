@@ -1,0 +1,38 @@
+This is possibly (untested) "Mumit's bug".  In any case, if relocation
+is against a symbol, don't apply the section stuff, it's wrong.
+
+	* write.c (fixup_segment): Don't add value,
+	handle section symbols specially (see bfd),
+	* config/tc-i386.c (md_apply_fix3): no section special case for
+	MS conformant PE.  (Flagged by STRICT_PE_FORMAT).
+	(tc_gen_reloc): similarly.
+	* config/te-interix.h: add STRICT_PE_FORMAT.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/write.c gas/write.c
+--- gas.orig/write.c	Fri Aug 20 14:00:50 1999
++++ gas/write.c	Fri Aug 20 14:01:24 1999
+@@ -2683,7 +2710,11 @@ fixup_segment (fixP, this_segment_type)
+ #if !(defined (TC_ARM)  && defined (OBJ_ELF))
+ #if !(defined (TC_I960) && defined (OBJ_ELF))
+ #if !defined (TC_I386) || !(defined (OBJ_ELF) || defined (OBJ_COFF)) || defined (TE_PE)
++#ifndef STRICT_PE_FORMAT /* [ */
++       /* PUSHMI_PULLU: this seems to add the symbol value a 2d time, and
++	  specifically, it breaks stabs on PE/COFF. */
+ 		  add_number += S_GET_VALUE (add_symbolP);
++#endif /* ] */
+ #endif
+ #endif
+ #endif
+@@ -2693,7 +2724,11 @@ fixup_segment (fixP, this_segment_type)
+ 	    }
+ 	}
+ 
+-      if (pcrel)
++      /* if the relocation is against a section symbol, then 
++	 we need to adjust it for that.  However, if something
++	 prevented it from becoming a relocation against a section
++	 symbol, it's a Bad Thing to do this. */
++      if (pcrel && symbol_section_p(fixP->fx_addsy))
+ 	{
+ 	  add_number -= MD_PCREL_FROM_SECTION (fixP, this_segment_type);
+ 	  if (add_symbolP == 0)

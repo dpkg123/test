@@ -1,0 +1,145 @@
+Fixes a problem with shlib-call.exp where it failed with an internal error
+because there was no .data section:
+
+1) since the mapping from section name to the reserved sections (text, data,
+bss and rodata) is done by name (in coff_symfile_offsets), the remapping
+done by cs_to_section should honor that more closely.  This avoids having to
+make inferences by the load-type flags (which is unreliable).
+
+2) Adding a predicate to determine if an arbitrary section is one of the
+special ones cleans up both cs_to_section and several other places that
+need to check if the symbol is presnt.
+
+Unhappily, this rewrites a couple of my earlier patches, but really should
+be applied early rather than late.
+
+    coffread.c (cs_to_section): work only by section number.
+    (adjust_sec_objfile_offset): Likewise.
+    (coff_symtab_read): use predicate.
+
+    objfiles.h: (SECT_OFF_TEXT, SECT_OFF_DATA, SECT_OFF_RODATA, SECT_OFF_BSS):
+    add parens around args.  Comments.
+    (SECT_OFF_TEXT_P, SECT_OFF_DATA_P, SECT_OFF_RODATA_P, SECT_OFF_BSS_P): New
+
+
+--- coffread.c.bak	Fri Oct 25 14:44:10 2002
++++ coffread.c	Fri Oct 25 15:29:16 2002
+@@ -314,10 +314,15 @@ cs_to_section (struct coff_symbol *cs, s
+   if (sect != NULL)
+     {
+       /* This is the section.  Figure out what SECT_OFF_* code it is.  */
+-      if (bfd_get_section_flags (abfd, sect) & SEC_CODE)
++
++      if (SECT_OFF_TEXT_P (objfile, sect->index))
+ 	off = SECT_OFF_TEXT (objfile);
+-      else if (bfd_get_section_flags (abfd, sect) & SEC_LOAD)
++      else if (SECT_OFF_DATA_P (objfile, sect->index))
+ 	off = SECT_OFF_DATA (objfile);
++      else if (SECT_OFF_BSS_P (objfile, sect->index))
++	off = SECT_OFF_BSS (objfile);
++      else if (SECT_OFF_RODATA_P (objfile, sect->index))
++	off = SECT_OFF_RODATA (objfile);
+       else
+ 	/* Just return the bfd section index. */
+ 	off = sect->index;
+@@ -1078,8 +1083,8 @@ coff_symtab_read (long symtab_offset, un
+ 		  }
+ #endif
+ 
+-		if (sec == SECT_OFF_TEXT (objfile)
+-		    || sec == SECT_OFF_RODATA (objfile)
++		if (SECT_OFF_TEXT_P (objfile, sec)
++		    || SECT_OFF_RODATA_P (objfile, sec)
+ 		    )
+ 		  {
+ 		    ms_type =
+@@ -1087,13 +1092,13 @@ coff_symtab_read (long symtab_offset, un
+ 		      mst_text : mst_file_text;
+ 		    tmpaddr = SMASH_TEXT_ADDRESS (tmpaddr);
+ 		  }
+-		else if (sec == SECT_OFF_DATA (objfile))
++		else if (SECT_OFF_DATA_P (objfile, sec))
+ 		  {
+ 		    ms_type =
+ 		      cs->c_sclass == external_class ?
+ 		      mst_data : mst_file_data;
+ 		  }
+-		else if (sec == SECT_OFF_BSS (objfile))
++		else if (SECT_OFF_BSS_P (objfile, sec))
+ 		  {
+ 		    ms_type =
+ 		      cs->c_sclass == external_class ?
+@@ -1540,11 +1545,16 @@ adjust_sec_objfile_offset (bfd *abfd, as
+   CORE_ADDR symbols_offset;
+ 
+   /* This is the section.  Figure out what SECT_OFF_* code it is.  */
+-  if (bfd_get_section_flags (abfd, sect) & SEC_CODE)
++  if (SECT_OFF_TEXT_P (args->objfile, sect->index))
+     off = SECT_OFF_TEXT (args->objfile);
+-  else if (bfd_get_section_flags (abfd, sect) & SEC_LOAD)
++  else if (SECT_OFF_DATA_P (args->objfile, sect->index))
+     off = SECT_OFF_DATA (args->objfile);
++  else if (SECT_OFF_BSS_P (args->objfile, sect->index))
++    off = SECT_OFF_BSS (args->objfile);
++  else if (SECT_OFF_RODATA_P (args->objfile, sect->index))
++    off = SECT_OFF_RODATA (args->objfile);
+   else
++    /* Just use the bfd section index. */
+     off = sect->index;
+ 
+   symbols_offset = bfd_get_section_vma (objfile->obfd, sect) * args->sign;
+--- objfiles.h.bak	Fri Oct 25 14:57:50 2002
++++ objfiles.h	Fri Oct 25 15:01:24 2002
+@@ -593,24 +593,42 @@ extern int is_in_import_list (char *, st
+   ALL_OBJFILES (objfile)			\
+     ALL_OBJFILE_OSECTIONS (objfile, osect)
+ 
++/* Under rare circumstances, the text or data sections can be missing.  It's 
++   probably just as well to error, but cases where that's legal should use 
++   the predicates below . */
++
+ #define SECT_OFF_DATA(objfile) \
+-     ((objfile->sect_index_data == -1) \
++     (((objfile)->sect_index_data == -1) \
+       ? (internal_error (__FILE__, __LINE__, "sect_index_data not initialized"), -1) \
+-      : objfile->sect_index_data)
+-
++      : (objfile)->sect_index_data)
++
++#define SECT_OFF_DATA_P(objfile, sec) \
++     ((objfile)->sect_index_data != -1 && (objfile)->sect_index_data == (sec))
++
++/* Note, the rodata secton can also be missing; that is encoded differently for
++   COFF: put a -2 as the flag value. */
+ #define SECT_OFF_RODATA(objfile) \
+-     ((objfile->sect_index_rodata == -1) \
++     (((objfile)->sect_index_rodata == -1) \
+       ? (internal_error (__FILE__, __LINE__, "sect_index_rodata not initialized"), -1) \
+-      : objfile->sect_index_rodata)
+-
++      : (objfile)->sect_index_rodata)
++
++#define SECT_OFF_RODATA_P(objfile, sec) \
++   ((objfile)->sect_index_rodata != -1 && (objfile)->sect_index_rodata == (sec))
++
+ #define SECT_OFF_TEXT(objfile) \
+-     ((objfile->sect_index_text == -1) \
++     (((objfile)->sect_index_text == -1) \
+       ? (internal_error (__FILE__, __LINE__, "sect_index_text not initialized"), -1) \
+-      : objfile->sect_index_text)
+-
++      : (objfile)->sect_index_text)
++
++#define SECT_OFF_TEXT_P(objfile, sec) \
++     ((objfile)->sect_index_text != -1 && (objfile)->sect_index_text == (sec))
++
+ /* Sometimes the .bss section is missing from the objfile, so we don't
+    want to die here. Let the users of SECT_OFF_BSS deal with an
+-   uninitialized section index. */
++   uninitialized section index. (But note RODATA above). */
+ #define SECT_OFF_BSS(objfile) (objfile)->sect_index_bss
++
++#define SECT_OFF_BSS_P(objfile, sec) \
++     ((objfile)->sect_index_bss != -1 && (objfile)->sect_index_bss == (sec))
+ 
+ #endif /* !defined (OBJFILES_H) */

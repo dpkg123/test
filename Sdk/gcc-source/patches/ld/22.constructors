@@ -1,0 +1,76 @@
+There remain open issues about an acceptable constructor/destructor
+list in the gcc world.  I've waiting for everything else to settle,
+and then work thru that one.  This plays with patch 24 very
+closely.  Currently being applied.
+
+
+Making ld -r work:
+
+The creation of the constructor/destructor lists in a combined .o
+confuses a subsequent link by multiply defining __CTOR_LIST__ (etc).
+This change makes what is generated conditional on whether it's a
+relocatable link or not.
+
+This source reflects an earlier incarnation of the constructor
+stuff than my system currently supports.  However, moving to that
+new version requires coordination that needs to be done in a single
+patch group, and this worked nicely with the older version.  (I no
+longer can test it except to say that everything behaves as expected.)
+Applying a vaguely similar patch on top of this one that meshes
+with the system libraries causes the cdtest test to pass (as well
+as bootstrap continuing to pass).  (Only pe.sc is affected by that
+patch, but there are patches in other places (the compiler) that
+need to be coordinated before it makes sense to submit that version
+of constructors.)
+
+With this patch applied, both bootstrap and cdtest regressions should pass
+on systems for which this form of constructor list is correct.
+
+
+ChangeLog
+	* scripttempl/pe.sc: make constructor construction conditional on 
+	relocateable.
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc
+--- //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc	Thu Mar 25 02:15:29 1999
++++ //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc	Mon Mar 29 11:22:54 1999
+@@ -26,6 +26,13 @@ if test "${RELOCATING}"; then
+     SORT(*)(.idata$7)'
+   R_CRT='*(SORT(.CRT$*))'
+   R_RSRC='*(SORT(.rsrc$*))'
++  # If this is a link -rU, we need to force the constructor list to exist;
++  # give the customer what he asked for.
++  CONSTRUCTOR_FORMAT="
++      ___CTOR_LIST__ = .; __CTOR_LIST__ = . ;
++               LONG (-1); *(.ctors); *(.ctor); LONG (0);
++      ___DTOR_LIST__ = .; __DTOR_LIST__ = . ;
++               LONG (-1); *(.dtors); *(.dtor);  LONG (0);"
+ else
+   R_TEXT=
+   R_DATA=
+@@ -33,6 +40,13 @@ else
+   R_IDATA=
+   R_CRT=
+   R_RSRC=
++  # If this is a final link, we want to PROVIDE the constructor list symbols;
++  # it might be the case that a prior link -rU already provided values.
++  CONSTRUCTOR_FORMAT="
++      PROVIDE(___CTOR_LIST__ = .); PROVIDE(__CTOR_LIST__ = .);
++               LONG (-1); *(SORT(.ctors.*)); *(.ctors); *(.ctor); LONG (0);
++      PROVIDE(___DTOR_LIST__ = .); PROVIDE(__DTOR_LIST__ = .);
++               LONG (-1); *(SORT(.dtors.*)); *(.dtors); *(.dtor);  LONG (0);"
+ fi
+ 
+ cat <<EOF
+@@ -53,10 +67,7 @@ SECTIONS
+     ${R_TEXT}
+     *(.glue_7t)
+     *(.glue_7)
+-    ${CONSTRUCTING+ ___CTOR_LIST__ = .; __CTOR_LIST__ = . ; 
+-			LONG (-1); *(SORT(.ctors.*)); *(.ctors); *(.ctor); LONG (0); }
+-    ${CONSTRUCTING+ ___DTOR_LIST__ = .; __DTOR_LIST__ = . ; 
+-			LONG (-1); *(SORT(.dtors.*)); *(.dtors); *(.dtor);  LONG (0); }
++    ${CONSTRUCTING+$CONSTRUCTOR_FORMAT}
+     ${RELOCATING+ *(.fini)}
+     /* ??? Why is .gcc_exc here?  */
+     ${RELOCATING+ *(.gcc_exc)}

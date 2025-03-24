@@ -1,0 +1,79 @@
+This also should be combined into dynlink
+
+There's an indentation fix to be made (see coff-i386.c) when this is merged.
+
+!!!!!!!!
+Apply this to the "old" stuff.  Also apply the COMDAT fixes to the old stuff.
+(See #56)
+
+--- cofflink.c.save	Tue Mar  5 10:53:14 2002
++++ cofflink.c	Tue Mar  5 11:59:43 2002
+@@ -6905,14 +6910,27 @@ coff_adjust_dynamic_symbol (h, data)
+ 	{
+ 	   /* We're building an executable; at this point weak refs
+ 	      to dynamic symbols need to be converted to ordinary
+-	      references, so clone the critical info.  Gdb needs type,
+-	      but so does subsequent code here. */
+-
+-	   h->root.type = h_real->root.type;
+-	   h->root.u = h_real->root.u;
+-	   h->type = h_real->type;
+-	   h->class = C_EXT;
+-	   h->numaux = 0;
++	      references, so clone the critical info.   Only
++	      weak symbols for which the strong one is also dynamic
++	      get this treatment.  If the strong one is not dynamic,
++	      we just use the weak one.
++
++	      Gdb needs type, but so does subsequent code here. */
++
++	    if (h_real->plt_offset != (bfd_vma)-1) 
++	      {
++	        h->root.type = h_real->root.type;
++	        h->root.u = h_real->root.u;
++	        h->type = h_real->type;
++	        h->class = h_real->class;
++	        h->numaux = 0;
++	        h->plt_offset = h_real->plt_offset;
++
++	        /* But we don't want a separate .plt entry. */
++	        h->coff_link_hash_flags |= COFF_LINK_WEAK_PLT;
++	        skip = true;
++	        goto done;
++	      }
+ 	}
+     }
+   /* Ignore (remaining) indirect symbols (both).  
+diff
+--- libcoff-in.h.save	Tue Mar  5 17:59:11 2002
++++ libcoff-in.h	Tue Mar  5 18:00:33 2002
+@@ -488,7 +488,9 @@ struct coff_link_hash_entry
+   /* Dynsym has been renumbered.  Set exactly once on all renumbered ents. */
+ #define COFF_LINK_HASH_RENUMBERED	0x1000
+   /* Dynsym has been emitted.  Set exactly once on all ents. */
+-#define COFF_LINK_HASH_EMITTED                0x2000
++#define COFF_LINK_HASH_EMITTED          0x2000
++  /* Plt is a dup of another, due to weak/indirect; don't emit reloc. */
++#define COFF_LINK_WEAK_PLT              0x4000
+ 
+ #ifdef USE_SIZE
+   /* Symbol size.  */
+diff
+--- coff-i386.c.save	Tue Mar  5 18:39:11 2002
++++ coff-i386.c	Tue Mar  5 18:27:41 2002
+@@ -1377,6 +1377,7 @@ coff_i386_finish_dynamic_symbol (output_
+       /* This symbol has an entry in the procedure linkage table.  Set
+ 	 it up.  */
+ 
++    if ((h->coff_link_hash_flags & COFF_LINK_WEAK_PLT) == 0) {
+       BFD_ASSERT (h->dynindx != -1);
+ 
+       splt = coff_hash_table(info)->splt;
+@@ -1462,6 +1463,7 @@ coff_i386_finish_dynamic_symbol (output_
+       bfd_coff_swap_reloc_out (output_bfd, &rel,
+ 			srelplt->contents + plt_index * bfd_coff_relsz (output_bfd));
+       srelplt->reloc_count++;  /* used for subsequent assert */
++    }
+ 
+       if ((h->coff_link_hash_flags & COFF_LINK_HASH_DEF_REGULAR) == 0)
+ 	{

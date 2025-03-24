@@ -1,0 +1,50 @@
+Removed "breakpoint" change: now it does what it's told.
+
+Several minor corrections to the internal documentation (English,
+spelling, content) and corresponding regression changes.
+
+Experimentally and from code reading, breakpoint at address aligns
+to a line number, rather than occurring anywhere.  (It's arguable
+which it should do, particularly on variable length instruction
+machines where being sure the bp is on an instruction boundary
+is hard. Go with the actual implementation.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+
+	* thread.c(restore_current_thread): fix comment.
+	(_initialize_thread): Clearer help; apply applies to ALL
+	classes.
+
+Index: src/gdb/thread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/thread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 thread.c
+--- src/gdb/thread.c	2001/12/23 00:34:56	1.1.1.1
++++ src/gdb/thread.c	2001/12/23 23:23:13
+@@ -539,7 +539,7 @@ make_cleanup_restore_current_thread (pti
+ 
+    thread apply 1 2 7 4 backtrace       Apply backtrace cmd to threads 1,2,7,4
+    thread apply 2-7 9 p foo(1)  Apply p foo(1) cmd to threads 2->7 & 9
+-   thread apply all p x/i $pc   Apply x/i $pc cmd to all threads
++   thread apply all x/i $pc   Apply x/i $pc cmd to all threads
+  */
+ 
+ static void
+@@ -761,11 +761,12 @@ _initialize_thread (void)
+ The new thread ID must be currently known.", &thread_cmd_list, "thread ", 1,
+ 		  &cmdlist);
+ 
+-  add_prefix_cmd ("apply", class_run, thread_apply_command,
+-		  "Apply a command to a list of threads.",
+-		  &thread_apply_list, "apply ", 1, &thread_cmd_list);
++  add_prefix_cmd ("apply", no_class, thread_apply_command,
++		  "Apply a command to a list of threads.\n\
++apply thread [n|m-n|all] <command>",
++		  &thread_apply_list, "thread apply ", 1, &thread_cmd_list);
+ 
+-  add_cmd ("all", class_run, thread_apply_all_command,
++  add_cmd ("all", no_class, thread_apply_all_command,
+ 	   "Apply a command to all threads.",
+ 	   &thread_apply_list);
+ 

@@ -1,0 +1,86 @@
+Various changes to pretty printing the register display; on
+the Alpha the register display was nearly unreadable due to
+ragged columns, and with a large number of registers, a key
+is needed.  It helps a bit on other machines as well.
+
+print_scalar_formated(): treat the new format letters
+'b', 'h', 'w', 'g' as synonyms for 'xb', etc.  The path from
+do_registers_info to here has no way to carry the size of the 
+register directly, so we encode it in the format.  (Yeah, it's
+not beautiful, but it works.)  This may have the side
+effect of occasionally allowing (at the command level) a size
+to be substituted for a format, but that seems benign.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* infcmd.c(do_registers_info): print register number,
+	supply format to get constant width output.
+	* printcmd.c(print_scalar_formatted): honor formats for
+	constant width.
+
+Index: src/gdb/infcmd.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/infcmd.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 infcmd.c
+--- src/gdb/infcmd.c	2001/12/24 01:39:10	1.2
++++ src/gdb/infcmd.c	2001/12/24 01:41:24
+@@ -1571,6 +1571,12 @@ default_print_registers_info (struct gdb
+   char *raw_buffer = alloca (MAX_REGISTER_RAW_SIZE);
+   char *virtual_buffer = alloca (MAX_REGISTER_VIRTUAL_SIZE);
+ 
++  static const char sizenames[] =
++    {'b', 'b',               /* 0-1 */
++     'h',                    /* 2-2 */
++     'w', 'w',               /* 3-4 */
++     'g', 'g', 'g', 'g'      /* 5-8 */};
++
+   if (DEPRECATED_DO_REGISTERS_INFO_P ())
+     {
+       DEPRECATED_DO_REGISTERS_INFO (regnum, print_all);
+@@ -1604,8 +1609,9 @@ default_print_registers_info (struct gdb
+ 	continue;
+ 
+       fputs_filtered (REGISTER_NAME (i), file);
+-      print_spaces_filtered (15 - strlen (REGISTER_NAME (i)), file);
+-
++      print_spaces_filtered (6 - strlen (REGISTER_NAME (i)), file);
++      printf_filtered("(%2d)    ",i);
++
+       /* Get the data in raw format.  */
+       if (! frame_register_read (frame, i, raw_buffer))
+ 	{
+@@ -1652,8 +1658,11 @@ default_print_registers_info (struct gdb
+       else
+ 	{
+ 	  /* Print the register in hex.  */
++ 	  /* by using sizenames, we get constant width numbers for each
++ 	     register type, which keeps the columns from being as ragged */
+ 	  val_print (REGISTER_VIRTUAL_TYPE (i), virtual_buffer, 0, 0,
+-		     file, 'x', 1, 0, Val_pretty_default);
++ 		     file, sizenames[REGISTER_VIRTUAL_SIZE(i)], 
++ 		     1, 0, Val_pretty_default);
+           /* If not a vector register, print it also according to its
+              natural format.  */
+ 	  if (TYPE_VECTOR (REGISTER_VIRTUAL_TYPE (i)) == 0)
+Index: src/gdb/printcmd.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/printcmd.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 printcmd.c
+--- src/gdb/printcmd.c	2001/12/24 01:10:20	1.2
++++ src/gdb/printcmd.c	2001/12/24 01:41:24
+@@ -407,6 +407,14 @@ print_scalar_formatted (char *valaddr, s
+ 
+   switch (format)
+     {
++    case 'b':
++    case 'h':
++    case 'w':
++    case 'g':
++      /* to allow a fixed width hex format; not intended for command line
++	 use, but from the "info reg" command and the like. */
++      size = format;
++      /* drop thru */
+     case 'x':
+       if (!size)
+ 	{

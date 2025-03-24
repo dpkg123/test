@@ -1,0 +1,105 @@
+All members of a MS LINK.EXE DLL archive have the same member
+name; add command line arg -N to allow extraction/deletion of
+n'th such member.  (Will only extract one per run, because of
+rename problem.)  The bulk of the volume is simply adding the
+extra arg that extract needs to all the various prototypes.
+
+This is strongly intended as an undocumented expert-only feature.
+
+	* ar.c (counted_member_counter, counted_member_mode): New var.
+	(main): Recognize -N
+	(map_over_members): count/extract identically named members.
+	(delete_members): Count/delete identically named members.
+	(extract_file): Count/extract identically named members.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/ar.c binutils/ar.c
+--- binutils.nil/ar.c	Wed Jul  7 16:58:49 1999
++++ binutils/ar.c	Wed Jul  7 16:59:21 1999
+@@ -134,6 +134,13 @@ int newer_only = 0;
+    if any of the members are object files.  */
+ int write_armap = 0;
+ 
++/* For extract/delete only. If present, it means extract only the N'th instance
++   of that name, and then bail out (so as to NOT discover there are more
++   instances, which can be a problem if the discovered instance was
++   not writeable!) */
++int counted_name_mode = 0;
++int counted_name_counter = 0;
++
+ /* If presented with an archive containing full pathnames (LIB.EXE does
+    that), match on the full pathname of the member with a full pathname
+    on the command line.  Extraction is still done locally, per POSIX.
+@@ -180,6 +187,7 @@ map_over_members (arch, function, files,
+      int count;
+ {
+   bfd *head;
++  int match_count=0;
+ 
+   if (count == 0)
+     {
+@@ -232,6 +240,13 @@ map_over_members (arch, function, files,
+ 		  membername++;
+ 	      if (!strcmp (filename, membername))
+ 		{
++		  match_count++;
++		  if (counted_name_mode && 
++		      match_count != counted_name_counter) 
++		    {
++		      /* Counting, and didn't match on count; next one */
++		      continue;
++		    }
+ 		  found = true;
+ 		  function (head, *files);
+ 		}
+@@ -533,6 +548,9 @@ main (argc, argv)
+ 	case 'P':
+ 	  match_pathnames = 1;
+ 	  break;
++	case 'N':
++	  counted_name_mode = 1;
++	  break;
+ 	case 'f':
+ 	  ar_truncate = true;
+ 	  break;
+@@ -580,10 +598,23 @@ main (argc, argv)
+       if (postype != pos_default)
+ 	posname = argv[arg_index++];
+ 
++      if (counted_name_mode) 
++	{
++          if (operation != extract && operation != delete) 
++	     fatal(_("`N' is only meaningful with the `x' and 'd' options."));
++	  counted_name_counter = atoi(argv[arg_index++]);
++          if (counted_name_counter <= 0)
++	     fatal(_("Value for `N' must be positive."));
++	  if (argc != arg_index+2)
++	     fatal(_("Exactly 1 member name required for 'N'."));
++	}
++
+       inarch_filename = argv[arg_index++];
+ 
+       files = arg_index < argc ? argv + arg_index : NULL;
+ 
++      if (counted_name_mode)  argc--;
++
+ #if 0
+       /* We don't use do_quick_append any more.  Too many systems
+          expect ar to always rebuild the symbol table even when q is
+@@ -1118,6 +1149,7 @@ delete_members (arch, files_to_delete)
+   bfd **current_ptr_ptr;
+   boolean found;
+   boolean something_changed = false;
++  int match_count=0;
+   for (; *files_to_delete != NULL; ++files_to_delete)
+     {
+       /* In a.out systems, the armap is optional.  It's also called
+@@ -1137,7 +1169,8 @@ delete_members (arch, files_to_delete)
+       current_ptr_ptr = &(arch->next);
+       while (*current_ptr_ptr)
+ 	{
+-	  if (strcmp (*files_to_delete, (*current_ptr_ptr)->filename) == 0)
++	  if (strcmp (*files_to_delete, (*current_ptr_ptr)->filename) == 0
++	      && (!counted_name_mode || ++match_count == counted_name_counter))
+ 	    {
+ 	      found = true;
+ 	      something_changed = true;

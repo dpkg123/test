@@ -1,0 +1,66 @@
+Some additional comdat housekeeping.
+Ian: comments below explain the retained_section stuff.
+
+	* ldlang.c (exp_init_os): Improve COMDAT handling.
+	* ldlang.c (section_already_linked): Ditto.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/ldlang.c ld/ldlang.c
+--- ld.nil/ldlang.c	Wed Jul  7 14:17:26 1999
++++ ld/ldlang.c	Wed Jul  7 14:17:45 1999
+@@ -856,12 +856,13 @@ exp_init_os (exp)
+     }
+ }
+ 
+-/* Sections marked with the SEC_LINK_ONCE flag should only be linked
++/* Sections marked with the SEC_LINK_ONCE are candidates to only be linked
+    once into the output.  This routine checks each sections, and
+-   arranges to discard it if a section of the same name has already
+-   been linked.  This code assumes that all relevant sections have the
+-   SEC_LINK_ONCE flag set; that is, it does not depend solely upon the
+-   section name.  This is called via bfd_map_over_sections.  */
++   arranges to discard it if a section of the same name for the same
++   COMDAT symbol has already been linked.  This code assumes that all 
++   relevant sections have the SEC_LINK_ONCE flag set; that is, it does
++   not depend solely upon the section name.
++   This is called via bfd_map_over_sections.  */
+ 
+ /*ARGSUSED*/
+ static void
+@@ -916,7 +917,9 @@ section_already_linked (abfd, sec, data)
+ 
+   for (l = sec_link_once_list; l != NULL; l = l->next)
+     {
+-      if (strcmp (name, bfd_get_section_name (l->sec->owner, l->sec)) == 0)
++      if (strcmp (name, bfd_get_section_name (l->sec->owner, l->sec)) == 0 &&
++	  sec->comdat != NULL && l->sec->comdat != NULL &&
++	  strcmp (sec->comdat->name, l->sec->comdat->name) == 0)
+ 	{
+ 	  /* The section has already been linked.  See if we should
+              issue a warning.  */
+@@ -929,8 +932,8 @@ section_already_linked (abfd, sec, data)
+ 	      break;
+ 
+ 	    case SEC_LINK_DUPLICATES_ONE_ONLY:
+-	      einfo (_("%P: %B: warning: ignoring duplicate section `%s'\n"),
+-		     abfd, name);
++ 	      einfo (_("%P: %B: warning: ignoring duplicate `%s' section symbol `%s'\n"),
++ 		     abfd, name, sec->comdat->name);
+ 	      break;
+ 
+ 	    case SEC_LINK_DUPLICATES_SAME_CONTENTS:
+@@ -949,8 +952,14 @@ section_already_linked (abfd, sec, data)
+ 	    }
+ 
+ 	  /* Set the output_section field so that wild_doit does not
+-	     create a lang_input_section structure for this section.  */
++	     create a lang_input_section structure for this section.
++	     Since there might be a symbol in the section, we must retain
++	     a REAL section pointer, but output_section must be 
++	     abs_section for other reasons.  However, we're done with the
++	     name, so overload it here. */
+ 	  sec->output_section = bfd_abs_section_ptr;
++	  bfd_release(sec->comdat->name);
++	  sec->comdat->sec = l->sec;
+ 
+ 	  return;
+ 	}

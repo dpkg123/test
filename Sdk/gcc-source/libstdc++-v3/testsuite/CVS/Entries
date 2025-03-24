@@ -1,0 +1,26 @@
+D/17_intro////
+D/18_support////
+D/19_diagnostics////
+D/20_util////
+D/21_strings////
+D/22_locale////
+D/23_containers////
+D/24_iterators////
+D/25_algorithms////
+D/26_numerics////
+D/27_io////
+D/backward////
+D/config////
+D/ext////
+D/lib////
+D/libstdc++-v3.dg////
+D/thread////
+/Makefile.am/1.12.2.3/Fri May 16 11:26:02 2003//Tgcc_3_3_release
+/Makefile.in/1.37.2.5/Fri May 16 11:26:02 2003//Tgcc_3_3_release
+/README/1.9/Fri May 16 11:26:02 2003//Tgcc_3_3_release
+/abi_check.cc/1.12.2.2/Fri May 16 11:26:02 2003//Tgcc_3_3_release
+/printnow.c/1.1/Fri Apr 21 20:33:33 2000//Tgcc_3_3_release
+/testsuite_allocator.cc/1.1.12.1/Thu Jan 16 01:41:51 2003//Tgcc_3_3_release
+/testsuite_allocator.h/1.1.12.1/Thu Jan 16 01:41:51 2003//Tgcc_3_3_release
+/testsuite_hooks.cc/1.5.2.1/Thu Jan 16 01:41:51 2003//Tgcc_3_3_release
+/testsuite_hooks.h/1.11.2.1/Fri May 16 11:26:02 2003//Tgcc_3_3_release

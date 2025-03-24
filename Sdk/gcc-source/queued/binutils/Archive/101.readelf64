@@ -1,0 +1,14 @@
+Fix by Nick Clifton that doesn't work for us, causes a build failure.
+
+diff -drup readelf.c.old readelf.c
+--- readelf.c.old	Wed Jul  7 23:28:52 1999
++++ readelf.c	Wed Jul  7 23:26:28 1999
+@@ -29,7 +29,7 @@
+ 
+ /* Define BFD64 here, even if our default architecture is 32 bit ELF
+    as this will allow us to read in and parse 64bit and 32bit ELF files.  */
+-#define BFD64
++// #define BFD64
+ #include "bfd.h"
+ 
+ #include "elf/common.h"

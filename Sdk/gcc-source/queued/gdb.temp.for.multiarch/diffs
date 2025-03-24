@@ -1,0 +1,44 @@
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb/i386interix-nat.c gdb.good/i386interix-nat.c
+--- gdb/i386interix-nat.c	Fri Nov  1 10:50:34 2002
++++ gdb.good/i386interix-nat.c	Fri Nov  1 10:21:01 2002
+@@ -400,7 +400,8 @@ interix_back_one_frame (fromleaf, frame)
+       /* We need to know if we're in a system call because we'll be
+ 	 in a syscall mini-frame, if so, and the rules are different;
+ 	 reserved[1] contains 0 if running free, 1 if blocked on a system
+-	 call, and 2 if blocked on an exception message (e.g. a trap); */
++	 call, and 2 if blocked on an exception message (e.g. a trap);
++	 // !! */
+       t = (long)read_memory_integer 
+ 	 (context + offsetof(mcontext_t, gregs.reserved[1]), 4);
+       if (t != 1)
+@@ -510,10 +511,11 @@ i386_interix_frame_chain_valid (CORE_ADD
+ {
+   if (PC_IN_CALL_DUMMY (FRAME_SAVED_PC (fi), fp, fp))
+     return 1;			/* don't prune CALL_DUMMY frames */
+-  else				/* fall back to default algorithm (see frame.h) */
+-    return (fp != 0
+-	    && (INNER_THAN (fi->frame, fp) || fi->frame == fp)
+-	    && !inside_entry_file (FRAME_SAVED_PC (fi)));
++
++  /* fall back to default algorithm (see frame.h) */
++  return (fp != 0
++	  && (INNER_THAN (fi->frame, fp) || fi->frame == fp)
++	  && !inside_entry_file (FRAME_SAVED_PC (fi)));
+ }
+ 
+ /* Figure out where the longjmp will land.
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb/reserved gdb.good/reserved
+--- gdb/reserved	Wed Dec 31 16:00:00 1969
++++ gdb.good/reserved	Thu Oct 31 13:42:20 2002
+@@ -0,0 +1,11 @@
++core-sol2.c:	  memcpy (&registers[REGISTER_BYTE (G1_REGNUM)], &gregs->r_g1,
++core-sol2.c:	  *(int *) &registers[REGISTER_BYTE (PS_REGNUM)] = gregs->r_ps;
++core-sol2.c:	  *(int *) &registers[REGISTER_BYTE (PC_REGNUM)] = gregs->r_pc;
++core-sol2.c:	  *(int *) &registers[REGISTER_BYTE (NPC_REGNUM)] = gregs->r_npc;
++core-sol2.c:	  *(int *) &registers[REGISTER_BYTE (Y_REGNUM)] = gregs->r_y;
++s390-tdep.c:	      /* read sigregs->psw.addr */
++sparc-nat.c:      memcpy (&registers[REGISTER_BYTE (G1_REGNUM)], &gregs->r_g1,
++sparc-nat.c:      *(int *) &registers[REGISTER_BYTE (PS_REGNUM)] = gregs->r_ps;
++sparc-nat.c:      *(int *) &registers[REGISTER_BYTE (PC_REGNUM)] = gregs->r_pc;
++sparc-nat.c:      *(int *) &registers[REGISTER_BYTE (NPC_REGNUM)] = gregs->r_npc;
++sparc-nat.c:      *(int *) &registers[REGISTER_BYTE (Y_REGNUM)] = gregs->r_y;

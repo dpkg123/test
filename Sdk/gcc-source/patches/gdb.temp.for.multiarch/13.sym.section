@@ -1,0 +1,231 @@
+The bfd_section is needed to enable searching in some cases ("info
+sym" for a .bss symbol, e.g.); record the section pointer for
+later use.  prim_record_minimal_symbol_and_info already had a place
+for it; just bring to higher levels.  In
+lookup_minimal_symbol_by_pc_section use to avoid overlong searches.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* symtab.h(record_minimal_symbol): add section arg.
+	* minsyms.c(prim_record_minimal_symbol): add section arg.
+	(lookup_minimal_symbol_by_pc_section): Use section info.
+	* coffread.c(record_minimal_symbol): add section arg.
+	(coff_symfile_finish, coff_symtab_read):  Use it.
+	* dbxread.c(read_dbx_dymamic_symtab): provide dummy arg.
+	* dwarf2read.c(add_partial_symbol): provide dummy arg.
+	* mdebugread.c(parse_partial_symbols): provide dummy arg.
+	* mipsread.c(read_alphacoff_dynamic_symtab): provide dummy arg.
+	* nlmread.c(nlm_record_minimal_symbol): provide dummy arg.
+
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 coffread.c
+--- src/gdb/coffread.c	2001/12/23 23:22:12	1.2
++++ src/gdb/coffread.c	2001/12/23 23:44:57
+@@ -483,15 +484,16 @@ coff_end_symtab (struct objfile *objfile
+ 
+ static void
+ record_minimal_symbol (char *name, CORE_ADDR address,
+-		       enum minimal_symbol_type type, struct objfile *objfile)
+-{
++		       enum minimal_symbol_type type, struct objfile *objfile,
++		       asection *bfd_section)
++{
+   /* We don't want TDESC entry points in the minimal symbol table */
+   if (name[0] == '@')
+     return;
+ 
+-  prim_record_minimal_symbol (name, address, type, objfile);
+-}
+-
++  prim_record_minimal_symbol (name, address, type, objfile, bfd_section);
++}
++
+ /* coff_symfile_init ()
+    is the coff-specific initialization routine for reading symbols.
+    It is passed a struct objfile which contains, among other things,
+@@ -817,8 +819,9 @@ coff_symtab_read (long symtab_offset, un
+ 	{
+ 	  /* Record all functions -- external and static -- in minsyms. */
+ 	  tmpaddr = cs->c_value + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+-	  record_minimal_symbol (cs->c_name, tmpaddr, mst_text, objfile);
+-
++  	  record_minimal_symbol (cs->c_name, tmpaddr, mst_text, objfile, 
++  	     coff_section_from_bfd_index(objfile->obfd, cs->c_secnum));
++
+ 	  fcn_line_ptr = main_aux.x_sym.x_fcnary.x_fcn.x_lnnoptr;
+ 	  fcn_start_addr = tmpaddr;
+ 	  fcn_cs_saved = *cs;
+@@ -977,8 +980,9 @@ coff_symtab_read (long symtab_offset, un
+                    welcome. */
+ 		gdb_assert (sizeof (void *) >= sizeof (cs->c_sclass));
+ 		msym = prim_record_minimal_symbol_and_info
+-		  (cs->c_name, tmpaddr, ms_type, (void *) (long) cs->c_sclass,
+-		   sec, NULL, objfile);
++		 (cs->c_name, tmpaddr, ms_type, (void *) (long) cs->c_sclass,
++	         sec, coff_section_from_bfd_index (objfile->obfd, cs->c_secnum),
++	         objfile);
+ 		if (msym)
+ 		  COFF_MAKE_MSYMBOL_SPECIAL (cs->c_sclass, msym);
+ 	      }
+Index: src/gdb/dbxread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/dbxread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 dbxread.c
+--- src/gdb/dbxread.c	2001/12/23 00:34:45	1.1.1.1
++++ src/gdb/dbxread.c	2001/12/23 23:44:57
+@@ -1224,7 +1224,7 @@ read_dbx_dynamic_symtab (struct objfile 
+ 
+       name = (char *) bfd_asymbol_name (*rel->sym_ptr_ptr);
+       prim_record_minimal_symbol (name, address, mst_solib_trampoline,
+-				  objfile);
++				  objfile, NULL);
+     }
+ 
+   do_cleanups (back_to);
+Index: src/gdb/dwarf2read.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/dwarf2read.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 dwarf2read.c
+--- src/gdb/dwarf2read.c	2001/12/23 00:34:46	1.1.1.1
++++ src/gdb/dwarf2read.c	2001/12/23 23:44:58
+@@ -1268,7 +1268,7 @@ add_partial_symbol (struct partial_die_i
+       if (pdi->is_external)
+ 	{
+ 	  /*prim_record_minimal_symbol (pdi->name, pdi->lowpc + baseaddr,
+-	     mst_text, objfile); */
++	     mst_text, objfile, NULL); */
+ 	  add_psymbol_to_list (pdi->name, strlen (pdi->name),
+ 			       VAR_NAMESPACE, LOC_BLOCK,
+ 			       &objfile->global_psymbols,
+@@ -1277,7 +1277,7 @@ add_partial_symbol (struct partial_die_i
+       else
+ 	{
+ 	  /*prim_record_minimal_symbol (pdi->name, pdi->lowpc + baseaddr,
+-	     mst_file_text, objfile); */
++	     mst_file_text, objfile, NULL); */
+ 	  add_psymbol_to_list (pdi->name, strlen (pdi->name),
+ 			       VAR_NAMESPACE, LOC_BLOCK,
+ 			       &objfile->static_psymbols,
+@@ -1315,7 +1315,7 @@ add_partial_symbol (struct partial_die_i
+ 	    return;
+ 	  addr = decode_locdesc (pdi->locdesc, objfile, cu_header);
+ 	  /*prim_record_minimal_symbol (pdi->name, addr + baseaddr,
+-	     mst_file_data, objfile); */
++	     mst_file_data, objfile, NULL); */
+ 	  add_psymbol_to_list (pdi->name, strlen (pdi->name),
+ 			       VAR_NAMESPACE, LOC_STATIC,
+ 			       &objfile->static_psymbols,
+Index: src/gdb/mdebugread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/mdebugread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 mdebugread.c
+--- src/gdb/mdebugread.c	2001/12/23 00:34:50	1.1.1.1
++++ src/gdb/mdebugread.c	2001/12/23 23:44:58
+@@ -2485,7 +2485,7 @@ parse_partial_symbols (struct objfile *o
+ 	  complain (&unknown_ext_complaint, name);
+ 	}
+       if (!ECOFF_IN_ELF (cur_bfd))
+-	prim_record_minimal_symbol (name, svalue, ms_type, objfile);
++	prim_record_minimal_symbol (name, svalue, ms_type, objfile, NULL);
+     }
+ 
+   /* Pass 3 over files, over local syms: fill in static symbols */
+Index: src/gdb/minsyms.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/minsyms.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 minsyms.c
+--- src/gdb/minsyms.c	2001/12/23 00:34:51	1.1.1.1
++++ src/gdb/minsyms.c	2001/12/23 23:44:58
+@@ -484,13 +484,17 @@ lookup_minimal_symbol_by_pc_section (COR
+ 
+ 	      /* If "section" specified, skip any symbol from wrong section */
+ 	      /* This is the new code that distinguishes it from the old function */
++	      /* If the symbols are already in section order, we may end up
++		 linearly backing up thru the whole table, so quit if the
++		 symbol value gets weird. */
+ 	      if (section)
+ 		while (hi >= 0
+ 		       /* Some types of debug info, such as COFF,
+ 			  don't fill the bfd_section member, so don't
+ 			  throw away symbols on those platforms.  */
+ 		       && SYMBOL_BFD_SECTION (&msymbol[hi]) != NULL
+-		       && SYMBOL_BFD_SECTION (&msymbol[hi]) != section)
++		       && SYMBOL_BFD_SECTION (&msymbol[hi]) != section
++		       && SYMBOL_VALUE_ADDRESS (&msymbol[hi]) >= pc)
+ 		  --hi;
+ 
+ 	      if (hi >= 0
+@@ -592,7 +596,7 @@ init_minimal_symbol_collection (void)
+ void
+ prim_record_minimal_symbol (const char *name, CORE_ADDR address,
+ 			    enum minimal_symbol_type ms_type,
+-			    struct objfile *objfile)
++			    struct objfile *objfile, asection *bfd_section)
+ {
+   int section;
+ 
+@@ -616,7 +620,7 @@ prim_record_minimal_symbol (const char *
+     }
+ 
+   prim_record_minimal_symbol_and_info (name, address, ms_type,
+-				       NULL, section, NULL, objfile);
++				       NULL, section, bfd_section, objfile);
+ }
+ 
+ /* Record a minimal symbol in the msym bunches.  Returns the symbol
+Index: src/gdb/mipsread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/mipsread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 mipsread.c
+--- src/gdb/mipsread.c	2001/12/23 00:34:51	1.1.1.1
++++ src/gdb/mipsread.c	2001/12/23 23:44:58
+@@ -421,7 +421,7 @@ read_alphacoff_dynamic_symtab (struct se
+ 	    }
+ 	}
+ 
+-      prim_record_minimal_symbol (name, sym_value, ms_type, objfile);
++      prim_record_minimal_symbol (name, sym_value, ms_type, objfile, NULL);
+     }
+ 
+   do_cleanups (cleanups);
+Index: src/gdb/nlmread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/nlmread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 nlmread.c
+--- src/gdb/nlmread.c	2001/12/23 00:34:51	1.1.1.1
++++ src/gdb/nlmread.c	2001/12/23 23:44:58
+@@ -135,7 +135,7 @@ nlm_symtab_read (bfd *abfd, CORE_ADDR ad
+ 		ms_type = mst_unknown;
+ 
+ 	      prim_record_minimal_symbol (sym->name, symaddr, ms_type,
+-					  objfile);
++					  objfile, NULL);
+ 	    }
+ 	}
+       do_cleanups (back_to);
+Index: src/gdb/symtab.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/symtab.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 symtab.h
+--- src/gdb/symtab.h	2001/12/23 00:34:56	1.1.1.1
++++ src/gdb/symtab.h	2001/12/23 23:44:58
+@@ -1186,7 +1186,8 @@ extern struct type *lookup_transparent_t
+ 
+ extern void prim_record_minimal_symbol (const char *, CORE_ADDR,
+ 					enum minimal_symbol_type,
+-					struct objfile *);
++					struct objfile *,
++					asection *);
+ 
+ extern struct minimal_symbol *prim_record_minimal_symbol_and_info
+   (const char *, CORE_ADDR,

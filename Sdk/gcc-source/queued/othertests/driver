@@ -1,0 +1,22 @@
+#!/bin/ksh
+
+if [ $# != 4 ]
+then
+	echo "usage: driver <CC> <C++> <G77> <local_bin>"
+fi
+
+nerrors=0
+ntests=0
+
+for i in *.testrun
+do
+	ntests=$((ntests + 1))
+	./$i "$@"
+	if [ $? != 0 ]
+	then
+	   nerrors=$((nerrors + 1))
+	fi
+done
+
+echo "# of tests" $ntests
+echo "# of failures" $nerrors

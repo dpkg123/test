@@ -1,0 +1,73 @@
+I got this from ACT at one point; one minor mod to it to make it
+apply to a changed i386.c (now a unified diff).
+
+Index: gcc/gcc/config/i386/i386-interix.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/i386-interix.h,v
+retrieving revision 1.23
+diff -p -c -r1.23 i386-interix.h
+--- gcc/config/i386-interix.h	2001/12/16 15:43:40	1.23
++++ gcc/config/i386/i386-interix.h	2002/02/06 22:55:55
+@@ -26,6 +26,8 @@ Boston, MA 02111-1307, USA.  */
+ 
+ /* The rest must follow.  */
+ 
++#undef TARGET_ASM_CONSTRUCTOR
++
+ #define DBX_DEBUGGING_INFO 1
+ #define SDB_DEBUGGING_INFO 1
+ #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+Index: gcc/gcc/config/i386/i386.c
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/i386.c,v
+retrieving revision 1.359
+diff -p -c -r1.241 i386.h
+*** i386.h	2002/02/02 00:05:11	1.241
+--- gcc/config/i386/i386.h	2002/02/06 22:56:31
+*************** enum fp_cw_mode {FP_CW_STORED, FP_CW_UNI
+*** 3209,3214 ****
+--- 3209,3222 ----
+  #define HARD_REGNO_RENAME_OK(SRC, TARGET)  \
+     ((SRC) < FIRST_STACK_REG || (SRC) > LAST_STACK_REG)
+  
++ #define TARGET_ASM_CONSTRUCTOR(SYMBOL,PRIORITY)         \
++ do {                                                    \
++       init_section ();                                  \
++       fputs ("\tpushl $", asm_out_file);                \
++       assemble_name (asm_out_file, XSTR ((SYMBOL), 0)); \
++       fputc ('\n', asm_out_file);                       \
++    } while (0)
++ 
+  
+  /*
+  Local variables:
+Index: gcc/gcc/config/i386/svr3gas.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/svr3gas.h,v
+retrieving revision 1.9
+diff -p -c -r1.9 svr3gas.h
+*** svr3gas.h	2001/09/11 16:49:58	1.9
+--- gcc/config/i386/svr3gas.h	2002/02/06 22:56:32
+***************
+*** 137,141 ****
+        in_section = in_fini;					\
+      }								\
+  }
+- 
+- #define TARGET_ASM_CONSTRUCTOR  ix86_svr3_asm_out_constructor
+--- 137,139 ----
+Index: gcc/gcc/config/i386/sysv3.h
+===================================================================
+RCS file: /cvs/gcc/gcc/gcc/config/i386/sysv3.h,v
+retrieving revision 1.7
+diff -p -c -r1.7 sysv3.h
+*** sysv3.h	2001/08/09 22:33:24	1.7
+--- gcc/config/i386/sysv3.h	2002/02/06 22:56:32
+*************** Boston, MA 02111-1307, USA.  */
+*** 111,115 ****
+    asm (INIT_SECTION_ASM_OP);			\
+    asm ("pushl $0")
+  #define CTOR_LIST_END CTOR_LIST_BEGIN
+- 
+- #define TARGET_ASM_CONSTRUCTOR  ix86_svr3_asm_out_constructor
+--- 111,113 ----

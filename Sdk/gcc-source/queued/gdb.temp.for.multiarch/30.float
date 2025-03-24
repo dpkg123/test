@@ -1,0 +1,31 @@
+Better diagnostics; distinguish between program not being run
+and floating point not present (in running application).
+(The change might also be applicable to non-default cases.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* default.exp: adjust expected message in info float.
+
+Index: src/gdb/testsuite/gdb.base/default.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/default.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 default.exp
+--- src/gdb/testsuite/gdb.base/default.exp	2001/12/23 00:35:16	1.1.1.1
++++ src/gdb/testsuite/gdb.base/default.exp	2001/12/24 01:36:53
+@@ -308,7 +308,15 @@ if [istarget "arm*-*-*"] then {
+ } elseif [istarget "i\[3456\]86-*-*"] then {
+     gdb_test "info float" "R7:.*Status Word:.*Opcode:.*" "info float"
+ } else {
+-    gdb_test "info float" "No floating.point info available for this processor." "info float"
++    send_gdb "info float\n"
++    gdb_expect {
++      -re "No floating.point info available for this processor.*$gdb_prompt $" \
++	    { pass "info float (none available)" }
++      -re "The program is not being run.*$gdb_prompt $" \
++	    { pass "info float (no current process)" }
++      -re ".*$gdb_prompt $"	{ fail "info float (unexpcted)" }
++      timeout		{ fail "info float (timeout)" }
++    }
+ }
+ #test info functions
+ gdb_test "info functions" "All defined functions:" "info functions"

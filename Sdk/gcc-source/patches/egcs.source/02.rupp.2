@@ -1,0 +1,16 @@
+Index: egcs.source/gcc/config.guess
+diff -c egcs.source/gcc/config.guess gcc/config.guess.new
+*** egcs.source/gcc/config.guess	2001/11/05 01:52:42	1.47
+--- egcs.source/gcc/config.guess	2001/12/20 00:49:22
+***************
+*** 736,741 ****
+--- 736,744 ----
+      i*:PW*:*)
+  	echo ${UNAME_MACHINE}-pc-pw32
+  	exit 0 ;;
++     x86:Interix*:3*)
++ 	echo i386-pc-interix3
++ 	exit 0 ;;
+      i*:Windows_NT*:* | Pentium*:Windows_NT*:*)
+  	# How do we know it's Interix rather than the generic POSIX subsystem?
+  	# It also conflicts with pre-2.0 versions of AT&T UWIN. Should we

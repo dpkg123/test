@@ -1,0 +1,102 @@
+The newly "enabled for everything" tests for attach have a number
+of problems for /proc based gdb, and also has an HP-UX specific test
+that is not so marked.  Because of this it leaves a cpu-eating
+process behind slowing down all subsequent tests significantly.
+See 2002-03-25  Fred Fish  <fnf@redhat.com>.
+
+2) /proc chatters more (which is a different issue) and consequently
+   some patterns fail to match.  (It looks to me as if the unmodified
+   patterns should match, but they don't while the shortened ones do.)
+3) If the name of the executable is not found, automatic symbol loads 
+   don't happen.  Add recovery code so the subsequent tests don't lose 
+   sync and leave the dangling process around.  (Without symbols, 
+   the dangling process doesn't get killed, even though there appear 
+   to be some efforts to dot that.)
+4) One test is clearly HP-UX specific.  Not having "i r" hang in the
+   attach case is a useful test, but the exact test is too specific.
+   The fix is a bit "bandaidy" (the original author here would be
+   better able to fix it.)
+
+
+--- testsuite/gdb.base/attach.exp	Fri Apr  5 02:58:08 2002
++++ testsuite/gdb.base.new/attach.exp	Fri Apr  5 02:31:11 2002
+@@ -243,10 +243,48 @@ proc do_attach_tests {} {
+    gdb_expect {
+       -re "Attaching to process $testpid.*Reading symbols from $binfile.*main.*at .*$gdb_prompt $"\
+                       {pass "attach2"}
++      -re "Attaching to process $testpid.*main.*at .*$gdb_prompt $"\
++	              {setup_xfail "*-*-interix*"
++	               fail "attach2" }
+       -re "$gdb_prompt $" {fail "attach2"}
+       timeout         {fail "(timeout) attach2"}
+    }
+ 
++   # Verify that we can still "see" the variable "should_exit" in the
++   # program, and that it is zero.  If we can't, recover with a 'symbol-file'
++   # command so the rest of the tests here run correctly.
++   #
++   send_gdb "print should_exit\n"
++   gdb_expect {
++      -re "No symbol table.*$gdb_prompt $" {
++
++	  setup_xfail "*-*-interix*"
++	  fail "after attach2, print should_exit (no symbols)"
++
++	  send_gdb "symbol-file $binfile\n"
++	  gdb_expect {
++	      -re "Load new symbol table from.*y or n.*$" {
++		 send_gdb "y\n"
++		 gdb_expect {
++		    -re "Reading .*done.*$gdb_prompt $"\
++				    {pass "(re)set file, before attach2a"}
++		    -re "$gdb_prompt $" {fail "(re)set file, after attach2a"}
++		    timeout   {fail "(timeout) (re)set file, after attach2a"}
++		 }
++	      }
++	      -re "Reading symbols from .*done.*$gdb_prompt $"\
++			      {pass "set file, after attach2a"}
++	      -re "$gdb_prompt $" {fail "set file, after attach2a"}
++	      timeout         {fail "(timeout) set file, after attach2a"}
++	    }
++      } 
++
++      -re ".* = 0.*$gdb_prompt $"\
++                      {pass "after attach2, print should_exit"}
++      -re "$gdb_prompt $" {fail "after attach2, print should_exit"}
++      timeout         {fail "(timeout) after attach2, print should_exit"}
++   }
++
+    # Verify that we can modify the variable "should_exit" in the
+    # program.
+    #
+@@ -387,6 +425,8 @@ proc do_call_attach_tests {} {
+       timeout         {fail "(timeout) attach call"}
+    }
+ 
++   # This appears to be painfully HP-UX specific.
++
+    # See if other registers are problems
+    #
+    send_gdb "i r r3\n"
+@@ -397,6 +437,9 @@ proc do_call_attach_tests {} {
+        -re ".*r3.*$gdb_prompt $" {
+            pass "Bug fixed, Yayyy!"
+        }
++       -re "$gdb_prompt $" {
++           pass "Apparent pass."
++       }
+        timeout { fail "timeout on info reg" }
+    }
+ 
+@@ -409,6 +452,11 @@ proc do_call_attach_tests {} {
+    #
+     remote_exec build "kill -9 ${testpid}"
+ 
++   # Make sure to kill it if anything goes wrong above.  Otherwise it
++   # will eat up CPU slowing down everything else.  Be sure to exit
++   # in case the process is locked.
++   gdb_exit
++   remote_exec build "kill -9 ${testpid}"
+ }
+ 
+ 

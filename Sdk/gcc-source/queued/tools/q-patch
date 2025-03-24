@@ -1,0 +1,17 @@
+export POSIXLY_CORRECT=0 
+# -N is "skip already applied"
+
+echo Applying $1: $(cd $QUEUED/$1/; echo $2.* )
+if [ -f $(echo $QUEUED/$1/${2}.*) ]
+then
+    echo Applying patch
+    #$INTERIX_ROOT/bin/patch -N -p $3 < $QUEUED/$1/$2.*
+    $INTERIX_ROOT/bin/patch -N -l -p $3 < $(echo $QUEUED/$1/$2.*)
+    # $INTERIX_ROOT/bin/patch -N -p $3 < $(echo $QUEUED/$1/$2.*)
+fi
+
+if [ -f $(echo $QUEUED/$1/${2}sh) ]
+then
+    echo Running script
+    sh -x $(echo $QUEUED/$1/${2}sh)
+fi

@@ -1,0 +1,98 @@
+Miscellaneous small fixes that are generally applicable.
+
+TEST_GDB variable allows retargeting of tests.
+
+MSVC 4.0 (MSC 10.0) still doesn't handle unsigned __int64.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* testsuite/gdb.base/selftest.exp: honor TEST_GDB var.
+	* event-top.c (command_handler): Missed test for sbrk();
+	if maint space not implemented say something.
+	* gdb.base/maint.exp: To match above.
+
+
+Index: src/gdb/event-top.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/event-top.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 event-top.c
+--- src/gdb/event-top.c	2001/12/23 00:34:46	1.1.1.1
++++ src/gdb/event-top.c	2001/12/23 23:04:31
+@@ -555,6 +557,8 @@ command_handler (char *command)
+ 			     space_now,
+ 			     (space_diff >= 0 ? '+' : '-'),
+ 			     space_diff);
++#else
++	  printf_unfiltered ("Space used: <unimplemented> (+<unimplemented> for this command)\n");
+ #endif
+ 	}
+     }
+Index: src/gdb/testsuite/gdb.base/maint.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/maint.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 maint.exp
+--- src/gdb/testsuite/gdb.base/maint.exp	2001/12/23 00:35:17	1.1.1.1
++++ src/gdb/testsuite/gdb.base/maint.exp	2001/12/23 23:04:31
+@@ -119,9 +119,11 @@ gdb_expect  {
+         timeout         { fail "(timeout) maint space" }
+         }
+ 
++set decOrUnimp ($decimal|<unimplemented>)
++
+ send_gdb "maint space 1\n"
+ gdb_expect  {
+-        -re "Space used: $decimal \\(\\+$decimal for this command\\).*$gdb_prompt $"\
++        -re "Space used: $decOrUnimp \\(\\+$decOrUnimp for this command\\).*$gdb_prompt $"\
+                         { pass "maint space 1" }
+         -re ".*$gdb_prompt $"       { fail "maint space 1" }
+         timeout         { fail "(timeout) maint space 1" }
+@@ -130,7 +132,7 @@ gdb_expect  {
+ 
+ send_gdb "maint time\n"
+ gdb_expect  {
+-        -re "\"maintenance time\" takes a numeric argument\\..*Space used: $decimal \\(\\+$decimal for this command\\).*$gdb_prompt $"\
++        -re "\"maintenance time\" takes a numeric argument\\..*Space used: $decOrUnimp \\(\\+$decOrUnimp for this command\\).*$gdb_prompt $"\
+                         { pass "maint time" }
+         -re ".*$gdb_prompt $"       { fail "maint time" }
+         timeout         { fail "(timeout) maint time" }
+@@ -138,7 +140,7 @@ gdb_expect  {
+ 
+ send_gdb "maint time 1\n"
+ gdb_expect  {
+-        -re "Command execution time: $decimal.*Space used: $decimal \\(\\+$decimal for this command\\).*$gdb_prompt $"\
++        -re "Command execution time: $decimal.*Space used: $decOrUnimp \\(\\+$decOrUnimp for this command\\).*$gdb_prompt $"\
+                         { pass "maint time 1" }
+         -re ".*$gdb_prompt $"       { fail "maint time 1" }
+         timeout         { fail "(timeout) maint time 1" }
+@@ -146,7 +148,7 @@ gdb_expect  {
+ 
+ send_gdb "maint time 0\n"
+ gdb_expect  {
+-        -re "Space used: $decimal \\(\\+$decimal for this command\\).*$gdb_prompt $"\
++        -re "Space used: $decOrUnimp \\(\\+$decOrUnimp for this command\\).*$gdb_prompt $"\
+                         { pass "maint time 0" }
+         -re ".*$gdb_prompt $"       { fail "maint time 0" }
+         timeout         { fail "(timeout) maint time 0" }
+Index: src/gdb/testsuite/gdb.base/selftest.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/selftest.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 selftest.exp
+--- src/gdb/testsuite/gdb.base/selftest.exp	2001/12/23 00:35:18	1.1.1.1
++++ src/gdb/testsuite/gdb.base/selftest.exp	2001/12/23 23:04:31
+@@ -435,7 +435,13 @@ set GDB_FULLPATH [find_gdb $GDB]
+ remote_file host delete x$tool
+ 
+ gdb_start
+-set file [remote_download host $GDB_FULLPATH x$tool]
++
++global TEST_GDB
++if [info exists TEST_GDB] {
++   set file $TEST_GDB
++} else {
++   set file [remote_download host $GDB_FULLPATH x$tool]
++}
+ set result [test_with_self $file];
+ gdb_exit;
+ catch "remote_file host delete $file";

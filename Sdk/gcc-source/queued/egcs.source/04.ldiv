@@ -1,0 +1,17 @@
+Index: egcs.source/gcc/config/i386/i386-interix.h
+===================================================================
+--- egcs.source/gcc/gcc/config/i386/i386-interix.h.bak	Sun Dec 16 07:43:40 2001
++++ egcs.source/gcc/gcc/config/i386/i386-interix.h	Mon Jan 14 13:30:44 2002
+diff -u egcs.source/gcc/config/i386/interix.h.bak egcs.source/gcc/config/i386/interix.h
+@@ -421,3 +420,11 @@ extern void i386_pe_unique_section ();
+ /* Don't assume anything about the header files.  */
+ #define NO_IMPLICIT_EXTERN_C
+ 
++/* MSVC returns structs of up to 8 bytes via registers. */
++
++#define DEFAULT_PCC_STRUCT_RETURN 0
++
++#undef RETURN_IN_MEMORY
++#define RETURN_IN_MEMORY(TYPE) \
++  (TYPE_MODE (TYPE) == BLKmode || \
++     (AGGREGATE_TYPE_P (TYPE) && int_size_in_bytes(TYPE) > 8 ))

@@ -1,0 +1,16 @@
+Interix uses the same convention as BSD for passing structs of up to 8 bytes:
+use registers if the size is "round" enough.
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.saved/config/i386/tm-i386interix.h gdb/config/i386/tm-i386interix.h
+--- gdb.saved/config/i386/tm-i386interix.h	Tue Mar  5 14:56:01 2002
++++ gdb/config/i386/tm-i386interix.h	Tue Mar  5 21:24:09 2002
+@@ -30,6 +30,9 @@ Foundation, Inc., 59 Temple Place - Suit
+ #undef TARGET_LONG_LONG_BIT
+ #define TARGET_LONG_LONG_BIT 64
+ 
++#define USE_STRUCT_CONVENTION(gcc_p, type) \
++	generic_use_struct_convention(gcc_p != 0 ? 1 : 0, type)
++
+ /* configure can't be expected to noodle out MS's alternate spelling for
+    64-bit integers, so we'll tell it. */
+ #define PRINTF_HAS_LONG_LONG 1

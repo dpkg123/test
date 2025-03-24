@@ -1,0 +1,24 @@
+MSVC treats enum bitfields as signed.  Thus 3 becomes -1, making all
+sorts of messes.
+
+Just leave an extra bit of padding, and compensate elsewhere.
+
+--- gcc/real.h.orig	Tue Oct  1 14:51:01 2002
++++ gcc/real.h	Tue Oct  1 14:58:26 2002
+@@ -35,14 +35,14 @@ enum real_value_class {
+ };
+ 
+ #define SIGNIFICAND_BITS	128
+-#define EXP_BITS		(32 - 3)
++#define EXP_BITS		(32 - 4)
+ #define MAX_EXP			((1 << (EXP_BITS - 1)) - 1)
+ #define SIGSZ			(SIGNIFICAND_BITS / HOST_BITS_PER_LONG)
+ #define SIG_MSB			((unsigned long)1 << (HOST_BITS_PER_LONG - 1))
+ 
+ struct real_value GTY(())
+ {
+-  enum real_value_class class : 2;
++  enum real_value_class class : 3;  /* avoid sign extension! */
+   unsigned int sign : 1;
+   signed int exp : EXP_BITS;
+   unsigned long sig[SIGSZ];

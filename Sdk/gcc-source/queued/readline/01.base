@@ -1,0 +1,107 @@
+CHECK THAT THE FIRST PATCH IS RIGHT... it might now work?
+(That is, try turning on username_completion_function.)
+
+Index: src/readline/complete.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/readline/complete.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 complete.c
+--- src/readline/complete.c	2001/12/23 00:35:43	1.1.1.1
++++ src/readline/complete.c	2001/12/24 04:14:18
+@@ -1418,9 +1418,9 @@ username_completion_function (text, stat
+      char *text;
+      int state;
+ {
+-#if defined (__WIN32__) || defined (__OPENNT)
++#if defined (__WIN32__) || defined (__INTERIX)
+   return (char *)NULL;
+-#else /* !__WIN32__ && !__OPENNT) */
++#else /* !__WIN32__ && !__INTERIX */
+   static char *username = (char *)NULL;
+   static struct passwd *entry;
+   static int namelen, first_char, first_char_loc;
+@@ -1447,7 +1447,9 @@ username_completion_function (text, stat
+ 
+   if (entry == 0)
+     {
++#if !defined(__INTERIX)
+       endpwent ();
++#endif
+       return ((char *)NULL);
+     }
+   else
+@@ -1463,7 +1465,7 @@ username_completion_function (text, stat
+ 
+       return (value);
+     }
+-#endif /* !__WIN32__ && !__OPENNT */
++#endif /* !__WIN32__ && !__INTERIX */
+ }
+ 
+ /* Okay, now we write the entry_function for filename completion.  In the
+Index: src/readline/sysdep-interix.h
+===================================================================
+RCS file: sysdep-interix.h
+diff -N sysdep-interix.h
+--- /dev/null	Sun Dec 23 20:31:46 2001
++++ sysdep-interix.h	Sun Dec 23 20:14:18 2001
+@@ -0,0 +1,14 @@
++/* System-dependent stuff, for Interix systems */
++
++#define HAVE_UNISTD_H
++#ifdef __GNUC__
++#define alloca __builtin_alloca
++#else
++extern char *alloca ();
++#endif
++
++#include <sys/types.h>			/* Needed by dirent.h */
++#include <string.h>
++
++#include <dirent.h>
++typedef struct dirent dirent;
+Index: src/readline/sysdep.h
+===================================================================
+RCS file: sysdep.h
+diff -N sysdep.h
+--- /dev/null	Sun Dec 23 20:32:34 2001
++++ sysdep.h	Sun Dec 23 20:14:18 2001
+@@ -0,0 +1,14 @@
++/* System-dependent stuff, for Interix systems */
++
++#define HAVE_UNISTD_H
++#ifdef __GNUC__
++#define alloca __builtin_alloca
++#else
++extern char *alloca ();
++#endif
++
++#include <sys/types.h>			/* Needed by dirent.h */
++#include <string.h>
++
++#include <dirent.h>
++typedef struct dirent dirent;
+Index: src/readline/tilde.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/readline/tilde.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 tilde.c
+--- src/readline/tilde.c	2001/12/23 00:35:44	1.1.1.1
++++ src/readline/tilde.c	2001/12/24 04:14:18
+@@ -373,8 +373,9 @@ tilde_expand_word (filename)
+       free (username);
+       dirname = glue_prefix_and_suffix (user_entry->pw_dir, filename, user_len);
+     }
+-
++#if !defined(__INTERIX)
+   endpwent ();
++#endif
+   return (dirname);
+ }
+ 
+Index: src/readline/config/mh-interix
+--- /dev/null	Sun Dec 23 20:33:22 2001
++++ src/readline/config/mh-interix	Sun Dec 23 20:14:18 2001
+@@ -0,0 +1,2 @@
++INSTALL_PROG = cp
++RANLIB=:

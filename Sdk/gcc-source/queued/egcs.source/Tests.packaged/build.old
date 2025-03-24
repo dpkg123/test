@@ -1,0 +1,11 @@
+export LD_LIBRARY_PATH=$X/local_bin
+cc -c bittest_nat.c
+$X/egcs.bin/gcc/xgcc -B $X/egcs.bin/gcc/ -g -c -mms-bitfields bittest_gcc.c 
+echo NATIVE:
+$X/local_bin/gcc -B $X/local_bin/ -g bittest_gcc.o bittest_nat.o
+a.out
+
+$X/egcs.bin/gcc/xgcc -B $X/egcs.bin/gcc/ -g -c -mno-ms-bitfields bittest_gcc.c 
+echo GNU:
+gcc -g bittest_nat.o bittest_gcc.o
+a.out

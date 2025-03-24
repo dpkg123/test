@@ -1,0 +1,2 @@
+compdir=../../..
+$compdir/gcc/g77 --driver=$compdir/gcc/xgcc -B $compdir/local_bin/ -B $compdir/gcc/ $*

@@ -1,0 +1,84 @@
+This really should be combined with 60, but for another day.
+
+Patch makes the linker successfully link the PIC code needed for libexec
+when presented as a .a, thus giving us a libdl.a, and also fixing remaining
+PIC link problems.
+
+Is the context around 1827 (whatever that fixes) stuff that Doug has?
+(I think so, but I'm not at all sure!)
+
+--- cofflink.c.save	Fri Feb 15 10:32:56 2002
++++ cofflink.c	Fri Feb 15 10:49:52 2002
+@@ -1837,7 +1837,18 @@ coff_link_add_symbols (abfd, info)
+ 			      COFF_LINK_HASH_REF_REGULAR);
+          /* We're going to remember h_real for later use (way
+             down below). */
+-
++ 
++	 /* If it's common (and presuming we actually emit it), it should
++	    be marked as DEF_REGULAR or DEF_DYNAMIC, as needed.  ld converts 
++	    it to bfd_link_hash_defined when it decides to keep it. */
++	 if ((*sym_hash)->root.type == bfd_link_hash_common)
++	   {
++	     (*sym_hash)->coff_link_hash_flags |=
++			     dynamic? COFF_LINK_HASH_DEF_DYNAMIC 
++				    : COFF_LINK_HASH_DEF_REGULAR;
++	     
++	   }
++
+           /* Now deal with real indirect symbols. */
+ 	  h = *sym_hash;
+ 	  while ((h->root.type == bfd_link_hash_indirect
+@@ -5394,29 +5405,27 @@ _bfd_coff_generic_relocate_section (outp
+   asection *sreloc = NULL;
+   asection *srelgot = NULL;
+   boolean dynamic;
+-  bfd *dynobj;
+   bfd_vma *local_got_offsets = NULL;
+   bfd_size_type symrsz = bfd_coff_relsz(output_bfd);
+   boolean is_stab_section = false;
+ 
+   dynamic = coff_hash_table (info)->dynamic_sections_created;
++  /* In case some PIC code slipped into our world when linking 
++     statically.  */
++  local_got_offsets = coff_local_got_offsets (input_bfd);
++  is_stab_section = 
++      strncmp(bfd_get_section_name(input_bfd,input_section),".stab",5) == 0;
++
++  sreloc = coff_hash_table (info)->sreloc;
++  splt = coff_hash_table(info)->splt;
++  srelgot = coff_hash_table(info)->srelgot;
++  /* BFD_ASSERT (sreloc != NULL); -- it gets made on demand */
++  /* BFD_ASSERT (srelgot != NULL); -- it gets made on demand */
++  sgot = coff_hash_table(info)->sgot;
+   if (dynamic)
+     {
+-      dynobj = coff_hash_table (info)->dynobj;
+-      local_got_offsets = coff_local_got_offsets (input_bfd);
+-      is_stab_section = 
+-	  strncmp(bfd_get_section_name(input_bfd,input_section),".stab",5) == 0;
+-
+-      sreloc = coff_hash_table (info)->sreloc;
+-      splt = coff_hash_table(info)->splt;
+-      srelgot = coff_hash_table(info)->srelgot;
+-      /* BFD_ASSERT (sreloc != NULL); -- it gets made on demand */
+       BFD_ASSERT (splt != NULL);
+-      /* BFD_ASSERT (srelgot != NULL); -- it gets made on demand */
+     }
+-    /* In case some PIC code slipped into our world when linking 
+-       statically.  */
+-    sgot = coff_hash_table(info)->sgot;
+ #endif
+ 
+   if (pe_data(output_bfd) != NULL)
+@@ -5899,7 +5908,9 @@ fprintf(stderr, "relgot emits reloc #%d 
+ 		  outrel.r_symndx = 0;
+ 		}
+ 	      else if (((h->coff_link_hash_flags 
+-			& COFF_LINK_HASH_DEF_REGULAR) == 0)
++			  & COFF_LINK_HASH_DEF_REGULAR) == 0)
++	               || ((h->coff_link_hash_flags 
++			  & COFF_LINK_HASH_DEF_DYNAMIC) != 0)
+ 		       || (info->shared && !info->symbolic))
+ 		{
+ 		  /* Not defined in this module, or this is a shared 

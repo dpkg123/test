@@ -1,0 +1,290 @@
+ACT: please note, the sense of SEC_NOREAD is "upside down" for
+historical reasons; the code here is correct, even if it doesn't
+quite seem right!
+
+---
+Under certain circumstances, it's desireable to create a section that
+is not readable.  (Space filling no access sections (in concert with
+RDONLY (that is, not write)), or in secure environments for WOM.)
+
+This is the 33d bit in a 32 bit word of flagwords, so something had to give.
+Adding new mechanism to tread the flags as a set-of-enum, in effect.
+Used only for this bit right now, but easily extended to be used for
+most of the other bits (two subfields are themselves small enums;
+I didn't try to address that at this time.)
+
+No flag is provided to be able to create this sort of section.
+
+Currently implemented only for COFF/PE (which unlike regular COFF
+does have the bits to represent this.)
+
+	* section.c: Add not-readable flag SEC_NOREAD.
+	* coffcode.h: (sec_to_styp_flags, styp_to_sec_flags):
+	translate same to/from PE's access bits.
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files bfd.pre.48/bfd-in.h bfd/bfd-in.h
+--- bfd.pre.48/bfd-in.h	Sun Mar 17 20:22:55 2002
++++ bfd/bfd-in.h	Sun Mar 17 20:23:11 2002
+@@ -349,6 +349,24 @@ typedef struct sec *sec_ptr;
+ #define bfd_set_section_alignment(bfd, ptr, val) (((ptr)->alignment_power = (val)),true)
+ #define bfd_set_section_userdata(bfd, ptr, val) (((ptr)->userdata = (val)),true)
+ 
++/* For the moment these functions are required only for flag bits beyond
++   the first 32, but it's set up so that all programs can convert to use
++   these over time.  (Hopefully, by the time that another word is needed,
++   the flag word can be converted to a simple array, but now, for backwards
++   compatability, we do it this ugly way.) */
++   
++#define bfd_section_flag_value(bfd,sec,flag) \
++    ((((flag)/32==0 ? (sec)->flags           \
++		    : (sec)->more_flags[((flag)/32)-1]) & (1<<((flag)%32))) != 0)
++
++#define bfd_set_section_flag_value(bfd,sec,flag)             \
++    ((flag)/32==0 ? ((sec)->flags |=  (1 << ((flag)%32)))    \
++		  : ((sec)->more_flags[((flag)/32)-1] |=  (1 << ((flag)%32))))
++
++#define bfd_clear_section_flag_value(bfd,sec,flag)           \
++    ((flag)/32==0 ? ((sec)->flags &= ~(1 << ((flag)%32)))    \
++		  : ((sec)->more_flags[((flag)/32)-1] &= ~(1 << ((flag)%32))))
++
+ typedef struct stat stat_type;
+ 
+ typedef enum bfd_print_symbol
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files bfd.pre.48/coff64-rs6000.c bfd/coff64-rs6000.c
+--- bfd.pre.48/coff64-rs6000.c	Sun Mar 17 20:22:56 2002
++++ bfd/coff64-rs6000.c	Sun Mar 17 20:23:11 2002
+@@ -760,7 +760,7 @@ xcoff64_write_object_contents (abfd)
+       if (current->lineno_count != 0)
+ 	haslinno = true;
+ 
+-      section.s_flags = sec_to_styp_flags (current->name, current->flags);
++      section.s_flags = sec_to_styp_flags (abfd, current);
+ 
+       if (!strcmp (current->name, _TEXT))
+ 	{
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files bfd.pre.48/coffcode.h bfd/coffcode.h
+--- bfd.pre.48/coffcode.h	Sun Mar 17 20:22:56 2002
++++ bfd/coffcode.h	Sun Mar 17 21:07:16 2002
+@@ -309,7 +309,7 @@ CODE_FRAGMENT
+ 
+ #define STRING_SIZE_SIZE (4)
+ 
+-static long sec_to_styp_flags PARAMS ((const char *, flagword));
++static long sec_to_styp_flags PARAMS ((bfd *, asection *));
+ static boolean styp_to_sec_flags
+   PARAMS ((bfd *, PTR, const char *, asection *, flagword *));
+ static boolean coff_bad_format_hook PARAMS ((bfd *, PTR));
+@@ -365,10 +365,12 @@ static flagword handle_COMDAT PARAMS ((b
+ #endif
+ 
+ static long
+-sec_to_styp_flags (sec_name, sec_flags)
+-     const char *sec_name;
+-     flagword sec_flags;
+-{
++sec_to_styp_flags (abfd, sec)
++  bfd *abfd; 
++  asection *sec;
++{
++  const char *sec_name = sec->name;
++  flagword sec_flags = sec->flags;  /* evolve toward not using this. */
+   long styp_flags = 0;
+ 
+   if (!strcmp (sec_name, _TEXT))
+@@ -490,10 +492,11 @@ sec_to_styp_flags (sec_name, sec_flags)
+    and honor whatever objcopy/strip, etc. sent us as input.  */
+ 
+ static long
+-sec_to_styp_flags (sec_name, sec_flags)
+-     const char *sec_name ATTRIBUTE_UNUSED;
+-     flagword sec_flags;
+-{
++sec_to_styp_flags (abfd, sec)
++  bfd *abfd ATTRIBUTE_UNUSED;
++  asection *sec;
++{
++  flagword sec_flags = sec->flags;  /* evolve toward not using this. */
+   long styp_flags = 0;
+ 
+   /* caution: there are at least three groups of symbols that have
+@@ -539,7 +542,8 @@ sec_to_styp_flags (sec_name, sec_flags)
+      though the semantics don't quite match.  The bits from the input
+      are retained in pei_section_data(abfd, section)->pe_flags */
+ 
+-  styp_flags |= IMAGE_SCN_MEM_READ;       /* always readable.  */
++  if (!bfd_section_flag_value(abfd, sec, sec_flag_NOREAD))
++    styp_flags |= IMAGE_SCN_MEM_READ;     /* Invert NOREAD for read. */
+   if ((sec_flags & SEC_READONLY) == 0)
+     styp_flags |= IMAGE_SCN_MEM_WRITE;    /* Invert READONLY for write */
+   if (sec_flags & SEC_CODE)
+@@ -571,6 +575,9 @@ styp_to_sec_flags (abfd, hdr, name, sect
+   long styp_flags = internal_s->s_flags;
+   flagword sec_flags = 0;
+ 
++  /* Transitional. */
++  BFD_ASSERT(&section->flags == flags_ptr);
++
+ #ifdef STYP_BLOCK
+   if (styp_flags & STYP_BLOCK)
+     sec_flags |= SEC_BLOCK;
+@@ -693,6 +700,8 @@ styp_to_sec_flags (abfd, hdr, name, sect
+     sec_flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
+ #endif
+ 
++  section->flags = sec_flags;
++
+   if (flags_ptr == NULL)
+     return false;
+ 
+@@ -1029,13 +1038,20 @@ styp_to_sec_flags (abfd, hdr, name, sect
+   flagword sec_flags;
+   boolean result = true;
+ 
++  /* Transitional. */
++  BFD_ASSERT(&section->flags == flags_ptr);
++
+   /* Assume read only unless IMAGE_SCN_MEM_WRITE is specified.  */
+   sec_flags = SEC_READONLY;
+ 
+-  /* Process each flag bit in styp_flags in turn.  */
++  /* Check for bit NOT set to set the NOREAD flag. */
++  if ((styp_flags & IMAGE_SCN_MEM_READ) == 0)
++      bfd_set_section_flag_value(bfd, section, sec_flag_NOREAD);
++
++  /* Process each set flag bit in styp_flags in turn.  */
+   while (styp_flags)
+     {
+-      long flag = styp_flags & - styp_flags;
++      long flag = styp_flags & - styp_flags; /* 2's complement ONLY ffs() */
+       char * unhandled = NULL;
+ 
+       styp_flags &= ~ flag;
+@@ -1064,7 +1080,7 @@ styp_to_sec_flags (abfd, hdr, name, sect
+ 	  break;
+ #endif
+ 	case IMAGE_SCN_MEM_READ:
+-	  /* Ignored, assume it always to be true.  */
++ 	  bfd_set_section_flag_value(bfd, section, sec_flag_NOREAD);
+ 	  break;
+ 	case IMAGE_SCN_TYPE_NO_PAD:
+ 	  /* Skip.  */
+@@ -1143,6 +1159,8 @@ styp_to_sec_flags (abfd, hdr, name, sect
+     sec_flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
+ #endif
+ 
++  section->flags = sec_flags;
++
+   if (flags_ptr)
+     * flags_ptr = sec_flags;
+ 
+@@ -3021,7 +3039,7 @@ coff_compute_section_file_positions (abf
+       ++count;
+ 
+     /* We allocate an extra cell to simplify the final loop.  */
+-    amt = sizeof (struct asection *) * (count + 1);
++    amt = sizeof (asection *) * (count + 1);
+     section_list = bfd_malloc (amt);
+     if (section_list == NULL)
+       return false;
+@@ -3537,7 +3555,7 @@ coff_write_object_contents (abfd)
+ #endif
+ #endif
+ 
+-      section.s_flags = sec_to_styp_flags (current->name, current->flags);
++      section.s_flags = sec_to_styp_flags (abfd, current);
+ 
+       if (!strcmp (current->name, _TEXT))
+ 	{
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files bfd.pre.48/coffgen.c bfd/coffgen.c
+--- bfd.pre.48/coffgen.c	Sun Mar 17 20:22:56 2002
++++ bfd/coffgen.c	Sun Mar 17 20:23:11 2002
+@@ -83,8 +83,7 @@ make_a_section_from_file (abfd, hdr, tar
+   asection *return_section;
+   char *name;
+   boolean result = true;
+-  flagword flags;
+-
++
+   name = NULL;
+ 
+   /* Handle long section names as in PE.  */
+@@ -146,10 +145,8 @@ make_a_section_from_file (abfd, hdr, tar
+   return_section->target_index = target_index;
+ 
+   if (! bfd_coff_styp_to_sec_flags_hook (abfd, hdr, name, return_section,
+-					 & flags))
++					 &return_section->flags))
+     result = false;
+-
+-  return_section->flags = flags;
+ 
+   /* At least on i386-coff, the line number count for a shared library
+      section must be ignored.  */
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files bfd.pre.48/section.c bfd/section.c
+--- bfd.pre.48/section.c	Sun Mar 17 20:22:57 2002
++++ bfd/section.c	Sun Mar 17 20:23:11 2002
+@@ -166,6 +166,43 @@ CODE_FRAGMENT
+ .  long symbol;
+ .};
+ .
++.{* This enum exists so that transition to an abstraction can start;
++.   use with bfd_{get_,set_,}section_value_flag. *}
++.enum section_sec_flags {
++.	sec_flag_ALLOC,
++.	sec_flag_LOAD,
++.	sec_flag_RELOC,
++.	sec_flag_ARCH_BIT_0,
++.	sec_flag_READONLY,
++.	sec_flag_CODE,
++.	sec_flag_DATA,
++.	sec_flag_ROM,
++.	sec_flag_CONSTRUCTOR,
++.	sec_flag_HAS_CONTENTS,
++.	sec_flag_NEVER_LOAD,
++.	sec_flag_COFF_SHARED_LIBRARY,
++.	sec_flag_reserved1, sec_flag_reserved2, {* for constructor types *}
++.	sec_flag_HAS_GOT_REF,
++.	sec_flag_IS_COMMON,
++.	sec_flag_DEBUGGING,
++.	sec_flag_IN_MEMORY,
++.	sec_flag_EXCLUDE,
++.	sec_flag_SORT_ENTRIES,
++.	sec_flag_LINK_ONCE,
++.	sec_flag_reserved3,sec_flag_reserved4, {* for comdat types *}
++.	sec_flag_LINKER_CREATED,
++.	sec_flag_KEEP,
++.	sec_flag_SMALL_DATA,
++.	sec_flag_SHARED,
++.	sec_flag_BLOCK,
++.	sec_flag_CLINK,
++.	sec_flag_MERGE,
++.	sec_flag_STRINGS,
++.	sec_flag_GROUP,
++.	sec_flag_NOREAD,
++.      sec_flag_last  {* The traditional "last" value *}
++.};
++.
+ .typedef struct sec
+ .{
+ .  {* The name of the section; the name isn't a copy, the pointer is
+@@ -185,7 +221,8 @@ CODE_FRAGMENT
+ .     flags are read in from the object file, and some are
+ .     synthesized from other information.  *}
+ .  flagword flags;
+-.
++.  flagword more_flags[1];
++.
+ .#define SEC_NO_FLAGS   0x000
+ .
+ .  {* Tells the OS to allocate space for this section when loading.
+@@ -587,8 +624,8 @@ static const asymbol global_syms[] =
+ #define STD_SECTION(SEC, FLAGS, SYM, NAME, IDX)				\
+   const asymbol * const SYM = (asymbol *) &global_syms[IDX]; 		\
+   const asection SEC = 							\
+-    /* name, id,  index, next, flags, user_set_vma, reloc_done,      */	\
+-    { NAME,  IDX, 0,     NULL, FLAGS, 0,            0,			\
++    /* name, id,  index, next, flags,     user_set_vma, reloc_done,  */	\
++    { NAME,  IDX, 0,     NULL, FLAGS,{0}, 0,            0,		\
+ 									\
+     /* linker_mark, linker_has_input, gc_mark, segment_mark,         */	\
+        0,           0,                1,       0,			\

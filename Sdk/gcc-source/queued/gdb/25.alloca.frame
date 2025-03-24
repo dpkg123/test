@@ -1,0 +1,157 @@
+On the 386 architecture (at least for NT), large frames are created
+by an implied call to _alloca.  To determine the frame size, we must
+decode the call instead of the inline instructions.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* i386-tdep.c(i386_get_frame_setup): Recognize/interpret
+	_alloca called for stack growth.  Remove unused "buf".
+
+Index: src/gdb/i386-tdep.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/i386-tdep.c,v
+retrieving revision 1.3
+diff -p -u -r1.3 i386-tdep.c
+--- src/gdb/i386-tdep.c	2001/12/24 00:57:24	1.3
++++ src/gdb/i386-tdep.c	2001/12/24 01:31:42
+@@ -324,6 +324,10 @@ static long
+ i386_get_frame_setup (CORE_ADDR pc)
+ {
+   unsigned char op;
++  boolean saw_size_setup = false;
++  int size = 0;
++  char buf[4];
++  int saved_pc = 0;
+ 
+   codestream_seek (pc);
+ 
+@@ -396,19 +400,37 @@ i386_get_frame_setup (CORE_ADDR pc)
+ 
+   if (op == 0x55)		/* pushl %ebp */
+     {
+-      /* Check for "movl %esp, %ebp" -- can be written in two ways.  */
+-      switch (codestream_get ())
++      while(1)
+ 	{
+-	case 0x8b:
+-	  if (codestream_get () != 0xec)
+-	    return -1;
+-	  break;
+-	case 0x89:
+-	  if (codestream_get () != 0xe5)
+-	    return -1;
+-	  break;
+-	default:
+-	  return -1;
++	  switch (codestream_get ())
++	    {
++	    /* check for "movl %esp, %ebp" -- can be written two ways */
++	    case 0x8b:
++	      if (codestream_get () != 0xec)
++		return -1;
++	      break;
++	    case 0x89:
++	      if (codestream_get () != 0xe5)
++		return -1;
++	      break;
++
++	    /* Could be a setup for a "big" stack frame, pushed up
++	       before the movl %esp,%ebp; big frames push the frame
++	       size and then call _alloca to do the stack probes. */
++	    case 0xb8:
++	      /* get the frame size from the instruction; we're NOT
++		 yet sure we have this kind of frame, but it seems
++		 likely.  */
++	      saved_pc = codestream_tell();
++	      codestream_read ((unsigned char *)buf, 4);
++	      size = extract_signed_integer (buf, 4);
++	      saw_size_setup = true;
++	      continue;
++
++	    default:
++	      return -1;
++	    }
++	    break;
+ 	}
+       /* Check for stack adjustment 
+ 
+@@ -417,8 +439,9 @@ i386_get_frame_setup (CORE_ADDR pc)
+ 	 NOTE: You can't subtract a 16 bit immediate from a 32 bit
+ 	 reg, so we don't have to worry about a data16 prefix.  */
+       op = codestream_peek ();
+-      if (op == 0x83)
++      switch(op) 
+ 	{
++        case 0x83:
+ 	  /* `subl' with 8 bit immediate.  */
+ 	  codestream_get ();
+ 	  if (codestream_get () != 0xec)
+@@ -430,9 +453,8 @@ i386_get_frame_setup (CORE_ADDR pc)
+ 	  /* `subl' with signed byte immediate (though it wouldn't
+ 	     make sense to be negative).  */
+ 	  return (codestream_get ());
+-	}
+-      else if (op == 0x81)
+-	{
++        case 0x81:
++	  {
+ 	  char buf[4];
+ 	  /* Maybe it is `subl' with a 32 bit immedediate.  */
+ 	  codestream_get ();
+@@ -445,15 +467,52 @@ i386_get_frame_setup (CORE_ADDR pc)
+ 	  /* It is `subl' with a 32 bit immediate.  */
+ 	  codestream_read ((unsigned char *) buf, 4);
+ 	  return extract_signed_integer (buf, 4);
+-	}
+-      else
+-	{
++	  }
++
++	case 0xb8:
++	  /* Could be a setup for a "big" stack frame; big frames push the 
++	     frame size and then call _alloca to do the stack probes. */
++	  /* get the frame size from the instruction; we're NOT
++	     yet sure we have this kind of frame, but it seems
++	     likely.  */
++	  saved_pc = codestream_tell ();
++	  codestream_read ((unsigned char *)buf, 4);
++	  size = extract_signed_integer (buf, 4);
++	  saw_size_setup = true;
++          if (codestream_peek () != 0xe8)
++	    {
++	       codestream_seek(saved_pc);
++	       return 0;
++	    }
++	  /* drop thru */
++
++	case 0xe8:
++	  {
++	  CORE_ADDR pc;
++	  char *name;
++	  if (!saw_size_setup) 
++	     return 0;
++	  /* now we're sure it's a "big" frame */
++	  codestream_get();
++	  /* get target of putative alloca call */
++	  codestream_read ((unsigned char *)buf, 4);
++	  pc = extract_signed_integer (buf, 4) + codestream_tell();
++	  find_pc_partial_function(pc, &name, NULL, NULL);
++	  if (! name || ! STREQ (name, "_alloca"))
++	    {
++	       /* oops, not a call to _alloca... back out */
++	       codestream_seek(saved_pc);
++	       return -1;
++	    }
++	  return size;
++	  }
++
++        default:
+ 	  return 0;
+-	}
++      }
+     }
+   else if (op == 0xc8)
+     {
+-      char buf[2];
+       /* `enter' with 16 bit unsigned immediate.  */
+       codestream_read ((unsigned char *) buf, 2);
+       codestream_get ();	/* Flush final byte of enter instruction.  */

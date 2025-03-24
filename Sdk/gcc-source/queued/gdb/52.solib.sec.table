@@ -1,0 +1,101 @@
+coff_symfile_offsets: this changed significantly; is it right???
+
+
+Use symfile offsets entry point for shared libraries.
+Also use new build_section_table function pointer.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* coffread.c (coff_symfile_offsets, coff_build_section_table,
+	coff_add_to_section_table): New.
+	(coff_sym_funs): Use.
+
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.11
+diff -p -u -r1.11 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:36:32	1.11
++++ src/gdb/coffread.c	2001/12/24 02:16:57
+@@ -2343,6 +2343,72 @@ coff_read_enum_type (int index, int leng
+   return type;
+ }
+ 
++/* Parse the user's idea of an offset for dynamic linking, into our idea
++   of how to represent it for fast symbol reading.   This is essentially
++   the same as the default version of the function, but it adds in ImageBase.*/
++
++void
++coff_symfile_offsets (objfile, addrs)
++     struct objfile *objfile;
++     struct section_addr_info *addrs;
++{
++  asection *sect = NULL;
++  struct section_offsets *section_offsets;
++  struct obj_section *s;
++  int i;
++
++#ifdef COFF_IMAGE_WITH_PE
++  CORE_ADDR image_base;
++
++  /* We must make sure that symbol lookup uses the same idea of offsets
++     that everyone else does. */
++  image_base = NONZERO_LINK_BASE(objfile->obfd);
++  for (s = objfile->sections; s < objfile->sections_end; ++s)
++     {
++       s->addr += image_base;
++       s->endaddr += image_base;
++     }
++#endif
++
++  objfile->num_sections = SECT_OFF_MAX;
++  objfile->section_offsets = (struct section_offsets *)
++    obstack_alloc (&objfile -> psymbol_obstack, SIZEOF_SECTION_OFFSETS);
++  memset (objfile->section_offsets, 0, SIZEOF_SECTION_OFFSETS);
++
++  /* Initialize the section indexes for future use. */
++  sect = bfd_get_section_by_name (objfile->obfd, ".text");
++  if (sect) 
++    objfile->sect_index_text = sect->index;
++
++  sect = bfd_get_section_by_name (objfile->obfd, ".data");
++  if (sect) 
++    objfile->sect_index_data = sect->index;
++
++  sect = bfd_get_section_by_name (objfile->obfd, ".bss");
++  if (sect) 
++    objfile->sect_index_bss = sect->index;
++
++  sect = bfd_get_section_by_name (objfile->obfd, ".rodata");
++  if (sect) 
++    objfile->sect_index_rodata = sect->index;
++  else
++    /* Doesn't always have to exist, so fake out the sanity test. */
++    objfile->sect_index_rodata = -2;
++    
++
++  /* Now calculate offsets for other sections. */
++  for (i = 0; i < MAX_SECTIONS && addrs->other[i].name; i++)
++    {
++      struct other_sections *osp ;
++
++      osp = &addrs->other[i] ;
++      if (addrs->other[i].addr == 0)
++  	continue;
++      /* The section_offsets in the objfile are here filled in using
++         the BFD index. */
++      (objfile->section_offsets)->offsets[osp->sectindex] = osp->addr;
++    }
++}
+ /* Register our ability to parse symbols for coff BFD files. */
+ 
+ static struct sym_fns coff_sym_fns =
+@@ -2352,7 +2473,7 @@ static struct sym_fns coff_sym_fns =
+   coff_symfile_init,		/* sym_init: read initial info, setup for sym_read() */
+   coff_symfile_read,		/* sym_read: read a symbol file into symtab */
+   coff_symfile_finish,		/* sym_finish: finished with file, cleanup */
+-  default_symfile_offsets,	/* sym_offsets:  xlate external to internal form */
++  coff_symfile_offsets,		/* sym_offsets:  xlate external to internal form */
+   NULL				/* next: pointer to next struct sym_fns */
+ };
+ 

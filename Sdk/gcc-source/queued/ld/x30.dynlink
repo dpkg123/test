@@ -1,0 +1,835 @@
+Dynamic linking stuff.  See the corresponding patch in BFD.
+Currently being applied.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/emulparams/i386pe_posix.sh ld/emulparams/i386pe_posix.sh
+--- ld.19-25/emulparams/i386pe_posix.sh	Wed Jul  7 14:27:22 1999
++++ ld/emulparams/i386pe_posix.sh	Wed Jul  7 18:28:20 1999
+@@ -7,3 +7,4 @@ ENTRY="___PosixProcessStartup"
+ SUBSYSTEM=7
+ EXECUTABLE_NAME=a.out
+ INITIAL_SYMBOL_CHAR=\"_\"
++GENERATE_SHLIB_SCRIPT=1
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/emultempl/pe.em ld/emultempl/pe.em
+--- ld.19-25/emultempl/pe.em	Wed Jul  7 14:27:20 1999
++++ ld/emultempl/pe.em	Wed Jul  7 18:36:32 1999
+@@ -77,11 +77,20 @@ static void gld_${EMULATION_NAME}_after_
+ static void gld_${EMULATION_NAME}_before_allocation PARAMS ((void));
+ static boolean gld_${EMULATION_NAME}_place_orphan
+   PARAMS ((lang_input_statement_type *, asection *));
+-static void gld${EMULATION_NAME}_place_section
++static void gld_${EMULATION_NAME}_place_section
+   PARAMS ((lang_statement_union_type *));
+ static char *gld_${EMULATION_NAME}_get_script PARAMS ((int *));
+ static int gld_${EMULATION_NAME}_parse_args PARAMS ((int, char **));
+ static void gld_${EMULATION_NAME}_finish PARAMS ((void));
++static boolean gld_${EMULATION_NAME}_open_dynamic_archive
++  PARAMS ((const char *, search_dirs_type *, lang_input_statement_type *));
++static void gld_${EMULATION_NAME}_check_needed
++  PARAMS ((lang_input_statement_type *));
++static void gld_${EMULATION_NAME}_stat_needed
++  PARAMS ((lang_input_statement_type *));
++static boolean gld_${EMULATION_NAME}_search_needed
++  PARAMS ((const char *, const char *));
++static boolean gld_${EMULATION_NAME}_try_needed PARAMS ((const char *));
+ 
+ static struct internal_extra_pe_aouthdr pe;
+ static int dll;
+@@ -107,6 +116,10 @@ gld_${EMULATION_NAME}_before_parse()
+ #ifdef DLL_SUPPORT
+   config.has_shared = 1;
+ #endif
++#ifdef TARGET_IS_i386pe_posix // ????
++  config.has_shared = true;
++#endif
++  config.dynamic_link = ${DYNAMIC_LINK-true};
+ }
+ 
+ /* PE format extra command line options.  */
+@@ -374,12 +387,22 @@ gld_${EMULATION_NAME}_parse_args(argc, a
+ 
+   lastoptind = optind;
+ 
+-  optc = getopt_long_only (argc, argv, "-", longopts, &longind);
++  /* don't allow single-character abbreviations of any of these; too
++     likely to conflict with "real" single character options.  (It
++     really happens with -d.) */
++  optc = getopt_long_only (argc, argv, "-bdfhims", longopts, &longind);
+   opterr = prevopterr;
+ 
+   switch (optc)
+     {
+     default:
++    case 'b':
++    case 'd':
++    case 'f':
++    case 'h':
++    case 'i':
++    case 'm':
++    case 's':
+       if (wanterror)
+ 	xexit (1);
+       optind =  prevoptind;
+@@ -471,6 +494,158 @@ gld_${EMULATION_NAME}_parse_args(argc, a
+     }
+   return 1;
+ }
++
++/* Try to open a dynamic archive.  This is where we know that 
++   dynamic libraries have an extension of .so.  */
++
++static boolean
++gld_${EMULATION_NAME}_open_dynamic_archive (arch, search, entry)
++     const char *arch;
++     search_dirs_type *search;
++     lang_input_statement_type *entry;
++{
++  const char *filename;
++  char *string;
++
++  if (! entry->is_archive)
++    return false;
++
++  filename = entry->filename;
++
++  string = (char *) xmalloc (strlen (search->name)
++			     + strlen (filename)
++			     + strlen (arch)
++			     + sizeof "/lib.so");
++
++  sprintf (string, "%s/lib%s%s.so", search->name, filename, arch);
++
++  if (! ldfile_try_open_bfd (string, entry))
++    {
++      free (string);
++      return false;
++    }
++
++  entry->filename = string;
++
++  /* We have found a dynamic object to include in the link.  The 
++     backend linker will create a DT_NEEDED entry in the .dynamic
++     section naming this file.  If this file includes a DT_SONAME
++     entry, it will be used.  Otherwise, the linker will just use
++     the name of the file.  For an archive found by searching, like
++     this one, the DT_NEEDED entry should consist of just the name of
++     the file, without the path information used to find it.  Note
++     that we only need to do this if we have a dynamic object; an
++     archive will never be referenced by a DT_NEEDED entry.
++
++     FIXME: This approach--using bfd_coff_set_dt_needed_name--is not
++     very pretty.  I haven't been able to think of anything that is
++     pretty, though.  */
++  if (bfd_check_format (entry->the_bfd, bfd_object)
++      && (entry->the_bfd->flags & DYNAMIC) != 0)
++    {
++      char *needed_name;
++
++      ASSERT (entry->is_archive && entry->search_dirs_flag);
++      needed_name = (char *) xmalloc (strlen (filename)
++				      + strlen (arch)
++				      + sizeof "lib.so");
++      sprintf (needed_name, "lib%s%s.so", filename, arch);
++      bfd_coff_set_dt_needed_name (entry->the_bfd, needed_name);
++    }
++
++  return true;
++}
++
++EOF
++if [ "x${host}" = "x${target}" ] ; then
++  if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
++cat >>e${EMULATION_NAME}.c <<EOF
++
++/* For a native linker, check the file /etc/ld.so.conf for directories
++   in which we may find shared libraries.  /etc/ld.so.conf is really
++   only meaningful on Linux, but we check it on other systems anyhow.  */
++
++static boolean gld_${EMULATION_NAME}_check_ld_so_conf PARAMS ((const char *));
++
++static boolean
++gld_${EMULATION_NAME}_check_ld_so_conf (name)
++     const char *name;
++{
++  static boolean initialized;
++  static char *ld_so_conf;
++
++  if (! initialized)
++    {
++      FILE *f;
++      char *fname;
++
++      fname = _prefixInstallPath("/etc/ld.so.conf", NULL, 0);
++      f = fopen (fname, FOPEN_RT);
++      if (f != NULL)
++	{
++	  char *b;
++	  size_t len, alloc;
++	  int c;
++
++	  len = 0;
++	  alloc = 100;
++	  b = (char *) xmalloc (alloc);
++
++	  while ((c = getc (f)) != EOF)
++	    {
++	      if (len + 1 >= alloc)
++		{
++		  alloc *= 2;
++		  b = (char *) xrealloc (b, alloc);
++		}
++	      if (c != ':'
++		  && c != ' '
++		  && c != '\t'
++		  && c != '\n'
++		  && c != ',')
++		{
++		  b[len] = c;
++		  ++len;
++		}
++	      else
++		{
++		  if (len > 0 && b[len - 1] != ':')
++		    {
++		      b[len] = ':';
++		      ++len;
++		    }
++		}
++	    }
++
++	  if (len > 0 && b[len - 1] == ':')
++	    --len;
++
++	  if (len > 0)
++	    b[len] = '\0';
++	  else
++	    {
++	      free (b);
++	      b = NULL;
++	    }
++
++	  fclose (f);
++
++	  ld_so_conf = b;
++	}
++
++      initialized = true;
++    }
++
++  if (ld_so_conf == NULL)
++    return false;
++
++  return gld_${EMULATION_NAME}_search_needed (ld_so_conf, name);
++}
++
++EOF
++  fi
++fi
++cat >>e${EMULATION_NAME}.c <<EOF
+ 
+ /* Assign values to the special symbols before the linker script is
+    read.  */
+@@ -638,9 +813,18 @@ pe_fixup_stdcalls ()
+     }
+ }
+ 
++/* These variables are required to pass information back and forth
++   between after_open and check_needed and stat_needed.  */
++
++static struct bfd_link_needed_list *global_needed;
++static struct stat global_stat;
++static boolean global_found;
++
+ static void
+ gld_${EMULATION_NAME}_after_open ()
+ {
++  struct bfd_link_needed_list *needed, *l;
++
+   /* Pass the wacky PE command line options into the output bfd.
+      FIXME: This should be done via a function, rather than by
+      including an internal BFD header.  */
+@@ -656,7 +840,7 @@ gld_${EMULATION_NAME}_after_open ()
+     pe_fixup_stdcalls ();
+ 
+   pe_process_import_defs(output_bfd, &link_info);
+-  if (link_info.shared)
++  if (link_info.shared) //???
+     pe_dll_build_sections (output_bfd, &link_info);
+ #endif
+ 
+@@ -743,11 +927,311 @@ gld_${EMULATION_NAME}_after_open ()
+ 	  }
+       }
+   }
++  /* We only need to worry about this when doing a final link.  */
++  if (link_info.relocateable || link_info.shared)
++    return;
++
++  /* Get the list of files which appear in DT_NEEDED entries in
++     dynamic objects included in the link (often there will be none).
++     For each such file, we want to track down the corresponding
++     library, and include the symbol table in the link.  This is what
++     the runtime dynamic linker will do.  Tracking the files down here
++     permits one dynamic object to include another without requiring
++     special action by the person doing the link.  Note that the
++     needed list can actually grow while we are stepping through this
++     loop.  */
++  needed = bfd_coff_get_needed_list (output_bfd, &link_info);
++  for (l = needed; l != NULL; l = l->next)
++    {
++      struct bfd_link_needed_list *ll;
++      const char *lib_path;
++      size_t len;
++      search_dirs_type *search;
++
++      /* If we've already seen this file, skip it.  */
++      for (ll = needed; ll != l; ll = ll->next)
++	if (strcmp (ll->name, l->name) == 0)
++	  break;
++      if (ll != l)
++	continue;
++
++      /* See if this file was included in the link explicitly.  */
++      global_needed = l;
++      global_found = false;
++      lang_for_each_input_file (gld_${EMULATION_NAME}_check_needed);
++      if (global_found)
++	continue;
++
++      /* We need to find this file and include the symbol table.  We
++	 want to search for the file in the same way that the dynamic
++	 linker will search.  That means that we want to use
++	 rpath_link, rpath, then the environment variable
++	 LD_LIBRARY_PATH (native only), then the linker script
++	 LIB_SEARCH_DIRS.  We do not search using the -L arguments.  */
++      if (gld_${EMULATION_NAME}_search_needed (command_line.rpath_link,
++					      l->name))
++	continue;
++      if (gld_${EMULATION_NAME}_search_needed (command_line.rpath, l->name))
++	continue;
++      if (command_line.rpath_link == NULL
++	  && command_line.rpath == NULL)
++	{
++	  lib_path = (const char *) getenv ("LD_RUN_PATH");
++	  if (gld_${EMULATION_NAME}_search_needed (lib_path, l->name))
++	    continue;
++	}
++EOF
++if [ "x${host}" = "x${target}" ] ; then
++  if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
++cat >>e${EMULATION_NAME}.c <<EOF
++      lib_path = (const char *) getenv ("LD_LIBRARY_PATH");
++      if (gld_${EMULATION_NAME}_search_needed (lib_path, l->name))
++	continue;
++EOF
++  fi
++fi
++cat >>e${EMULATION_NAME}.c <<EOF
++      len = strlen (l->name);
++      for (search = search_head; search != NULL; search = search->next)
++	{
++	  char *filename;
++
++	  if (search->cmdline)
++	    continue;
++	  filename = (char *) xmalloc (strlen (search->name) + len + 2);
++	  sprintf (filename, "%s/%s", search->name, l->name);
++	  if (gld_${EMULATION_NAME}_try_needed (filename))
++	    break;
++	  free (filename);
++	}
++      if (search != NULL)
++	continue;
++EOF
++if [ "x${host}" = "x${target}" ] ; then
++  if [ "x${DEFAULT_EMULATION}" = "x${EMULATION_NAME}" ] ; then
++cat >>e${EMULATION_NAME}.c <<EOF
++      if (gld_${EMULATION_NAME}_check_ld_so_conf (l->name))
++	continue;
++EOF
++  fi
++fi
++cat >>e${EMULATION_NAME}.c <<EOF
++
++      einfo ("%P: warning: %s, needed by %B, not found (try using --rpath)\n",
++	     l->name, l->by);
++    }
++}
++/* Search for a needed file in a path.  */
++
++static boolean
++gld_${EMULATION_NAME}_search_needed (path, name)
++     const char *path;
++     const char *name;
++{
++  const char *s;
++  size_t len;
++
++  if (path == NULL || *path == '\0')
++    return false;
++  len = strlen (name);
++  while (1)
++    {
++      char *filename, *sset;
++
++      s = strchr (path, ':');
++      if (s == NULL)
++	s = path + strlen (path);
++
++      filename = (char *) xmalloc (s - path + len + 2);
++      if (s == path)
++	sset = filename;
++      else
++	{
++	  memcpy (filename, path, s - path);
++	  filename[s - path] = '/';
++	  sset = filename + (s - path) + 1;
++	}
++      strcpy (sset, name);
++
++      if (gld_${EMULATION_NAME}_try_needed (filename))
++	return true;
++
++      free (filename);
++
++      if (*s == '\0')
++	break;
++      path = s + 1;
++    }
++
++  return false;	  
++}
++
++/* This function is called for each possible name for a dynamic object
++   named by a DT_NEEDED entry.  */
++
++static boolean
++gld_${EMULATION_NAME}_try_needed (name)
++     const char *name;
++{
++  bfd *abfd;
++
++  abfd = bfd_openr (name, bfd_get_target (output_bfd));
++  if (abfd == NULL)
++    return false;
++  if (! bfd_check_format (abfd, bfd_object))
++    {
++      (void) bfd_close (abfd);
++      return false;
++    }
++  if ((bfd_get_file_flags (abfd) & DYNAMIC) == 0)
++    {
++      (void) bfd_close (abfd);
++      return false;
++    }
++
++  /* We've found a dynamic object matching the DT_NEEDED entry.  */
++
++  /* We have already checked that there is no other input file of the
++     same name.  We must now check again that we are not including the
++     same file twice.  We need to do this because on many systems
++     libc.so is a symlink to, e.g., libc.so.1.  The SONAME entry will
++     reference libc.so.1.  If we have already included libc.so, we
++     don't want to include libc.so.1 if they are the same file, and we
++     can only check that using stat.  */
++
++  if (bfd_stat (abfd, &global_stat) != 0)
++    einfo ("%F%P:%B: bfd_stat failed: %E\n", abfd);
++  global_found = false;
++  lang_for_each_input_file (gld_${EMULATION_NAME}_stat_needed);
++  if (global_found)
++    {
++      /* Return true to indicate that we found the file, even though
++         we aren't going to do anything with it.  */
++      return true;
++    }
++
++  /* Tell the backend that don't want the output file to have a
++     DT_NEEDED entry for this file.  */
++  bfd_coff_set_dt_needed_name (abfd, "");
++
++  /* Add this file into the symbol table.  */
++  if (! bfd_link_add_symbols (abfd, &link_info))
++    einfo ("%F%B: could not read symbols: %E\n", abfd);
++
++  return true;
++}
++
++/* See if an input file matches a DT_NEEDED entry by name.  */
++
++static void
++gld_${EMULATION_NAME}_check_needed (s)
++     lang_input_statement_type *s;
++{
++  if (global_found)
++    return;
++
++  if (s->filename != NULL
++      && strcmp (s->filename, global_needed->name) == 0)
++    {
++      global_found = true;
++      return;
++    }
++
++  if (s->the_bfd != NULL)
++    {
++      const char *soname;
++
++      soname = bfd_coff_get_dt_soname (s->the_bfd);
++      if (soname != NULL
++	  && strcmp (soname, global_needed->name) == 0)
++	{
++	  global_found = true;
++	  return;
++	}
++    }
++	  
++  if (s->search_dirs_flag
++      && s->filename != NULL
++      && strchr (global_needed->name, '/') == NULL)
++    {
++      const char *f;
++
++      f = strrchr (s->filename, '/');
++      if (f != NULL
++	  && strcmp (f + 1, global_needed->name) == 0)
++	{
++	  global_found = true;
++	  return;
++	}
++    }
++}
++
++/* See if an input file matches a DT_NEEDED entry by running stat on
++   the file.  */
++
++static void
++gld_${EMULATION_NAME}_stat_needed (s)
++     lang_input_statement_type *s;
++{
++  struct stat st;
++  const char *suffix;
++  const char *soname;
++  const char *f;
++
++  if (global_found)
++    return;
++  if (s->the_bfd == NULL)
++    return;
++
++  if (bfd_stat (s->the_bfd, &st) != 0)
++    {
++      einfo ("%P:%B: bfd_stat failed: %E\n", s->the_bfd);
++      return;
++    }
++
++  if (st.st_dev == global_stat.st_dev
++      && st.st_ino == global_stat.st_ino)
++    {
++      global_found = true;
++      return;
++    }
++
++  /* We issue a warning if it looks like we are including two
++     different versions of the same shared library.  For example,
++     there may be a problem if -lc picks up libc.so.6 but some other
++     shared library has a DT_NEEDED entry of libc.so.5.  This is a
++     hueristic test, and it will only work if the name looks like
++     NAME.so.VERSION.  FIXME: Depending on file names is error-prone.
++     If we really want to issue warnings about mixing version numbers
++     of shared libraries, we need to find a better way.  */
++
++  if (strchr (global_needed->name, '/') != NULL)
++    return;
++  suffix = strstr (global_needed->name, ".so.");
++  if (suffix == NULL)
++    return;
++  suffix += sizeof ".so." - 1;
++
++  soname = bfd_coff_get_dt_soname (s->the_bfd);
++  if (soname == NULL)
++    soname = s->filename;
++
++  f = strrchr (soname, '/');
++  if (f != NULL)
++    ++f;
++  else
++    f = soname;
++
++  if (strncmp (f, global_needed->name, suffix - global_needed->name) == 0)
++    einfo ("%P: warning: %s, needed by %B, may conflict with %s\n",
++	   global_needed->name, global_needed->by, f);
+ }
+ 
+ static void  
+ gld_${EMULATION_NAME}_before_allocation()
+ {
++  const char *rpath;
++  asection *sinterp;
+ #ifdef TARGET_IS_ppcpe
+   /* Here we rummage through the found bfds to collect toc information */
+   {
+@@ -788,6 +1272,72 @@ gld_${EMULATION_NAME}_before_allocation(
+   /* We have seen it all. Allocate it, and carry on */
+   bfd_arm_pe_allocate_interworking_sections (& link_info);
+ #endif /* TARGET_IS_armpe */
++
++  rpath = command_line.rpath;
++  if (rpath == NULL)
++    rpath = (const char *) getenv ("LD_RUN_PATH");
++
++  /* Let the backend work out the sizes of any sections required
++     by dynamic linking.  */
++  /* Let the backend set up the dynamic sections */
++  if (! bfd_coff_size_dynamic_sections (output_bfd, 
++			command_line.soname, 
++			rpath,
++			command_line.export_dynamic,
++			command_line.filter_shlib,
++			(const char * const *) command_line.auxiliary_filters,
++			&link_info,
++			&sinterp,
++			lang_elf_version_info /* just use the elf one */
++			 ))
++      einfo ("%P%F: failed to set dynamic section sizes: %E\n");
++
++  /* Let the user override the dynamic linker we are using.  */
++  if (command_line.interpreter != NULL
++      && sinterp != NULL)
++    {
++      sinterp->contents = (bfd_byte *) command_line.interpreter;
++      sinterp->_raw_size = strlen (command_line.interpreter) + 1;
++    }
++
++  /* Look for any sections named .gnu.warning.  As a GNU extensions,
++     we treat such sections as containing warning messages.  We print
++     out the warning message, and then zero out the section size so
++     that it does not get copied into the output file.  */
++
++  {
++    LANG_FOR_EACH_INPUT_STATEMENT (is)
++      {
++	asection *s;
++	bfd_size_type sz;
++	char *msg;
++	boolean ret;
++
++	if (is->just_syms_flag)
++	  continue;
++
++	s = bfd_get_section_by_name (is->the_bfd, ".gnu.warning");
++	if (s == NULL)
++	  continue;
++
++	sz = bfd_section_size (is->the_bfd, s);
++	msg = xmalloc ((size_t) sz + 1);
++	if (! bfd_get_section_contents (is->the_bfd, s, msg, (file_ptr) 0, sz))
++	  einfo ("%F%B: Can't read contents of section .gnu.warning: %E\n",
++		 is->the_bfd);
++	msg[sz] = '\0';
++	ret = link_info.callbacks->warning (&link_info, msg,
++					    (const char *) NULL,
++					    is->the_bfd, (asection *) NULL,
++					    (bfd_vma) 0);
++	ASSERT (ret);
++	free (msg);
++
++	/* Clobber the section size, so that we don't waste copying the
++	   warning into the output file.  */
++	s->_raw_size = 0;
++      }
++   }
+ }
+ 
+ 
+@@ -1012,7 +1562,7 @@ gld_${EMULATION_NAME}_place_orphan (file
+     *dollar = '\0';
+ 
+   hold_use = NULL;
+-  lang_for_each_statement (gld${EMULATION_NAME}_place_section);
++  lang_for_each_statement (gld_${EMULATION_NAME}_place_section);
+ 
+   if (hold_use == NULL)
+     {
+@@ -1173,7 +1723,7 @@ gld_${EMULATION_NAME}_place_orphan (file
+ }
+ 
+ static void
+-gld${EMULATION_NAME}_place_section (s)
++gld_${EMULATION_NAME}_place_section (s)
+      lang_statement_union_type *s;
+ {
+   lang_output_section_statement_type *os;
+@@ -1221,6 +1771,8 @@ echo '  ; else if (!config.text_read_onl
+ sed $sc ldscripts/${EMULATION_NAME}.xbn                    >> e${EMULATION_NAME}.c
+ echo '  ; else if (!config.magic_demand_paged) return'     >> e${EMULATION_NAME}.c
+ sed $sc ldscripts/${EMULATION_NAME}.xn                     >> e${EMULATION_NAME}.c
++echo '  ; else if (link_info.shared) return'               >> e${EMULATION_NAME}.c
++sed $sc ldscripts/${EMULATION_NAME}.xs                     >> e${EMULATION_NAME}.c
+ echo '  ; else return'                                     >> e${EMULATION_NAME}.c
+ sed $sc ldscripts/${EMULATION_NAME}.x                      >> e${EMULATION_NAME}.c
+ echo '; }'                                                 >> e${EMULATION_NAME}.c
+@@ -1244,7 +1796,7 @@ struct ld_emulation_xfer_struct ld_${EMU
+   "${OUTPUT_FORMAT}",
+   gld_${EMULATION_NAME}_finish, /* finish */
+   NULL, /* create output section statements */
+-  NULL, /* open dynamic archive */
++  gld_${EMULATION_NAME}_open_dynamic_archive,
+   gld_${EMULATION_NAME}_place_orphan,
+   gld_${EMULATION_NAME}_set_symbols,
+   gld_${EMULATION_NAME}_parse_args,
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/lexsup.c ld/lexsup.c
+--- ld.19-25/lexsup.c	Wed Jul  7 14:27:24 1999
++++ ld/lexsup.c	Wed Jul  7 18:28:20 1999
+@@ -243,14 +243,18 @@ static const struct ld_option ld_options
+       '\0', N_("KEYWORD"), N_("Ignored for SunOS compatibility"), ONE_DASH },
+   { {"Bdynamic", no_argument, NULL, OPTION_CALL_SHARED},
+       '\0', NULL, N_("Link against shared libraries"), ONE_DASH },
++/* Conflicts with dynamic-linker below... suppressed (use specs?) // Check out experimentally later.
+   { {"dy", no_argument, NULL, OPTION_CALL_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
++*/
+   { {"call_shared", no_argument, NULL, OPTION_CALL_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
+   { {"Bstatic", no_argument, NULL, OPTION_NON_SHARED},
+       '\0', NULL, N_("Do not link against shared libraries"), ONE_DASH },
++/* for symmetry
+   { {"dn", no_argument, NULL, OPTION_NON_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
++*/
+   { {"non_shared", no_argument, NULL, OPTION_NON_SHARED},
+       '\0', NULL, NULL, ONE_DASH },
+   { {"static", no_argument, NULL, OPTION_NON_SHARED},
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/scripttempl/pe.sc ld/scripttempl/pe.sc
+--- ld.19-25/scripttempl/pe.sc	Wed Jul  7 14:27:23 1999
++++ ld/scripttempl/pe.sc	Wed Jul  7 18:28:20 1999
+@@ -35,6 +35,11 @@ else
+   R_RSRC=
+ fi
+ 
++# if DYNAMIC_LINKING [
++# // Note XXX below; needs work. 
++LINKERSECTS="${RELOCATING-0} ${RELOCATXXX+\(NOLOAD\)} ${RELOCATING+ BLOCK(__section_alignment__) }"
++# ] 
++
+ cat <<EOF
+ ${RELOCATING+OUTPUT_FORMAT(${OUTPUT_FORMAT})}
+ ${RELOCATING-OUTPUT_FORMAT(${RELOCATEABLE_OUTPUT_FORMAT})}
+@@ -44,6 +49,13 @@ ${LIB_SEARCH_DIRS}
+ 
+ ENTRY(${ENTRY})
+ 
++/* if DYNAMIC_LINKING [ */
++/* Not sure yet */
++${RELOCATING+/* Do we need any of these for elf?
++   __DYNAMIC = 0; ${STACKZERO+${STACKZERO}} ${SHLIB_PATH+${SHLIB_PATH}}  */}
++${RELOCATING+${EXECUTABLE_SYMBOLS}}
++/* end DYNAMIC_LINKING ] */
++
+ SECTIONS
+ {
+   .text ${RELOCATING+ __section_alignment__ } :
+@@ -96,6 +108,10 @@ SECTIONS
+     *(.rdata)
+     ${R_RDATA}
+     *(.eh_frame)
++    /* DYNAMIC_LINKING [ */
++    *(.hash)
++    *(.interp)
++    /* ] */
+   }
+ 
+   .pdata ${RELOCATING+BLOCK(__section_alignment__)} :
+@@ -103,9 +119,29 @@ SECTIONS
+     *(.pdata)
+   }
+ 
++/* if DYNAMIC_LINKING [ */
++  .got ${RELOCATING-0} ${RELOCATING+ BLOCK(__section_alignment__) } :
++  { 
++     *(.got.plt) 
++     *(.got)
++  }
++/* end DYNAMIC_LINKING ] */
++
++/* .idata must precede bss so file and code offsets remain the same for .sos */
++/* (At least for now... using Ldr* routines may fix.) */
++  .idata ${RELOCATING+BLOCK(__section_alignment__)} :
++  {
++    /* This cannot currently be handled with grouped sections.
++	See pe.em:sort_sections.  */
++    ${R_IDATA}
++  }
++
+   .bss ${RELOCATING+BLOCK(__section_alignment__)} :
+   {
+     ${RELOCATING+__bss_start__ = . ;}
++/* DYNAMIC_LINKING */
++    *(.dynbss)
++/* end DYNAMIC_LINKING */
+     *(.bss)
+     *(COMMON)
+     ${RELOCATING+__bss_end__ = . ;}
+@@ -124,12 +160,6 @@ SECTIONS
+     *(.drectve)
+   }
+ 
+-  .idata ${RELOCATING+BLOCK(__section_alignment__)} :
+-  {
+-    /* This cannot currently be handled with grouped sections.
+-	See pe.em:sort_sections.  */
+-    ${R_IDATA}
+-  }
+   .CRT ${RELOCATING+BLOCK(__section_alignment__)} :
+   { 					
+     ${R_CRT}
+@@ -142,6 +172,50 @@ SECTIONS
+     ${RELOCATING+ _end = .;}
+     ${RELOCATING+ __end__ = .;}
+   }
++
++/* DYNAMIC_LINKING [  // XXX below, rela??? */
++  /* // ??? .dynamic ${RELOCATING-0} ${RELOCATXXX+"(NOLOAD)"} : { */
++  .dynamic $LINKERSECTS: {
++    *(.dynamic)
++  }
++
++  .dynsym $LINKERSECTS : { 
++    *(.dynsym)	
++  }
++
++  .dynstr $LINKERSECTS : { 
++    *(.dynstr)
++  }
++
++  .gnu.version $LINKERSECTS : {
++    *(.gnu.version)
++  }
++
++  .gnu.version_d $LINKERSECTS : {
++    *(.gnu.version_d)
++  }
++
++  .gnu.version_r $LINKERSECTS : {
++    *(.gnu.version_r)
++  }
++
++  .rel.dyn $LINKERSECTS :
++  { 
++    *(.rel.internal)
++    *(.rel.got)
++    *(.rel.plt)
++  }
++
++  .rela.dyn $LINKERSECTS :
++  { 
++    *(.rela.*)
++  }
++
++  .init $LINKERSECTS : { 
++    *(.init)
++  } =${NOP-0}
++
++/* end DYNAMIC_LINKING ] */
+ 
+   .rsrc ${RELOCATING+BLOCK(__section_alignment__)} :
+   { 					

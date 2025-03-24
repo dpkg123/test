@@ -1,0 +1,322 @@
+On Interix (and on PE systems in general, when PE is fully supported)
+the value of ImageBase is in principle variable.  This patch applies
+the value of ImageBase in the right places and reports it as required.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+
+	* coffread.c (coff_symfile_read): Apply Image Base
+	* exec.c (print_section_info): Print entry point with ImageBase.
+	* maint.c (maintenance_info_sections): Print ImageBase.
+	* symfile.c (init_entry_point): Apply ImageBase.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 coffread.c
+--- src/gdb/coffread.c	2001/12/23 00:34:43	1.1.1.1
++++ src/gdb/coffread.c	2001/12/23 23:17:03
+@@ -47,6 +47,14 @@
+ 
+ extern void _initialize_coffread (void);
+ 
++#ifndef ADJUST_OBJFILE_OFFSETS
++#define ADJUST_OBJFILE_OFFSETS(objfile, type) \
++    gnu_pei_adjust_objfile_offsets(objfile, type)
++#endif
++
++/* This little tapdance gives us a declaration.  Until this is more
++   pervasive, the enum isn't in scope at the right time. */
++void ADJUST_OBJFILE_OFFSETS(struct objfile *, enum objfile_adjusts);
+ struct coff_symfile_info
+   {
+     file_ptr min_lineno_offset;	/* Where in file lowest line#s are */
+@@ -347,25 +355,6 @@ cs_to_section (struct coff_symbol *cs, s
+   return off;
+ }
+ 
+-/* Return the address of the section of a COFF symbol.  */
+-
+-static CORE_ADDR cs_section_address (struct coff_symbol *, bfd *);
+-
+-static CORE_ADDR
+-cs_section_address (struct coff_symbol *cs, bfd *abfd)
+-{
+-  asection *sect = NULL;
+-  struct find_targ_sec_arg args;
+-  CORE_ADDR addr = 0;
+-
+-  args.targ_index = cs->c_secnum;
+-  args.resultp = &sect;
+-  bfd_map_over_sections (abfd, find_targ_sec, &args);
+-  if (sect != NULL)
+-    addr = bfd_get_section_vma (objfile->obfd, sect);
+-  return addr;
+-}
+-
+ /* Look up a coff type-number index.  Return the address of the slot
+    where the type for that index is stored.
+    The type-number is in INDEX. 
+@@ -646,8 +635,16 @@ coff_symfile_read (struct objfile *objfi
+   /* Now that the executable file is positioned at symbol table,
+      process it and define symbols accordingly.  */
+ 
++  /* Some implementations (e.g. PE) have their symbols stored as
++     relative to some base other than zero.  Adjust the offset
++     array to compensate.  (And then put things back like we found
++     them.)   (Doing this here saves lots of execution time while
++     reading the symbols, because it's automatic.) */
++
++  ADJUST_OBJFILE_OFFSETS(objfile, adjust_for_symtab);
+   coff_symtab_read ((long) symtab_offset, num_symbols, objfile);
+-
++  ADJUST_OBJFILE_OFFSETS(objfile, adjust_for_symtab_restore);
++
+   /* Sort symbols alphabetically within each block.  */
+ 
+   {
+@@ -680,16 +677,21 @@ coff_symfile_read (struct objfile *objfi
+ 
+       stabstrsize = bfd_section_size (abfd, info->stabstrsect);
+ 
++      ADJUST_OBJFILE_OFFSETS(objfile, adjust_for_stabs);
+       coffstab_build_psymtabs (objfile,
+ 			       mainline,
+ 			       info->textaddr, info->textsize,
+ 			       info->stabsects,
+ 			       info->stabstrsect->filepos, stabstrsize);
++      ADJUST_OBJFILE_OFFSETS(objfile, adjust_for_stabs_restore);
++
+     }
+   if (dwarf2_has_info (abfd))
+     {
+       /* DWARF2 sections.  */
++      ADJUST_OBJFILE_OFFSETS(objfile, adjust_for_dwarf);
+       dwarf2_build_psymtabs (objfile, mainline);
++      ADJUST_OBJFILE_OFFSETS(objfile, adjust_for_dwarf_restore);
+     }
+ 
+   do_cleanups (back_to);
+@@ -1173,36 +1175,8 @@ read_one_sym (register struct coff_symbo
+ #endif
+ 
+   symnum += 1 + cs->c_naux;
+-
+-  /* The PE file format stores symbol values as offsets within the
+-     section, rather than as absolute addresses.  We correct that
+-     here, if the symbol has an appropriate storage class.  FIXME: We
+-     should use BFD to read the symbols, rather than duplicating the
+-     work here.  */
+-  if (pe_file)
+-    {
+-      switch (cs->c_sclass)
+-	{
+-	case C_EXT:
+-	case C_THUMBEXT:
+-	case C_THUMBEXTFUNC:
+-	case C_SECTION:
+-	case C_NT_WEAK:
+-	case C_STAT:
+-	case C_THUMBSTAT:
+-	case C_THUMBSTATFUNC:
+-	case C_LABEL:
+-	case C_THUMBLABEL:
+-	case C_BLOCK:
+-	case C_FCN:
+-	case C_EFCN:
+-	  if (cs->c_secnum != 0)
+-	    cs->c_value += cs_section_address (cs, symfile_bfd);
+-	  break;
+-	}
+-    }
+-}
+-
++}
++
+ /* Support for string table handling */
+ 
+ static char *stringtab = NULL;
+@@ -2500,6 +2555,67 @@ init_lineno (bfd *abfd, long offset, int
+     abort();
+   /* We could realloc the table, but it probably loses for most files.  */
+   return 0;
++}
++
++
++/* This does the equivalent of what older code did (but both more
++   efficiently and with a finer grain of control), but I'm not
++   convinced this was right to begin with: the offset of a symbol
++   is NOT the offset of its section, but rather of the image base. */
++
++struct adjust_sec_objfile
++  {
++    struct objfile *objfile;
++    int sign;
++  };
++
++static void
++adjust_sec_objfile_offset (bfd *abfd, asection *sect, PTR obj)
++{
++  struct adjust_sec_objfile *args = (struct adjust_sec_objfile *) obj;
++  int off;
++  CORE_ADDR symbols_offset;
++
++  /* This is the section.  Figure out what SECT_OFF_* code it is.  */
++  if (bfd_get_section_flags (abfd, sect) & SEC_CODE)
++    off = SECT_OFF_TEXT (args->objfile);
++  else if (bfd_get_section_flags (abfd, sect) & SEC_LOAD)
++    off = SECT_OFF_DATA (args->objfile);
++  else
++    off = sect->index;
++
++  symbols_offset = bfd_get_section_vma (objfile->obfd, sect) * args->sign;
++
++  args->objfile->section_offsets->offsets[off] += symbols_offset;
++}
++
++static void
++gnu_pei_adjust_objfile_offsets(struct objfile *objfile, 
++                               enum objfile_adjusts type)
++{
++  struct adjust_sec_objfile args;
++
++  if (!pe_file)
++    return;
++
++  args.objfile = objfile;
++
++  switch (type) {
++  case adjust_for_symtab:
++    args.sign = 1;
++    break;
++  case adjust_for_symtab_restore:
++    args.sign = -1;
++    break;
++  case adjust_for_stabs:
++  case adjust_for_stabs_restore:
++  case adjust_for_dwarf:
++  case adjust_for_dwarf_restore:
++  default:
++    return;
++  }
++
++  bfd_map_over_sections (objfile->obfd, adjust_sec_objfile_offset, &args);
+ }
+ 
+ /* Register our ability to parse symbols for coff BFD files. */
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files defs.h defs.h
+--- a/b/defs.h	Thu Mar  7 09:18:59 2002
++++ a/b/defs.h	Tue Mar 12 14:14:32 2002
+@@ -1407,4 +1407,11 @@ extern int use_windows;
+ #define ISATTY(FP)	(isatty (fileno (FP)))
+ #endif
+ 
++/* If the header provides this, then the linker allows (or requires)
++   that files be linked at other than zero, and this is how to get that
++   value. */
++#ifndef NONZERO_LINK_BASE
++#define NONZERO_LINK_BASE(abfd) 0
++#endif
++
+ #endif /* #ifndef DEFS_H */
+Index: src/gdb/exec.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/exec.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 exec.c
+--- src/gdb/exec.c	2001/12/23 00:34:46	1.1.1.1
++++ src/gdb/exec.c	2001/12/23 23:17:03
+@@ -549,7 +549,7 @@ print_section_info (struct target_ops *t
+   if (abfd == exec_bfd)
+     {
+       printf_filtered ("\tEntry point: ");
+-      print_address_numeric (bfd_get_start_address (abfd), 1, gdb_stdout);
++      print_address_numeric (bfd_get_start_address (abfd) + NONZERO_LINK_BASE(abfd), 1, gdb_stdout);
+       printf_filtered ("\n");
+     }
+   for (p = t->to_sections; p < t->to_sections_end; p++)
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files exec.c exec.c
+Index: src/gdb/maint.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/maint.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 maint.c
+--- src/gdb/maint.c	2001/12/23 00:34:50	1.1.1.1
++++ src/gdb/maint.c	2001/12/23 23:20:35
+@@ -349,7 +349,15 @@ maintenance_info_sections (char *arg, in
+       printf_filtered ("Exec file:\n");
+       printf_filtered ("    `%s', ", bfd_get_filename (exec_bfd));
+       wrap_here ("        ");
+-      printf_filtered ("file type %s.\n", bfd_get_target (exec_bfd));
++      printf_filtered ("file type %s.", bfd_get_target (exec_bfd));
++#ifdef COFF_IMAGE_WITH_PE
++      if (NONZERO_LINK_BASE(exec_bfd))
++      {
++         wrap_here ("        ");
++         printf_filtered (" Image base 0x%lx\n", (unsigned long)NONZERO_LINK_BASE(exec_bfd));
++      }
++#endif
++      printf_filtered ("\n");
+       if (arg && *arg && match_substring (arg, "ALLOBJ"))
+ 	{
+ 	  struct objfile *ofile;
+@@ -381,7 +389,15 @@ maintenance_info_sections (char *arg, in
+       printf_filtered ("Core file:\n");
+       printf_filtered ("    `%s', ", bfd_get_filename (core_bfd));
+       wrap_here ("        ");
+-      printf_filtered ("file type %s.\n", bfd_get_target (core_bfd));
++      printf_filtered ("file type %s.", bfd_get_target(core_bfd));
++#ifdef COFF_IMAGE_WITH_PE
++      if (NONZERO_LINK_BASE(exec_bfd))
++      {
++         wrap_here ("        ");
++         printf_filtered (" Image base 0x%lx\n", (unsigned long)NONZERO_LINK_BASE(core_bfd));
++      }
++#endif
++      printf_filtered ("\n");
+       bfd_map_over_sections (core_bfd, print_bfd_section_info, arg);
+     }
+ }
+Index: src/gdb/symfile.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/symfile.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 symfile.c
+--- src/gdb/symfile.c	2001/12/23 00:34:56	1.1.1.1
++++ src/gdb/symfile.c	2001/12/23 23:17:03
+@@ -386,7 +386,9 @@ init_entry_point_info (struct objfile *o
+     {
+       /* Executable file -- record its entry point so we'll recognize
+          the startup file because it contains the entry point.  */
+-      objfile->ei.entry_point = bfd_get_start_address (objfile->obfd);
++      objfile->ei.entry_point = 
++	 bfd_get_start_address (objfile->obfd) +
++	 NONZERO_LINK_BASE(objfile->obfd);
+     }
+   else
+     {
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files symfile.h symfile.h
+--- a/b/symfile.h	Thu Mar  7 09:19:01 2002
++++ a/b/symfile.h	Fri Mar  8 11:05:43 2002
+@@ -323,4 +323,21 @@ extern void
+ elfmdebug_build_psymtabs (struct objfile *,
+ 			  const struct ecoff_debug_swap *, asection *);
+ 
++/* Let the "back end" adjust the section relocations for the type of
++   symbols being read.
++   Note; this currently is only applied to coffread, but the other readers
++   may find it useful. */
++enum objfile_adjusts {
++    adjust_for_symtab,
++    adjust_for_symtab_restore,
++    adjust_for_stabs,
++    adjust_for_stabs_restore,
++    adjust_for_dwarf,
++    adjust_for_dwarf_restore,
++};
++
++/* A default value for ADJUST_OBFILE_OFFSETS could go here, but for now
++   we let the individual files using this define the default, until all
++   the places that need to provide special ones are found. */
++
+ #endif /* !defined(SYMFILE_H) */

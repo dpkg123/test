@@ -1,0 +1,282 @@
+Relinking the result of ld -r did not take kindly to having
+multiple .text symbols, as required by coffread/coff_symtab_read().
+Change coff_symtab_read() to not require .text; it was being
+used to separate the various input "files" in the symbol table,
+and to provide the "section" size for that file.  Use C_FILE
+and the information in the AUX record for the functions to determine
+the same information without reference to the .text.   (Multiple
+instances of the same symbol do seem wrong, so the fix was made
+here.)
+
+Inferring the range of symbols for a "file" (C_FILE entry) needed
+to be smarter to get Alpha unwind working around crt0.  (Specifically,
+identifying the full size of entry_file).  We need to keep the range
+from the first function in a file until we find another file, and
+make the range of the prior file be from that saved entry until
+the first function in the new file.  Yes, this is guesswork,
+but it works.
+
+(range_symtab is a convenience function.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	*coffread.c(range_symtab): New, for below.
+	(complete_symtab): Use (incidentally).
+	(coff_symtab_read): use C_FILE to separate modules; uses above.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.7
+diff -p -u -r1.7 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:17:33	1.7
++++ src/gdb/coffread.c	2001/12/24 01:18:05
+@@ -439,6 +439,18 @@ coff_start_symtab (char *name)
+   record_debugformat ("COFF");
+ }
+ 
++static void
++range_symtab(start_addr, end_addr)
++    CORE_ADDR start_addr;
++    CORE_ADDR end_addr;
++{
++  if (current_objfile->ei.entry_point >= start_addr &&
++      current_objfile->ei.entry_point <  end_addr)
++    {
++      current_objfile->ei.entry_file_lowpc = start_addr;
++      current_objfile->ei.entry_file_highpc = end_addr;
++    }
++}
+ /* Save the vital information from when starting to read a file,
+    for use when closing off the current file.
+    NAME is the file name the symbols came from, START_ADDR is the first
+@@ -453,12 +465,7 @@ complete_symtab (char *name, CORE_ADDR s
+   current_source_start_addr = start_addr;
+   current_source_end_addr = start_addr + size;
+ 
+-  if (current_objfile->ei.entry_point >= current_source_start_addr &&
+-      current_objfile->ei.entry_point < current_source_end_addr)
+-    {
+-      current_objfile->ei.entry_file_lowpc = current_source_start_addr;
+-      current_objfile->ei.entry_file_highpc = current_source_end_addr;
+-    }
++  range_symtab(current_source_start_addr,current_source_end_addr);
+ }
+ 
+ /* Finish the symbol definitions for one main source file,
+@@ -760,6 +767,33 @@ coff_symtab_read (long symtab_offset, un
+   int val;
+   CORE_ADDR tmpaddr;
+ 
++  /* On the use of the following symbols:  Earlier versions of this routine
++     tried to key off .text entries to determine the size of a "file"
++     (an original source file).  This implied that there were as many
++     .text entries as there were .o files in the link.  That was OK as
++     long as ld -r wasn't involved.  Linking the result of ld -r requires
++     that there be only one .text symbol (otherwise, which one do you
++     relocate against?)  (There was also a FIXME against using the symbol
++     ".text" for that comparison.)  The only information used from the
++     multiple .text symbols was the section size to determine where the
++     code ended.  With the .text symbols gone, some other way to determine
++     the size had to be found.  The three symbols below accomplish that
++     based on the function symbols themselves (and the .ef, if present).
++     first_function_this_file is the RVA of the first function
++     found after a C_FILE entry.  most_recent_function_end is the
++     RVA of the end of the most recent function found.  The size
++     of the "file" can be determined from the difference between
++     most_recent_function_end and first_function_this_file.
++
++     A zero value for first_function_this_file indicates that no function
++     has been found since the last C_FILE .  That's used both to capture
++     the first one, and to indicate a "file" with no content, which needs
++     to be handled slightly specially.  (More on that below.) */
++
++  CORE_ADDR first_function_this_file;
++  CORE_ADDR first_function_last_file;
++  CORE_ADDR most_recent_function_end;
++
+   /* Work around a stdio bug in SunOS4.1.1 (this makes me nervous....
+      it's hard to know I've really worked around it.  The fix should be
+      harmless, anyway).  The symptom of the bug is that the first
+@@ -794,8 +828,16 @@ coff_symtab_read (long symtab_offset, un
+     xmalloc (type_vector_length * sizeof (struct type *));
+   memset (type_vector, 0, type_vector_length * sizeof (struct type *));
+ 
++  /* If the first line isn't a C_FILE, it's benign to create an empty symtab;
++     it'll get discarded almost immediately, so if it simplifies the code.... */
+   coff_start_symtab ("");
+ 
++  first_function_this_file = most_recent_function_end = 0;
++  /* If the first file (crt0.o) is not debuggable (which is probably
++     the case) and starts with static functions (also likely), we'll
++     want to use the beginning of the text section instead. */
++  first_function_last_file = ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT(objfile));
++
+   symnum = 0;
+   while (symnum < nsyms)
+     {
+@@ -803,8 +845,18 @@ coff_symtab_read (long symtab_offset, un
+ 
+       read_one_sym (cs, &main_sym, &main_aux);
+ 
++      /* Global symbols after the last C_FILE */
+       if (cs->c_symnum == next_file_symnum && cs->c_sclass != C_FILE)
+ 	{
++	  if (first_function_this_file != 0)
++	    complete_symtab (filestring,
++		   first_function_this_file
++			    + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT(objfile)),
++		   most_recent_function_end == 0 
++		      ? 0:most_recent_function_end - first_function_this_file);
++	  else
++	    complete_symtab (filestring, 0, 0);
++
+ 	  if (last_source_file)
+ 	    coff_end_symtab (objfile);
+ 
+@@ -821,16 +873,70 @@ coff_symtab_read (long symtab_offset, un
+       /* Typedefs should not be treated as symbol definitions.  */
+       if (ISFCN (cs->c_type) && cs->c_sclass != C_TPDEF)
+ 	{
++
++	  if (first_function_this_file == 0)
++	     first_function_this_file = cs->c_value;
++	  else 
++	    {
++	      /* most_recent_function _nd should be AT LEAST the beginning
++		 of the current function if we're on other than the first
++		 function in the file.  We'll try to do better below. */
++	     most_recent_function_end = cs->c_value;
++	    }
++
+ 	  /* Record all functions -- external and static -- in minsyms. */
+ 	  tmpaddr = cs->c_value + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+   	  record_minimal_symbol (cs->c_name, tmpaddr, mst_text, objfile, 
+   	     coff_section_from_bfd_index(objfile->obfd, cs->c_secnum));
+ 
++	  if (cs->c_naux > 0) 
++	    {
++	      fcn_line_ptr = main_aux.x_sym.x_fcnary.x_fcn.x_lnnoptr;
++	      fcn_aux_saved = main_aux;
++	      most_recent_function_end = cs->c_value +
++		  main_aux.x_sym.x_misc.x_fsize;
++	    }
++	  else
++	    {
++	      /* Aux is trash; pretend it's zeros; this can happen
++		 if debugging is turned off (at least on MSVC); for
++		 most_recent_function_end we'll use zero (as a flag).
++		 In some cases, we use the beginning as it's good enough,
++		 but when we can infer a better size at the beginning of
++		 the next function, we'll use that.  That's OK since we can't 
++		 debug symbolically anyway.  (In some instances (PE) a size 
++		 might be in an .ef record, but so far, .ef and this aux go 
++		 together so there's no point in trying that.)
++
++		 FIXME: if/when we start parsing .pdata, we can do MUCH
++		 better if it's available.  */
++
++	      fcn_line_ptr = 0;
++	      memset((void *)&fcn_aux_saved, 0, sizeof(fcn_aux_saved));
++	    }
++
+ 	  fcn_line_ptr = main_aux.x_sym.x_fcnary.x_fcn.x_lnnoptr;
+ 	  fcn_start_addr = tmpaddr;
+ 	  fcn_cs_saved = *cs;
+ 	  fcn_sym_saved = main_sym;
+ 	  fcn_aux_saved = main_aux;
++ 
++ 	  /* If first_function_last file is nonzero, we had gotten a sizeless
++ 	     function earlier;  we keep going until we DO get a size, and 
++ 	     presume that everthing in the range up to the current function
++ 	     is a single file. */
++ 	  if (most_recent_function_end != 0)
++ 	    {
++ 	      if (first_function_last_file != 0)
++ 		 range_symtab(first_function_last_file, tmpaddr-1);
++ 	      first_function_last_file = 0;
++ 	    }
++ 	  else
++ 	    {
++ 	      if (first_function_last_file == 0)
++ 		 first_function_last_file = tmpaddr;
++ 	    }
++ 
+ 	  continue;
+ 	}
+ 
+@@ -849,6 +955,18 @@ coff_symtab_read (long symtab_offset, un
+ 	  break;
+ 
+ 	case C_FILE:
++	  /* Complete symbol table for last object file
++	     containing debugging information.  */
++	  if (first_function_this_file != 0)
++		complete_symtab (filestring,
++		   first_function_this_file
++		   + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile)),
++		   most_recent_function_end == 0 
++		     ? 0:most_recent_function_end - first_function_this_file);
++	  else
++		complete_symtab (filestring, 0, 0);
++	  coff_end_symtab (objfile);
++
+ 	  /* c_value field contains symnum of next .file entry in table
+ 	     or symnum of first global after last .file.  */
+ 	  next_file_symnum = cs->c_value;
+@@ -857,14 +975,9 @@ coff_symtab_read (long symtab_offset, un
+ 	  else
+ 	    filestring = "";
+ 
+-	  /* Complete symbol table for last object file
+-	     containing debugging information.  */
+-	  if (last_source_file)
+-	    {
+-	      coff_end_symtab (objfile);
+-	      coff_start_symtab (filestring);
+-	    }
+-	  in_source_file = 1;
++	  coff_start_symtab (filestring);
++
++	  first_function_this_file = 0;
+ 	  break;
+ 
+ 	  /* C_LABEL is used for labels and static functions.  Including
+@@ -884,20 +997,7 @@ coff_symtab_read (long symtab_offset, un
+ 	case C_THUMBSTATFUNC:
+ 	  if (cs->c_name[0] == '.')
+ 	    {
+-	      if (STREQ (cs->c_name, ".text"))
+-		{
+-		  /* FIXME:  don't wire in ".text" as section name
+-		     or symbol name! */
+-		  /* Check for in_source_file deals with case of
+-		     a file with debugging symbols
+-		     followed by a later file with no symbols.  */
+-		  if (in_source_file)
+-		    complete_symtab (filestring,
+-		    cs->c_value + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile)),
+-				     main_aux.x_scn.x_scnlen);
+-		  in_source_file = 0;
+-		}
+-	      /* flush rest of '.' symbols */
++	      /* flush '.' symbols */
+ 	      break;
+ 	    }
+ 	  else if (!SDB_TYPE (cs->c_type)
+@@ -1155,8 +1255,14 @@ coff_symtab_read (long symtab_offset, un
+ 	}
+     }
+ 
+-  if (last_source_file)
+-    coff_end_symtab (objfile);
++    if (first_function_this_file != 0)
++	  complete_symtab (filestring,
++	     first_function_this_file
++		    + ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT(objfile)),
++	     most_recent_function_end == 0 
++		    ? 0:most_recent_function_end - first_function_this_file);
++    else
++	  complete_symtab (filestring, 0, 0);
+ 
+   /* Patch up any opaque types (references to types that are not defined
+      in the file where they are referenced, e.g. "struct foo *bar").  */

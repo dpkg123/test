@@ -1,0 +1,35 @@
+Submitted as a question; not (or un-)applied, altho other notes say it
+was; re-research.
+
+In your mail about this one, you didn't mention not applying this change,
+and I believe I actually ran across this once, altho finding a testcase
+could be tricky.  Did this slip by, or was there a reason?
+
+	* coffcode.h (coff_compute_section_file_positions): recognize
+	empty sections 2 ways.
+
+Index: src/bfd/coffcode.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/coffcode.h,v
+retrieving revision 1.2
+diff -p -c -r1.2 coffcode.h
+*** src/bfd/coffcode.h	2001/12/23 01:14:40	1.2
+--- src/bfd/coffcode.h	2001/12/23 01:17:18
+*************** coff_compute_section_file_positions (abf
+*** 3082,3088 ****
+  #endif
+  
+        /* Only deal with sections which have contents.  */
+!       if (!(current->flags & SEC_HAS_CONTENTS))
+  	continue;
+  
+  #ifdef COFF_IMAGE_WITH_PE
+--- 3082,3089 ----
+  #endif
+  
+        /* Only deal with sections which have contents.  */
+!       if (!(current->flags & SEC_HAS_CONTENTS)
+! 	  || current->_raw_size == 0)
+  	continue;
+  
+  #ifdef COFF_IMAGE_WITH_PE

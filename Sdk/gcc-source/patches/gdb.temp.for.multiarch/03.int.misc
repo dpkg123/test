@@ -1,0 +1,48 @@
+Miscellanous small changes specific to Interix.
+
+There might be a better way to determine that there is an
+overriding function for get_longjmp_target.
+
+poll() is present but not fully functional on Interix.
+The poll test really belongs in configure, but lacking
+that it probably belongs in the manually configured
+header files.  (Something along the lines of
+(for the default):
+#ifdef HAVE_POLL
+#define USE_POLL_ON_PROC
+#define USE_POLL_ON_TTY
+#else
+#undef USE_POLL_ON_PROC
+#undef USE_POLL_ON_TTY
+#endif
+
+For special cases (using mine as an example):
+#undef USE_POLL_ON_TTY
+#undef USE_POLL_ON_PROC // Just for error prevention
+#define USE_POLL_ON_PROC
+
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* top.c(use_windows): default is to not use on Interix.
+	* defs.h(HAVE_POLL): override for Interix.
+
+
+Index: src/gdb/defs.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/defs.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 defs.h
+--- src/gdb/defs.h	2001/12/23 00:34:45	1.1.1.1
++++ src/gdb/defs.h	2001/12/23 22:58:13
+@@ -39,6 +39,11 @@
+ #include <unistd.h>
+ #endif
+ 
++#ifdef __INTERIX
++#undef HAVE_POLL	/* Only partially implemented so far */
++#undef HAVE_VFORK	/* Only partially implemented so far */ // CHECK
++#endif
++
+ /* Just in case they're not defined in stdio.h. */
+ 
+ #ifndef SEEK_SET

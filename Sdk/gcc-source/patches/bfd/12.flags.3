@@ -1,0 +1,207 @@
+Ian's changes to ldlang.c to make comdat work generally interacted rather
+badly with my prior patch in this space, causing problems with .idata$5
+and .debug$S sections from LIB.EXE generated .lib files.  I had expected
+that I'd have to change ldlang.c in some way, but I didn't.
+
+I also added a check for a possible inconsistency: I hope it doesn't
+trigger with Gnu generated tools (it shouldn't, but...).
+
+Lastly, I ran into a library compiled with MS's /Gy option, where
+every C (not C++) function is a separate comdat; we had a problem
+with colliding names of different static functions.
+
+
+ChangeLog:
+
+	* coffcode.h (sec_to_stype_flags): ASSOCIATIVE comdat doesn't
+	work, but needs to be recognized specially.  Smarter intuit 
+	about MS vs. Gnu, add ";" that some compilers insist upon.
+
+
+Index: src/bfd/coffcode.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/coffcode.h,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 coffcode.h
+*** src/bfd/coffcode.h	2001/12/23 00:34:29	1.1.1.1
+--- src/bfd/coffcode.h	2001/12/23 01:04:40
+*************** handle_COMDAT (abfd, sec_flags, hdr, nam
+*** 831,837 ****
+  				      0, isym.n_numaux, (PTR) &aux);
+  
+  		target_name = strchr (name, '$');
+! 		if (target_name != NULL)
+  		  {
+  		    /* Gas mode.  */
+  		    seen_state = 2;
+--- 831,841 ----
+  				      0, isym.n_numaux, (PTR) &aux);
+  
+  		target_name = strchr (name, '$');
+! 		/* Since this is a heuristic, it can be ugly...
+! 		   don't let .idata pass this test.  (Otherwise
+! 		   .idata$5 would! */
+! 		if (target_name != NULL
+! 		    && strncmp(name, ".idata", 6) != 0)
+  		  {
+  		    /* Gas mode.  */
+  		    seen_state = 2;
+*************** handle_COMDAT (abfd, sec_flags, hdr, nam
+*** 886,908 ****
+  		       place to play this game? Or should we do
+  		       it when reading it in.  */
+  		  case IMAGE_COMDAT_SELECT_ASSOCIATIVE:
+! #ifdef STRICT_PE_FORMAT
+! 		    /* FIXME: This is not currently implemented.  */
+! 		    sec_flags |= SEC_LINK_DUPLICATES_DISCARD;
+! #else
+  		    sec_flags &= ~SEC_LINK_ONCE;
+! #endif
+! 		    break;
+  
+  		  default:  /* 0 means "no symbol" */
+! 		    /* debug$F gets this case; other
+! 		       implications ??? */
+  		    sec_flags |= SEC_LINK_DUPLICATES_DISCARD;
+! 		    break;
+  		  }
+! 	      }
+! 	      break;
+  
+  	    case 2:
+  	      /* Gas mode: the first matching on partial name.  */
+  
+--- 890,934 ----
+  		       place to play this game? Or should we do
+  		       it when reading it in.  */
+  		  case IMAGE_COMDAT_SELECT_ASSOCIATIVE:
+! 
+! 		    /* FIXME: This is not currently implemented, altho
+! 		       lib.exe generated .lib files use it.  To work
+! 		       around it, we lie and say we always want to
+! 		       link the section.  This works for .lib files,
+! 		       where each entry should only occur once, and
+! 		       is the only place ASSOCIATIVE has been sighted,
+! 		       so far.  As far as I can tell, there aren't
+! 		       COMDAT symbols for this case (and DUMPBIN.EXE
+! 		       appears to agree).
+! 
+! 		       Note that there aren't bits to represent such a
+! 		       state in sec_flags.  */
+! 
+  		    sec_flags &= ~SEC_LINK_ONCE;
+! 		    goto breakloop;
+  
+  		  default:  /* 0 means "no symbol" */
+! 		    /* debug$F gets this case; other 
+!                            implications ??? */
+  		    sec_flags |= SEC_LINK_DUPLICATES_DISCARD;
+! 		    goto breakloop;
+  		  }
+!  	      }
+! 
+! 	      /* At this point we're supposed to have a comdat
+! 		 symbol; we use the presence of this field as a
+! 		 flag saying we have a comdat symbol, rather than
+! 		 a vanilla common.  Note the goto above in two
+! 		 of the cases above.  We'll fill in the actual
+! 		 value later when we find it.  */
+! 
+! 	      section->comdat = 
+! 		bfd_zalloc(abfd, sizeof(struct bfd_comdat_info));
+! 	      if (section->comdat == NULL)
+! 		abort();
+  
++   	      break;
++   
+  	    case 2:
+  	      /* Gas mode: the first matching on partial name.  */
+  
+*************** handle_COMDAT (abfd, sec_flags, hdr, nam
+*** 935,955 ****
+  		   Intel puts the two adjacent, but Alpha (at
+  		   least) spreads them out.  */
+  
+! 		amt = sizeof (struct bfd_comdat_info);
+! 		section->comdat = bfd_alloc (abfd, amt);
+! 		if (section->comdat == NULL)
+! 		  abort ();
+  
+! 		section->comdat->symbol =
+! 		  (esym - esymstart) / bfd_coff_symesz (abfd);
+  
+! 		amt = strlen (symname) + 1;
+! 		newname = bfd_alloc (abfd, amt);
+! 		if (newname == NULL)
+! 		  abort ();
+  
+! 		strcpy (newname, symname);
+! 		section->comdat->name = newname;
+  	      }
+  
+  	      goto breakloop;
+--- 997,1033 ----
+  		   Intel puts the two adjacent, but Alpha (at
+  		   least) spreads them out.  */
+  
+! 		/* MS tools have been seen to generate every
+! 		   C function as a separate comdat (/Gy).  If
+! 		   this is done, C_EXT and C_STAT become relevant:
+! 		   two static functions in different files could
+! 		   collide.
+! 
+! 		   When STAT, we want all the colliding functions,
+! 		   so we'll make sure the names don't match.
+! 		   (That's OK because we're using a private name
+! 		   in the comdat structure for name matching!) */
+  
+! 		if (isym.n_sclass == C_STAT)
+! 		  {
+! 		    static int static_sequence = 1;
+! 		    section->comdat->symbol = 9999999; /* err if used. */
+! 		    newname = bfd_alloc (abfd, 10);
+! 		    sprintf(newname, "stat-%d",static_sequence++);
+! 		  }
+! 		else
+! 		  {
+! 		    section->comdat->symbol =
+! 		      (esym - esymstart) / bfd_coff_symesz (abfd);
+  
+! 		    amt = strlen (symname) + 1;
+! 		    newname = bfd_alloc (abfd, amt);
+! 		    if (newname == NULL)
+! 		      abort ();
+  
+! 		    strcpy (newname, symname);
+! 		  }
+! 	        section->comdat->name = newname;
+  	      }
+  
+  	      goto breakloop;
+*************** handle_COMDAT (abfd, sec_flags, hdr, nam
+*** 953,960 ****
+  
+        esym += (isym.n_numaux + 1) * bfd_coff_symesz (abfd);
+      }
+  
+-  breakloop:
+    return sec_flags;
+  }
+  
+--- 993,1008 ----
+  
+        esym += (isym.n_numaux + 1) * bfd_coff_symesz (abfd);
+      }
++ 
++   breakloop:;
++ 
++  /* If something goes wrong, it's much easier to diagnose it here
++     than in ld.  This falls into the "it shouldn't happen" category,
++     but it could, and we don't know how to recover gracefully
++     (or for that matter, at all) until we see an example. */
++   if (section->comdat != NULL && section->comdat->name == NULL)
++      abort ();
+  
+    return sec_flags;
+  }
+  

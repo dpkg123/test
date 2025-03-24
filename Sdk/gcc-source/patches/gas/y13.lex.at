@@ -1,0 +1,326 @@
+MSVC generates symbols with @ in them; to be able to access them from 
+gas, the parser should not trip over the special assembler notations for
+such as @GOT if LEX_AT is turned on.  This is done by:
+1) Moving/modifing the LEX_AT test in i386_displacement to new function
+   i386_parse_name (and deferring seting of disp_reloc until answer is known).
+2) Making that be md_parse_name.
+3) Return whether @<stuff> is a PIC relocation properly, and know
+    when it's just an ordinary @.  
+4) Set appropriate machine-dependent macros so expr uses this stuff.
+   More details there.
+
+This has the side-effect of allowing @GOT (etc.) in immediate expressions,
+but a change must be made to be sure the relocations are handled correctly.
+
+(More detailed inline comments are especially relevant.)
+
+Unhappily this is forced to use a static global to avoid having to do
+a lot of mechanical but pervasive changes to get the required information
+into the right place.  Ian, I have no objection to such a change,
+but given the pervasive nature of the change, making it except when
+closely coupled with the official source is painful.
+
+	* config/tc-i386.c (special_reloc): declare.
+	* config/tc-i386.c (i386_parse_name): new function.
+	* config/tc-i386.c (i386_displacement): move LEX_AT logic 
+	to i386_parse_name.  Move a few lines around to match.
+	* config/tc-i386.c (i386_parse_cons_expression): Init special_reloc. 
+	* config/tc-i386.c (i386_cons_fix_new): New; track special_reloc.
+	* config/tc-i386.c (i386_immediate): delete LEX_AT code, rely
+	on expr and code above to do same.
+	* config/tc-i386.h (md_parse_name): Define as i386_parse_name.
+	* config/tc-i386.h (TC_PARSE_CONS_EXPRESSION): Define as 
+	i386_parse_cons_expression.
+	* config/tc-i386.h (TC_CONS_FIX_NEW): Define as i386_cons_fix_new.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -2471,6 +2471,8 @@ md_assemble (line)
+   }
+ }
+ 
++enum bfd_reloc_code_real special_reloc;
++
+ static int i386_immediate PARAMS ((char *));
+ 
+ static int
+@@ -2556,59 +2562,9 @@ i386_immediate (imm_start)
+   save_input_line_pointer = input_line_pointer;
+   input_line_pointer = imm_start;
+ 
+-#ifndef LEX_AT
+-  {
+-    /* We can have operands of the form
+-         <symbol>@GOTOFF+<nnn>
+-       Take the easy way out here and copy everything
+-       into a temporary buffer...  */
+-    register char *cp;
+-
+-    cp = strchr (input_line_pointer, '@');
+-    if (cp != NULL)
+-      {
+-	char *tmpbuf;
+-	int len = 0;
+-	int first;
+-
+-	/* GOT relocations are not supported in 16 bit mode.  */
+-	if (flag_16bit_code)
+-	  as_bad (_("GOT relocations not supported in 16 bit mode"));
+-
+-	if (GOT_symbol == NULL)
+-	  GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+-
+-	if (strncmp (cp + 1, "PLT", 3) == 0)
+-	  {
+-	    i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
+-	    len = 3;
+-	  }
+-	else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
+-	  {
+-	    i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
+-	    len = 6;
+-	  }
+-	else if (strncmp (cp + 1, "GOT", 3) == 0)
+-	  {
+-	    i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
+-	    len = 3;
+-	  }
+-	else
+-	  as_bad (_("bad reloc specifier in expression"));
+-
+-	/* Replace the relocation token with ' ', so that errors like
+-	   foo@GOTOFF1 will be detected.  */
+-	first = cp - input_line_pointer;
+-	tmpbuf = (char *) alloca (strlen (input_line_pointer));
+-	memcpy (tmpbuf, input_line_pointer, first);
+-	tmpbuf[first] = ' ';
+-	strcpy (tmpbuf + first + 1, cp + 1 + len);
+-	input_line_pointer = tmpbuf;
+-      }
+-  }
+-#endif
+-
++  special_reloc = NO_RELOC;
+   exp_seg = expression (exp);
++  i.disp_reloc[this_operand] = special_reloc;
+ 
+   SKIP_WHITESPACE ();
+   if (*input_line_pointer)
+@@ -2786,59 +2739,10 @@ i386_displacement (disp_start, disp_end)
+       *displacement_string_end = '0';
+     }
+ #endif
+-#ifndef LEX_AT
+-  {
+-    /* We can have operands of the form
+-         <symbol>@GOTOFF+<nnn>
+-       Take the easy way out here and copy everything
+-       into a temporary buffer...  */
+-    register char *cp;
+-
+-    cp = strchr (input_line_pointer, '@');
+-    if (cp != NULL)
+-      {
+-	char *tmpbuf;
+-	int len = 0;
+-	int first;
+-
+-	/* GOT relocations are not supported in 16 bit mode.  */
+-	if (flag_16bit_code)
+-	  as_bad (_("GOT relocations not supported in 16 bit mode"));
+-
+-	if (GOT_symbol == NULL)
+-	  GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+-
+-	if (strncmp (cp + 1, "PLT", 3) == 0)
+-	  {
+-	    i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
+-	    len = 3;
+-	  }
+-	else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
+-	  {
+-	    i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
+-	    len = 6;
+-	  }
+-	else if (strncmp (cp + 1, "GOT", 3) == 0)
+-	  {
+-	    i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
+-	    len = 3;
+-	  }
+-	else
+-	  as_bad (_("bad reloc specifier in expression"));
+-
+-	/* Replace the relocation token with ' ', so that errors like
+-	   foo@GOTOFF1 will be detected.  */
+-	first = cp - input_line_pointer;
+-	tmpbuf = (char *) alloca (strlen (input_line_pointer));
+-	memcpy (tmpbuf, input_line_pointer, first);
+-	tmpbuf[first] = ' ';
+-	strcpy (tmpbuf + first + 1, cp + 1 + len);
+-	input_line_pointer = tmpbuf;
+-      }
+-  }
+-#endif
+ 
++    special_reloc = NO_RELOC;
+   exp_seg = expression (exp);
++    i.disp_reloc[this_operand] = special_reloc;
+ 
+ #ifdef BFD_ASSEMBLER
+   /* We do this to make sure that the section symbol is in
+@@ -3373,6 +3275,64 @@ i386_intel_operand (operand_string, got_
+   return 1;
+ }
+ 
++#ifdef LEX_AT
++/*
++ * We can have a name of the form
++ *   <symbol>@GOTOFF
++ * Strip off the @GOTOFF (or whatever) and set a global giving the
++ * relocation type.  This is called from within expr(), and we
++ * don't have access to the per-operand relocations there, so we use
++ * (yetch) a global to pass it back.  (If expr() is ever rewritten...)
++ *
++ * Note: @ can be an ordinary identifier character; only if the name is
++ * suffixed by EXACTLY one of the reserved operators do we recognize
++ * it.  In any other case, it's just passed thru like an ordinary 
++ * identifier.
++ */
++
++int
++i386_parse_name (name, expressionP)
++  char *name;
++  expressionS *expressionP;
++{
++    register char *cp;
++
++    if ((cp = strrchr (name,'@')) == NULL)
++       return 0;
++
++    if (strcmp(cp+1, "PLT") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_PLT32;
++      } 
++    else if (strcmp(cp+1, "GOTOFF") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_GOTOFF;
++      }
++    else if (strcmp(cp+1, "GOT") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_GOT32;
++      } 
++    else if (strcmp(cp+1, "IMAGEBASE") == 0) 
++      {
++	special_reloc = BFD_RELOC_RVA;
++      } 
++    else
++      return 0;
++
++    /* GOT relocations are not supported in 16 bit mode */
++    if (flag_16bit_code)
++      as_bad (_("GOT relocations not supported in 16 bit mode"));
++
++    if(special_reloc != BFD_RELOC_RVA && !GOT_symbol)
++      GOT_symbol = symbol_find_or_make(GLOBAL_OFFSET_TABLE_NAME);
++
++    *cp = '\0';
++
++    return 0;
++}
++#endif
++ 
++
+ /* Parse OPERAND_STRING into the i386_insn structure I.  Returns non-zero
+    on error. */
+ 
+@@ -3681,6 +3641,58 @@ i386_operand (operand_string)
+     }
+   return 1;			/* normal return */
+ }
++
++void
++i386_parse_cons_expression (exp)
++     expressionS *exp;
++{
++  /* All we do different here from the normal is initialize special_reloc,
++     so we can pick it up below in i386_cons_fix_new. */
++  special_reloc = NO_RELOC;
++  expression(exp);
++}
++
++void
++i386_cons_fix_new (frag, where, size, exp)
++     fragS *frag;
++     int where;
++     int size;
++     expressionS *exp;
++{
++  unsigned int rel_type;
++
++  bfd_reloc_code_real_type r;
++
++  /* now that we know that special_reloc is properly initialized, we check
++     it; if it got set we have a foo@PLT type relocation.  Else, just like
++     the generic stuff (BFD style) */
++  if (special_reloc != NO_RELOC)
++    {
++       r = special_reloc;
++       if (size != 4)
++          as_bad (_("unsupported PIC BFD relocation size %u"), size);
++    }
++  else switch (size)
++    {
++    case 1:
++      r = BFD_RELOC_8;
++      break;
++    case 2:
++      r = BFD_RELOC_16;
++      break;
++    case 4:
++      r = BFD_RELOC_32;
++      break;
++    case 8:
++      r = BFD_RELOC_64;
++      break;
++    default:
++      as_bad (_("unsupported BFD relocation size %u"), size);
++      r = BFD_RELOC_32;
++      break;
++    }
++  fix_new_exp (frag, where, size, exp, 0, r);
++}
+ 
+ /*
+  * md_estimate_size_before_relax()
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.h gas/config/tc-i386.h
+--- gas.orig/config/tc-i386.h	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.h	Fri Aug 20 14:01:23 1999
+@@ -106,6 +106,27 @@ extern const char *i386_target_format PA
+ #endif
+ #endif
+ 
++#ifdef LEX_AT
++/* Parse names from inside expr; allows @ to be an ordinary character
++   except in very narrow contexts. */
++#define md_parse_name(n, e) i386_parse_name(n,e)
++extern int i386_parse_name PARAMS((char *, expressionS *));
++
++/* The above has the mostly desireable side-effect of allowing @PLT (etc.)
++   in immediate constants and in .long (et al.).  However, the relocations 
++   won't work right for .long unless we also grab it here (in a fairly trivial 
++   fashion, but ...).  Mostly this prevents mysterious bugs, as the
++   compiler currently doesn't use such constructs (but it certainly
++   could to avoid that awfulness with __GOT__-[Lnn-.] ) */
++#define TC_PARSE_CONS_EXPRESSION(e,n) i386_parse_cons_expression(e,n)
++extern void i386_cons_expression PARAMS((expressionS *, int));
++
++/* And to hook the relocation back into everything right */
++#define TC_CONS_FIX_NEW i386_cons_fix_new
++extern void i386_cons_fix_new PARAMS((fragS *, int, int, expressionS *));
++
++#endif /* LEX_AT */
++
+ #else /* ! BFD_ASSEMBLER */
+ 
+ /* COFF STUFF */

@@ -1,0 +1,70 @@
+Enable lookup of the name the program was started with.
+
+--- i386interix-nat.c.saved	Fri Apr  5 15:13:58 2002
++++ i386interix-nat.c	Fri Apr  5 15:29:54 2002
+@@ -23,7 +23,8 @@ Foundation, Inc., 59 Temple Place - Suit
+ #include <ucontext.h>
+ #include <frame.h>
+ #include <inferior.h>
+-
++#include <fcntl.h>
++
+ #include <i386-tdep.h>
+ #include "symfile.h"
+ #include "objfiles.h"
+@@ -545,3 +545,41 @@ pei_adjust_objfile_offsets(struct objfil
+      (objfile->section_offsets)->offsets[i] += symbols_offset;
+    }
+ }
++
++/* We don't have a /proc/pid/file or /proc/pid/exe to read a link from,
++   so read it from the same place ps gets the name.  */
++
++char *
++child_pid_to_exec_file (int pid)
++{
++  char *path;
++  char *buf;
++  int fd, c;
++  char *p;
++
++  asprintf (&path, "/proc/%d/stat", pid);
++  buf = xcalloc (MAXPATHLEN+1, sizeof (char));
++  make_cleanup (xfree, path);
++  make_cleanup (xfree, buf);
++
++  fd = open (path, O_RDONLY);
++
++  if (fd < 0) 
++      return NULL;
++
++  /* Skip over "Argv0\t" */
++  lseek (fd, 6, SEEK_SET);
++
++  c = read (fd, buf, MAXPATHLEN);
++  close (fd);
++
++  if (c < 0) 
++      return NULL;
++
++  buf[c] = '\0';  /* Ensure null termintion. */
++  p = strchr(buf, '\n');
++  if (p != NULL)
++     *p = '\0';
++
++  return buf;
++}
+--- procfs.c.saved	Mon Apr  8 18:18:19 2002
++++ procfs.c	Sat Apr  6 12:50:10 2002
+@@ -185,8 +185,9 @@ init_procfs_ops (void)
+   procfs_ops.to_find_memory_regions = proc_find_memory_regions;
+   procfs_ops.to_make_corefile_notes = procfs_make_note_section;
+   procfs_ops.to_magic               = OPS_MAGIC;
+-}
+-
++  procfs_ops.to_pid_to_exec_file    = child_pid_to_exec_file;
++}
++
+ /* =================== END, TARGET_OPS "MODULE" =================== */
+ 
+ /*

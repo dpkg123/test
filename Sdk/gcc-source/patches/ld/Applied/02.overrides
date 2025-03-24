@@ -1,0 +1,77 @@
+Make some additional items overrideable in pe.em.
+(One of the major differences between PE/Alpha and PE/x86 is
+whether leading underscore is used on symbol names; this shows
+up most here, and it's easier to fix now.)
+
+	* emultempl/pe.em: rm (belt and suspenders), include sysdep.h,
+	allow section alignment override from .sh file.
+	(gld_${EMULATION_NAME}_before_parse) Allow executable 
+	name override from .sh file.
+	(set_pe_subsystem): Allow override of subsystem, initial
+	underscore.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/emultempl/pe.em ld/emultempl/pe.em
+--- ld.nil/emultempl/pe.em	Wed Jul  7 14:17:18 1999
++++ ld/emultempl/pe.em	Wed Jul  7 14:21:47 1999
+@@ -1,6 +1,7 @@
+ # This shell script emits a C file. -*- C -*-
+ # It does some substitutions.
+-(echo;echo;echo;echo)>e${EMULATION_NAME}.c # there, now line numbers match ;-)
++rm -f e${EMULATION_NAME}.c
++(echo;echo;echo;echo;echo)>e${EMULATION_NAME}.c # there, now line numbers match ;-)
+ cat >>e${EMULATION_NAME}.c <<EOF
+ /* This file is part of GLD, the Gnu Linker.
+    Copyright 1995, 96, 97, 98, 1999 Free Software Foundation, Inc.
+@@ -45,9 +46,15 @@ Foundation, Inc., 59 Temple Place - Suit
+ #include "../bfd/libcoff.h"
+ #include "../bfd/libbfd.h"
+ #include "deffile.h"
++#include "sysdep.h"
+ 
+ #define TARGET_IS_${EMULATION_NAME}
+ 
++#if PE_DEF_SECTION_ALIGNMENT != ${OVERRIDE_SECTION_ALIGNMENT:-PE_DEF_SECTION_ALIGNMENT}
++#undef PE_DEF_SECTION_ALIGNMENT
++#define PE_DEF_SECTION_ALIGNMENT ${OVERRIDE_SECTION_ALIGNMENT}
++#endif
++
+ #if defined(TARGET_IS_i386pe)
+ #define DLL_SUPPORT
+ #endif
+@@ -95,7 +102,7 @@ extern const char *output_filename;
+ static void
+ gld_${EMULATION_NAME}_before_parse()
+ {
+-  output_filename = "a.exe";
++  output_filename = "${EXECUTABLE_NAME:-a.exe}";
+   ldfile_output_architecture = bfd_arch_${ARCH};
+ #ifdef DLL_SUPPORT
+   config.has_shared = 1;
+@@ -195,7 +202,7 @@ static definfo init[] =
+   D(MinorImageVersion,"__minor_image_version__", 0),
+   D(MajorSubsystemVersion,"__major_subsystem_version__", 4),
+   D(MinorSubsystemVersion,"__minor_subsystem_version__", 0),
+-  D(Subsystem,"__subsystem__", PE_DEF_SUBSYSTEM),
++  D(Subsystem,"__subsystem__", ${SUBSYSTEM}),
+   D(SizeOfStackReserve,"__size_of_stack_reserve__", 0x2000000),
+   D(SizeOfStackCommit,"__size_of_stack_commit__", 0x1000),
+   D(SizeOfHeapReserve,"__size_of_heap_reserve__", 0x100000),
+@@ -270,14 +277,14 @@ set_pe_subsystem ()
+     }
+   v[] =
+     {
+-      { "native", 1, "_NtProcessStartup" },
+-      { "windows", 2, "_WinMainCRTStartup" },
+-      { "console", 3, "_mainCRTStartup" },
++      { "native", 1, ${INITIAL_SYMBOL_CHAR} "NtProcessStartup" },
++      { "windows", 2, ${INITIAL_SYMBOL_CHAR} "WinMainCRTStartup" },
++      { "console", 3, ${INITIAL_SYMBOL_CHAR} "mainCRTStartup" },
+ #if 0
+       /* The Microsoft linker does not recognize this.  */
+       { "os2", 5, "" },
+ #endif
+-      { "posix", 7, "___PosixProcessStartup"},
++      { "posix", 7, ${INITIAL_SYMBOL_CHAR} "__PosixProcessStartup"},
+       { 0, 0, 0 }
+     };
+ 

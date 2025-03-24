@@ -1,0 +1,19 @@
+list=$1
+file=$2
+subj=$(grep "^Subj:" $file | sed -e 's/^Subj: //' ) 
+
+if [ x = x"$subj" ]
+then
+    echo NO SUBJECT LINE
+    exit 1
+fi
+
+if ! grep -q "^Body:" $file
+then
+    echo NO BODY MARKER
+    exit 1
+fi
+
+(sed -e '1,/^Subj/d' -e '/^diff/,$d' $file
+ sed -e '1,/^Body:/d' -e'/^Body:/d' $file | uuencode patch) |
+sndmail -s "$subj" $list

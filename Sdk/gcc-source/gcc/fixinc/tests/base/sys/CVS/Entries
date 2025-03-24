@@ -1,0 +1,19 @@
+/asm.h/1.3/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/byteorder.h/1.1/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/cdefs.h/1.1/Sat May 26 18:04:43 2001//Tgcc_3_3_release
+/file.h/1.4/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/ioctl.h/1.2/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/limits.h/1.4/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/machine.h/1.1/Wed Aug 23 14:13:18 2000//Tgcc_3_3_release
+/mman.h/1.2.56.1/Fri May 16 11:20:38 2003//Tgcc_3_3_release
+/param.h/1.2/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/signal.h/1.2/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/socket.h/1.1.8.1/Fri May 16 11:20:38 2003//Tgcc_3_3_release
+/spinlock.h/1.2/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/stat.h/1.4.56.2/Fri May 16 11:20:38 2003//Tgcc_3_3_release
+/time.h/1.2/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/times.h/1.2/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/types.h/1.7/Sat May 26 15:54:35 2001//Tgcc_3_3_release
+/utsname.h/1.2/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+/wait.h/1.3/Wed Jul 19 14:18:31 2000//Tgcc_3_3_release
+D

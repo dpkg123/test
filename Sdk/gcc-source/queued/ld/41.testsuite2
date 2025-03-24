@@ -1,0 +1,44 @@
+More testsuite patches.
+
+Configure.host: interix3.0 is different.
+
+bootstrap.exp: Use trimmed compare for interix (it's PE, too).
+
+Frankly, I'd prefer to simply get rid of the interix 2.0 (with INTERIX_ROOT)
+alternative completely, but if we retain it, at least fix it right.
+
+--- /C/CVS/binutils.baseline/src/ld/configure.host	Wed Dec 19 11:58:28 2001
++++ configure.host	Fri Feb  8 19:16:12 2002
+@@ -110,11 +110,18 @@ i[3456]86-*-lynxos*)
+   HOSTING_LIBS="$HOSTING_LIBS"' -lm /lib/initn.o'
+   ;;
+ 
+-i[3456]86-pc-interix*)
++i[3456]86-pc-interix)
+   HOSTING_CRT0='$$INTERIX_ROOT/usr/lib/crt0.o'
+-  NATIVE_LIB_DIRS='/usr/local/lib $$INTERIX_ROOT/usr/lib /lib /usr/lib'
++  NATIVE_LIB_DIRS='$$INTERIX_ROOT/usr/local/lib $$INTERIX_ROOT/usr/lib $$INTERIX_ROOT/lib $$INTERIX_ROOT/usr/lib'
+   HOSTING_LIBS='-L $$X/local_bin -L $$INTERIX_ROOT/usr/lib '"$HOSTING_LIBS"' -lcpsx -lc -lcpsx $$INTERIX_ROOT/usr/lib/psxdll.a $$INTERIX_ROOT/usr/lib/psxdll2.a'
+   ;;
++
++i[3456]86-pc-interix*)
++  HOSTING_CRT0='/usr/lib/crt0.o'
++  NATIVE_LIB_DIRS='/usr/local/lib /usr/lib/ /lib /usr/lib'
++  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi` -L $$X/local_bin -L /usr/lib -lc -lpsxdll'
++  ;;
++  
+ 
+ i[3456]86-*-cygwin*)
+   HOSTING_LIBS="$HOSTING_LIBS"' -lcygwin -luser32 -lkernel32 -ladvapi32 -lshell32 `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi`'
+--- /C/CVS/binutils.baseline/src/ld/testsuite/ld-bootstrap/bootstrap.exp	Wed Nov 14 03:18:42 2001
++++ testsuite/ld-bootstrap/bootstrap.exp	Fri Feb  8 19:21:03 2002
+@@ -130,7 +133,8 @@ foreach flags {"" "strip" "--static" "--
+     send_log "compare (tail of) tmpdir/ld2 tmpdir/ld3\n"
+     verbose  "compare (tail of) tmpdir/ld2 tmpdir/ld3"
+     if {[istarget "*-*-pe"]
+-	|| [istarget "*-*-wince"]} {
++	|| [istarget "*-*-wince"]
++	|| [istarget "*-*-interix*"]} {
+         # Trim off the date present in PE binaries by only looking
+         #   at the ends of the files
+         # Although this works, a way to set the date would be better.

@@ -1,0 +1,158 @@
+
+I am applying this one; it's needed for Interix and use of LIB.EXE
+archives.  However, Gnu generated archives don't need it.  DJ and I haven't
+come to a conclusion as to what the right answer is.
+
+The scope of some of the idata symbols (detailed more in comments below)
+is "archive" scope; each archive assumes that it's specific copy of the
+symbol is private to the whole archive.  This is true only of LIB.EXE
+generated archives.
+
+	* cofflink.c (coff_link_add_symbols): Convert .idata symbols to
+	per-archive scope.
+	* cofflink.c (_bfd_coff_write_global_sym): undo above for emitting
+	symbols.
+	* peigen.c (pei_swap_aouthdr_out): Remove old-way .idata workaround.
+
+Index: src/bfd/cofflink.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/cofflink.c,v
+retrieving revision 1.2
+diff -p -c -r1.2 cofflink.c
+*** src/bfd/cofflink.c	2001/12/23 03:05:59	1.2
+--- src/bfd/cofflink.c	2001/12/23 03:37:09
+*************** coff_link_add_symbols (abfd, info)
+*** 365,371 ****
+        if (classification != COFF_SYMBOL_LOCAL)
+  	{
+  	  const char *name;
+! 	  char buf[SYMNMLEN + 1];
+  	  flagword flags;
+  	  asection *section;
+  	  bfd_vma value;
+--- 365,371 ----
+        if (classification != COFF_SYMBOL_LOCAL)
+  	{
+  	  const char *name;
+! 	  char buf[SYMNMLEN + 4];  /* +1 +3 for possible sequence# */
+  	  flagword flags;
+  	  asection *section;
+  	  bfd_vma value;
+*************** coff_link_add_symbols (abfd, info)
+*** 385,391 ****
+--- 385,458 ----
+  	    copy = true;
+  
+  	  value = sym.n_value;
++  
++ 	  /* This is horrible, but I can't think of a better way to do it.
+  
++ 	     For PE/PEI format stuff, LIB.EXE-generated .LIB files
++ 	     for DLLs use the symbols .idata$*.  (see ld/emultempl/pe.em).
++ 	     All such .LIB files use the same symbols in the same
++ 	     way.  However, the .idata$4 and .idata$5 symbols behave
++ 	     as if they had a scope of exactly that archive!  (That
++ 	     is, .idata$5 symbols from one .LIB are not related to
++ 	     those from another.)  The other .idata$* symbols have
++ 	     that characteristic to some degree, but in particular,
++ 	     .idata$2 does NOT!  (Specifically, the archive member
++ 	     which defines the import directory table for a given
++ 	     .LIB wants it's reference to .idata$5 (the "Thunk table")
++ 	     to refer to a list of .idata$5 entries ONLY from that one
++ 	     library (similarly, .idata$4.) .   However, .idata$2 itself
++ 	     wants to be collected with the other .idata$2 sections.)
++ 
++ 	     To accomplish this in the context of ld, the easiest way seems
++ 	     to be to mangle the names of .idata$[45] symbols to include
++ 	     an archive indicator.  We do that here.
++ 
++ 	     Because the section symbols .idata$4 and .idata$5 are also
++ 	     required, we don't mangle the symbols in the very first
++ 	     library.  That will come out first, and all will be well.
++ 
++ 	     (Note that the first instance of .idata$2, .idata$4 and
++ 	     .idata$5 in each LIB.EXE built archive is storage class 104
++ 	     (C_SECTION).  Because we don't neccessarily see the archive
++ 	     in order I wasn't able to figure out a way to use that
++ 	     information.  However, it might be a way around this mess.)
++ 
++ 	     (Putting this in _bfd_coff_internal_syment_name has nasty
++ 	     side-effects.)  */
++ 
++ 	  if (name[0]=='.' && name[1] == 'i' &&
++ 	      strncmp(name, ".idata$",7)==0 && (name[7]=='4'||name[7]=='5'))
++ 	    {
++ 	      static bfd* this_archive = NULL;
++ 	      static int arch_sequence = -1;
++ 	      /* we're assuming we handle all of each archive before going
++ 		 on to the next, and that if we search the same .a file twice,
++ 		 we treat them separately.  (The later (probably) won't work
++ 		 at runtime, but because DLL libs are always all leaf routines,
++ 		 we should never search one twice to begin with.) */
++ 	      if (this_archive != abfd->my_archive)
++ 		{
++ 		 this_archive = abfd->my_archive;
++ 		 arch_sequence++;
++ 		}
++ 	      if (arch_sequence>0)
++ 		{
++ 		 /* in case it's in the string table, put it into the buffer */
++ 		 if (name != &buf[0])
++ 		   {
++ 		     strcpy (buf, name);
++ 		     name = &buf[0];
++ 		     copy = true;
++ 		   }
++ 		   buf[8]=0x7f;
++ 		   /* we'll try to put out a decimal number, but if it
++ 		      overflows in the left digit, there's no loss */
++ 		   buf[9]=arch_sequence/10+'0';
++ 		   buf[10]=arch_sequence%10+'0';
++ 		   buf[11]=0;
++ 		}
++ 	    }
++  
+  	  switch (classification)
+  	    {
+  	    default:
+*************** _bfd_coff_write_global_sym (h, data)
+*** 2520,2525 ****
+--- 2587,2604 ----
+  
+      case bfd_link_hash_defined:
+      case bfd_link_hash_defweak:
++       /* discard internally synthesized names (.idata$[45]^?nn) */
++       if ((h->coff_link_hash_flags & COFF_LINK_HASH_PE_SECTION_SYMBOL) != 0 
++ 	  && h->root.root.string[0]=='.' && h->root.root.string[1] == 'i'
++ 	  && h->root.root.string[8]==0x7f
++ 	  && (h->root.root.string[7]=='4'||h->root.root.string[7]=='5')
++ 	  && strncmp(h->root.root.string, ".idata$",7)==0)
++ 	{
++ 	  /* phew, that's an ugly test, but it's right and fast.
++ 	     if performance becomes an issue, it's probably safe to skip
++ 	     testing name[7]. */
++ 	  return true;
++ 	}
+        {
+  	asection *sec;
+  
+Index: src/bfd/peXXigen.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/peXXigen.c,v
+retrieving revision 1.2
+diff -p -c -r1.2 peXXigen.c
+*** src/bfd/peXXigen.c	2001/12/23 03:05:59	1.2
+--- src/bfd/peXXigen.c	2001/12/23 03:37:55
+*************** _bfd_XXi_swap_aouthdr_out (abfd, in, out
+*** 584,593 ****
+       bfd_coff_final_link where all the required information is
+       available.  */
+  
+-   /* However, until other .idata fixes are made (pending patch), the
+-      entry for .idata is needed for backwards compatability.  FIXME.  */
+-   add_data_entry (abfd, extra, 1, ".idata", ib);
+- 
+    add_data_entry (abfd, extra, 2, ".rsrc", 0);
+  
+    add_data_entry (abfd, extra, 3, ".pdata", 0);
+--- 584,589 ----

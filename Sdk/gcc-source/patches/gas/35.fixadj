@@ -1,0 +1,17 @@
+Interix PE is a strict PE formant (tc_fix_adjustable does apply).
+	*tc-i386.h (tc_fix_adjustable): define if STRICT_PE_FORMAT
+
+--- config/tc-i386.h	Sat Sep 16 10:22:13 2000
++++ config/tc-i386.h	Tue Sep 19 16:13:01 2000
+@@ -478,6 +478,11 @@ extern int tc_i386_fix_adjustable PARAMS
+ #ifndef TE_PE
+ /* Values passed to md_apply_fix3 don't include the symbol value.  */
+ #define MD_APPLY_SYM_VALUE(FIX) 0
++#else 
++/* Pending testing: DT 9/23/02 */
++#ifdef STRICT_PE_FORMAT
++#define MD_APPLY_SYM_VALUE(FIX) tc_fix_adjustable (FIX)
++#endif
+ #endif
+ 
+ #define TC_FORCE_RELOCATION(FIX)	i386_force_relocation (FIX)

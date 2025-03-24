@@ -1,0 +1,151 @@
+1,4c1,3
+< diff -drupP binutils.unmod/Makefile.am binutils/Makefile.am
+< --- binutils.unmod/Makefile.am	Mon Jun 14 15:00:27 1999
+< +++ binutils/Makefile.am	Mon Jun 14 15:56:00 1999
+< @@ -46,23 +46,24 @@ NLMCONV_PROG=nlmconv
+---
+> --- Makefile.am.orig	Fri Aug 20 10:45:52 1999
+> +++ Makefile.am	Fri Aug 20 18:48:10 1999
+> @@ -46,24 +46,25 @@ NLMCONV_PROG=nlmconv
+13c12
+<  	addr2line.1 nlmconv.1 $(DEMANGLER_PROG).1
+---
+>  	addr2line.1 nlmconv.1 $(DEMANGLER_NAME).1
+18,19c17,18
+< -bin_PROGRAMS = $(SIZE_PROG) $(OBJDUMP_PROG) $(AR_PROG) $(STRINGS_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@
+< +bin_PROGRAMS = $(SIZE_PROG) $(OBJDUMP_PROG) $(AR_PROG) $(STRINGS_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@ @BUILD_DLLTOOL@ @BUILD_LIBLOCK@
+---
+> -bin_PROGRAMS = $(SIZE_PROG) $(OBJDUMP_PROG) $(AR_PROG) $(STRINGS_PROG) $(RANLIB_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@
+> +bin_PROGRAMS = $(SIZE_PROG) $(OBJDUMP_PROG) $(AR_PROG) $(STRINGS_PROG) $(RANLIB_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@ @BUILD_LIBLOCK@
+21,22c20,22
+<  ## We need a special rule to install the programs which are built with -new
+<  noinst_PROGRAMS = $(NM_PROG) $(STRIP_PROG)
+---
+>  ## We need a special rule to install the programs which are built with
+>  ## -new, and to rename cxxfilt to c++filt.
+>  noinst_PROGRAMS = $(NM_PROG) $(STRIP_PROG) $(DEMANGLER_PROG)
+33c33
+< @@ -83,7 +84,7 @@ CFILES = addr2line.c ar.c arsup.c bucomm
+---
+> @@ -84,7 +85,7 @@ CFILES = addr2line.c ar.c arsup.c bucomm
+42c42
+< @@ -239,6 +240,12 @@ dlltool_LDADD = $(BFDLIB) $(LIBIBERTY) @
+---
+> @@ -240,6 +241,12 @@ dlltool_LDADD = $(BFDLIB) $(LIBIBERTY) @
+53,165c53,54
+<  coffdump_SOURCES = coffdump.c coffgrok.c $(BULIBS)
+<  
+< diff -drupP binutils.unmod/configure.in binutils/configure.in
+< --- binutils.unmod/configure.in	Mon Jun 14 15:00:26 1999
+< +++ binutils/configure.in	Mon Jun 14 15:55:02 1999
+< @@ -132,6 +132,7 @@ BUILD_DLLTOOL=
+<  DLLTOOL_DEFS=
+<  BUILD_WINDRES=
+<  BUILD_DLLWRAP=
+< +BUILD_LIBLOCK=
+<  BUILD_MISC=
+<  
+<  for targ in $target $canon_targets
+< @@ -176,9 +177,12 @@ changequote([,])dnl
+<  	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
+<  	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+<  	 ;;
+< +changequote(,)dnl
+<   	i[3-6]86-*-interix)
+< +changequote([,])dnl
+<     	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
+<   	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
+< +	  BUILD_LIBLOCK='$(LIBLOCK_PROG)'
+<  	 ;;
+<  changequote(,)dnl
+<  	i[3-6]86-*pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+< @@ -204,6 +208,7 @@ AC_SUBST(BUILD_DLLTOOL)
+<  AC_SUBST(DLLTOOL_DEFS)
+<  AC_SUBST(BUILD_WINDRES)
+<  AC_SUBST(BUILD_DLLWRAP)
+< +AC_SUBST(BUILD_LIBLOCK)
+<  AC_SUBST(BUILD_MISC)
+<  
+<  AC_DEFINE_UNQUOTED(TARGET, "${target}", [Configured target name.])
+< diff -drupP binutils.unmod/liblock.c binutils/liblock.c
+< --- binutils.unmod/liblock.c	Wed Dec 31 17:00:00 1969
+< +++ binutils/liblock.c	Mon Jun 14 15:08:12 1999
+< @@ -0,0 +1,75 @@
+< +#include <stdio.h>
+< +#include <unistd.h>
+< +#include <fcntl.h>
+< +main(int argc, char **argv)
+< +{
+< +	int offset = 0xde;
+< +	char buf[4];
+< +	long res;
+< +	long fd;
+< +
+< +	if (argc != 2) {
+< +	   fprintf(stderr, "Usage: locklib <lib.so>\n");
+< +	   exit(1);
+< +	}
+< +
+< +	fd = open(argv[1], O_RDWR);
+< +
+< +	if (fd < 0) {
+< +	   perror("locklib");
+< +	   exit(1);
+< +	}
+< +
+< +	lseek (fd, 0, SEEK_SET);
+< +	res = read(fd, buf, 2);
+< +
+< +	if (res != 2) {
+< +	   perror("locklib");
+< +	   exit(1);
+< +	}
+< +
+< +	if (buf[0] != 'M' || buf[1] != 'Z') {
+< +	   fprintf(stderr, "File is not PE\n");
+< +	   exit(1);
+< +	}
+< +
+< +	lseek (fd, 0x80, SEEK_SET);
+< +
+< +	res = read(fd, buf, 2);
+< +
+< +	if (res != 2) {
+< +	   perror("locklib");
+< +	   exit(1);
+< +	}
+< +
+< +	if (buf[0] != 'P' || buf[1] != 'E') {
+< +	   fprintf(stderr, "File is not PEI\n");
+< +	   exit(1);
+< +	}
+< +
+< +	lseek (fd, offset, SEEK_SET);
+< +
+< +	res = read(fd, buf, 1);
+< +
+< +	if (res != 1) {
+< +	   perror("locklib");
+< +	   exit(1);
+< +	}
+< +
+< +	if (buf[0] != 1) {
+< +	   fprintf(stderr, "File is not unlocked shared lib\n");
+< +	   exit(1);
+< +	}
+< +
+< +	lseek (fd, offset, SEEK_SET);
+< +
+< +	buf[0] = 3;
+< +	res = write(fd, buf, 1);
+< +
+< +	if (res != 1) {
+< +	   perror("locklib");
+< +	   exit(1);
+< +	}
+< +
+< +	exit(0);
+< +}
+---
+>  rescoff.o:rescoff.c
+>  	$(COMPILE) -c $(DLLTOOL_DEFS) $(srcdir)/rescoff.c

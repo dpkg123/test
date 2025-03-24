@@ -1,0 +1,21 @@
+When using -r, the linker put the special symbols that belong only
+in an executable image.  Skip doing that, so they don't end up as
+conflicts at final link time.
+
+	* emultempl/pe.em (gld_${EMULATION_NAME}_set_symbols): No PEI
+	symbols in relocateable output.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/emultempl/pe.em ld/emultempl/pe.em
+--- ld.nil/emultempl/pe.em	Wed Jul  7 14:17:18 1999
++++ ld/emultempl/pe.em	Wed Jul  7 14:21:47 1999
+@@ -499,7 +506,9 @@ gld_${EMULATION_NAME}_set_symbols ()
+     {
+       long val = init[j].value;
+       lang_assignment_statement_type *rv;
+-      rv = lang_add_assignment (exp_assop ('=' ,init[j].symbol, exp_intop (val)));
++      /* don't polute the .o's namespace with this junk! */
++      if (!link_info.relocateable)
++          lang_add_assignment (exp_assop ('=',init[j].symbol, exp_intop (val)));
+       if (init[j].size == sizeof(short))
+ 	*(short *)init[j].ptr = val;
+       else if (init[j].size == sizeof(int))

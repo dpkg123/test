@@ -1,0 +1,5 @@
+# It's little-endian.
+add_multilib_option "little-endian"
+
+# But otherwise we're the same as mips-idt.
+load_base_board_description "mips-idt";

@@ -1,0 +1,54 @@
+Considering "weak alias" type symbols:
+
+To make an archive that contains weak alias symbols that work
+correctly, the weak symbols must (of course) be in the archive
+symbol table.  However, if a file whose sole purpose is to link
+the weak to the strong reference, the weak symbol will be undefined
+(in that file).  Thus, change archive.c to put weak symbol
+(definitions, implicitly) into the archive symbol table even for
+symbols in the undefined section.
+
+NOTE: this could be done by adding a new flag bit or combination to make
+this more visible, but the spirit of ignoring "definedness" is required.
+
+	* archive.c (_bfd_compute_and_write_armap): Enter weak symbols into
+	archive symbol table.
+
+Index: src/bfd/archive.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/archive.c,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 archive.c
+*** src/bfd/archive.c	2001/12/23 00:34:27	1.1.1.1
+--- src/bfd/archive.c	2001/12/23 03:56:08
+*************** _bfd_compute_and_write_armap (arch, elen
+*** 1909,1919 ****
+  		  flagword flags = (syms[src_count])->flags;
+  		  asection *sec = syms[src_count]->section;
+  
+! 		  if ((flags & BSF_GLOBAL ||
+! 		       flags & BSF_WEAK ||
+! 		       flags & BSF_INDIRECT ||
+! 		       bfd_is_com_section (sec))
+! 		      && ! bfd_is_und_section (sec))
+  		    {
+  		      bfd_size_type namelen;
+  		      struct orl *new_map;
+--- 1909,1925 ----
+  		  flagword flags = (syms[src_count])->flags;
+  		  asection *sec = syms[src_count]->section;
+  
+! 		  /* For ordinary simbols, we only want real definitions; 
+! 		     however, for weak symbols, it may be an indirection
+! 		     to a symbol defined in another file, and thus be 
+! 		     undefined (in the undefined section) here.  But 
+! 		     we need it defined in the archive symbol table so we 
+! 		     can get the module and resolve the indirection. */
+! 		  if (((flags & BSF_GLOBAL ||
+! 		        flags & BSF_INDIRECT ||
+! 		        bfd_is_com_section (sec))
+! 		        && ! bfd_is_und_section (sec))
+! 		      || flags & BSF_WEAK)
+  		    {
+  		      bfd_size_type namelen;
+  		      struct orl *new_map;

@@ -1,0 +1,112 @@
+Add support for .alias pseudo for C_NT_WEAK alias symbols.
+
+	* config/obj-coff.c (obj_coff_weak): change conditional comp.
+	(obj_coff_alias): New function. (op_pseudo_table): add it.
+
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gas.orig/config/obj-coff.c gas/config/obj-coff.c
+--- gas.orig/config/obj-coff.c	Tue Apr 11 13:03:19 2000
++++ gas/config/obj-coff.c	Tue Apr 11 14:05:11 2000
+@@ -217,12 +217,8 @@ obj_coff_weak (ignore)
+       S_SET_WEAK (symbolP);
+ #endif
+ 
+-#ifdef TE_PE
+-      S_SET_STORAGE_CLASS (symbolP, C_NT_WEAK);
+-#else
+       S_SET_STORAGE_CLASS (symbolP, C_WEAKEXT);
+-#endif
+-
++
+       if (c == ',')
+ 	{
+ 	  input_line_pointer++;
+@@ -1437,6 +1433,78 @@ obj_coff_section (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++#ifdef TE_PE
++/* Parse .alias directives, which is how PE does weak symbols:
++   An alias defines a "weak" name for an exising symbol; it does
++   not label an entry point directly.  There are 3 types of PE
++   weak; we only support the alias form (IMAGE_WEAK_EXTERN_SEARCH_ALIAS)
++   
++   Syntax:   .alias <new weak name>,<old strong name>
++
++   */
++
++void obj_coff_alias PARAMS((int));
++
++void
++obj_coff_alias (ignore)
++     int ignore ATTRIBUTE_UNUSED;
++{
++  char *name;
++  int c;
++  symbolS *symbolP;
++  symbolS *symbolQ;
++  union internal_auxent *auxp;
++
++  name = input_line_pointer;
++  c = get_symbol_end ();
++  symbolP = symbol_find_or_make (name);
++  *input_line_pointer = c;
++
++  symbolQ = NULL;
++
++  SKIP_WHITESPACE ();
++
++  if (*input_line_pointer == ',')
++    {
++      if (S_IS_DEFINED (symbolP))
++	{
++	  as_bad ("Ignoring attempt to redefine symbol `%s'.",
++		  S_GET_NAME (symbolP));
++	  ignore_rest_of_line ();
++	  return;
++	}
++
++      ++input_line_pointer;
++      SKIP_WHITESPACE ();
++      if (! is_end_of_line[(unsigned char) *input_line_pointer])
++	{
++  	  name = input_line_pointer;
++	  c = get_symbol_end ();
++  	  symbolQ = symbol_find_or_make (name);
++	  *input_line_pointer = c;
++	}
++    }
++
++  if (symbolQ == NULL)
++    {
++      as_bad ("No alias target for `%s'.",
++	      S_GET_NAME (symbolP));
++      ignore_rest_of_line();
++      return;
++    }
++
++  S_SET_NUMBER_AUXILIARY (symbolP, 1);
++  S_SET_WEAK (symbolP);
++
++  /* Set alias type to IMAGE_WEAK_EXTERN_SEARCH_ALIAS */
++  auxp = SYM_AUXENT(symbolP);
++  auxp->x_sym.x_misc.x_fsize = 3;
++  SA_SET_SYM_TAGNDX (symbolP, symbolQ);
++
++  demand_empty_rest_of_line ();
++}
++#endif
++
+ void
+ coff_adjust_symtab ()
+ {
+@@ -4536,6 +4602,9 @@ adjust_stab_section(abfd, seg)
+ 
+ const pseudo_typeS coff_pseudo_table[] =
+ {
++#ifdef TE_PE
++  {"alias", obj_coff_alias, 0},
++#endif
+   {"def", obj_coff_def, 0},
+   {"dim", obj_coff_dim, 0},
+   {"endef", obj_coff_endef, 0},

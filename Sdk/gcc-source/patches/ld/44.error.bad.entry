@@ -1,0 +1,18 @@
+If the user provides an entry address on the command line, and we can't do it,
+compiain unconditionally.  It's likely the user either didn't intend it
+or mistyped it, and silently doing nothing is almost always wrong if it
+comes from the command line.
+
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files ldlang.c.orig ldlang.c
+--- ldlang.c.orig	Fri May 31 17:09:10 2002
++++ ldlang.c	Fri May 31 17:11:57 2002
+@@ -3550,7 +3550,7 @@ lang_finish ()
+   boolean warn;
+ 
+   if (link_info.relocateable || link_info.shared)
+-    warn = false;
++    warn = entry_from_cmdline;
+   else
+     warn = true;
+ 

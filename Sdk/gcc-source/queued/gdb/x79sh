@@ -1,0 +1,2 @@
+cd testsuite/gdb.asm
+autoconf

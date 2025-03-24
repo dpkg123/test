@@ -1,0 +1,33 @@
+Recognize absolute symbols and mark them as such; some
+absolutes were coming in the middle of code space, confusing bt
+badly.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* coffread.c(coff_symtab_read): recognize absolute symbols.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.9
+diff -p -u -r1.9 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:29:07	1.9
++++ src/gdb/coffread.c	2001/12/24 01:30:09
+@@ -1029,11 +1029,16 @@ coff_symtab_read (long symtab_offset, un
+ 	       print_address_symbolic work right without the (now
+ 	       gone) "set fast-symbolic-addr off" kludge.  */
+ 
+-	    /* FIXME: should use mst_abs, and not relocate, if absolute.  */
+ 	    enum minimal_symbol_type ms_type;
+ 	    int sec;
+ 
+-	    if (cs->c_secnum == N_UNDEF)
++	    if (cs->c_secnum == N_ABS)
++	      {
++		tmpaddr = cs->c_value;
++		sec = N_ABS;
++		ms_type =  mst_abs;
++	      }
++	    else if (cs->c_secnum == N_UNDEF)
+ 	      {
+ 		/* This is a common symbol.  See if the target
+ 		   environment knows where it has been relocated to.  */

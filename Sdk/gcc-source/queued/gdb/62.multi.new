@@ -1,0 +1,92 @@
+Index: i386-interix-tdep.c
+===================================================================
+RCS file: /cvs/src/src/gdb/i386-interix-tdep.c,v
+retrieving revision 1.1
+diff -u -3 -p -r1.1 i386-interix-tdep.c
+--- i386-interix-tdep.c	1 Nov 2002 22:08:44 -0000	1.1
++++ i386-interix-tdep.c	6 Nov 2002 01:22:57 -0000
+@@ -124,17 +124,14 @@ i386_interix_init_frame_pc (int fromleaf
+ }
+ 
+ static int
+-i386_interix_frame_chain_valid (CORE_ADDR chain, struct frame_info *thisframe)
++i386_interix_frame_chain_valid (CORE_ADDR fp, struct frame_info *fi)
+ {
+-  /* In the context where this is used, we get the saved PC before we've
+-     successfully unwound far enough to be sure what we've got (it may
+-     be a signal handler caller).  If we're dealing with a signal
+-     handler caller, this will return valid, which is fine.  If not,
+-     it'll make the correct test.  */
+-  return (thisframe->signal_handler_caller
+-          || (chain != 0
+-              && !inside_entry_file (read_memory_integer
+-                                     (thisframe->frame + 4, 4))));
++  if (PC_IN_CALL_DUMMY (FRAME_SAVED_PC (fi), fp, fp))
++    return 1;   /* don't prune CALL_DUMMY frames.  */
++  else          /* fall back to default algorithm (see frame.h).  */
++    return (fp != 0
++            && (INNER_THAN (fi->frame, fp) || fi->frame == fp)
++            && !inside_entry_file (FRAME_SAVED_PC (fi)));
+ }
+ 
+ /* We want to find the previous frame, which on Interix is tricky when signals
+@@ -147,7 +144,7 @@ i386_interix_back_one_frame (int fromlea
+   CORE_ADDR ra;
+   CORE_ADDR fm;
+   CORE_ADDR context;
+-  long t;
++  LONGEST t;
+ 
+   if (frame == NULL)
+     internal_error (__FILE__, __LINE__, "unexpected NULL frame");
+@@ -184,7 +181,7 @@ i386_interix_back_one_frame (int fromlea
+ 
+   if (!frame->next->signal_handler_caller)
+     {
+-      frame->pc = read_memory_integer (frame->next->frame + 4, 4);
++      frame->pc = FRAME_SAVED_PC (frame->next);
+       return;
+     }
+ 
+@@ -242,11 +239,10 @@ i386_interix_back_one_frame (int fromlea
+ 
+       /* We need to know if we're in a system call because we'll be
+          in a syscall mini-frame, if so, and the rules are different.  */
+-      t = (long) read_memory_integer (context + mcontext_syscall_greg_offset,
+-                                      4);
++      t = read_memory_integer (context + mcontext_syscall_greg_offset, 4);
++
+       /* t contains 0 if running free, 1 if blocked on a system call,
+-         and 2 if blocked on an exception message (e.g. a trap);
+-         we don't expect to get here with a 2.  */
++         and 2 if blocked on an exception message (e.g. a trap).  */
+       if (t != 1)
+         {
+           /* Not at a system call, therefore it can't be NullApi.  */
+@@ -313,11 +309,23 @@ i386_interix_back_one_frame (int fromlea
+ static CORE_ADDR
+ i386_interix_frame_saved_pc (struct frame_info *fi)
+ {
++  if (PC_IN_CALL_DUMMY (fi->pc, 0, 0))
++    {
++      ULONGEST pc;
++      frame_unwind_unsigned_register (fi, PC_REGNUM, &pc);
++      return pc;
++    }
++
++  if (i386_frameless_signal_p (fi))
++    /* This takes the role of "sigtramp_saved_pc".  */
++    return read_memory_integer (fi->frame - 12, 4);
++
+   /* Assume that we've already unwound enough to have the caller's address
+-     if we're dealing with a signal handler caller (And if that fails,
+-     return 0).  */
++     if we're dealing with a signal handler caller.  If that isn't
++     the case, then we're probably not yet into the handler body;
++     return the current PC.  */
+   if (fi->signal_handler_caller)
+-    return fi->next ? fi->next->pc : 0;
++    return fi->next ? fi->next->pc : fi->pc;
+   else
+     return read_memory_integer (fi->frame + 4, 4);
+ }

@@ -1,0 +1,63 @@
+NEEDS THOUGHT
+
+Calls to dlclose() were confusing things: a complaint about
+memory not being writeable was being generated, and breakpoints
+were left active and pointing to nonexistent memory.
+
+  - breakpoint.c/breakpoint_1: report shlib_disabled breakpoints
+    as s, not n.
+
+ABOVE MAY NO LONGER APPLY??? (patch being applied, check semantics.)
+
+  - breakpoint.c/re_enable_breakpoints_in_shlibs(): don't do it
+    if global solib_is_deleting is set (and define that variable
+    initially to zero.)
+
+  In pei-solib.c/solib_add: set solib_is_deleting when something
+  is being deleted, and clear when we're told things are consistent
+  again.  Disable breakpoints in shlibs while deleteing a shared
+  library.  (Other *solib.c may wish to follow.) (pei-solib.c to
+  follow in another patch.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* breakpoint.c(bpenables): report shared-lib suspended breakpoints
+	as "s".  (solib_is_deleting): declare.  
+	(re_enable_breakpoints_in_shlibs): do nothing if still deleting 
+	shared libs.
+
+Index: src/gdb/breakpoint.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/breakpoint.c,v
+retrieving revision 1.3
+diff -p -u -r1.3 breakpoint.c
+--- src/gdb/breakpoint.c	2001/12/24 02:09:51	1.3
++++ src/gdb/breakpoint.c	2001/12/24 02:12:48
+@@ -3139,7 +3139,7 @@ print_one_breakpoint (struct breakpoint 
+   
+   static char *bpdisps[] =
+   {"del", "dstp", "dis", "keep"};
+-  static char bpenables[] = "nynny";
++  static char bpenables[] = "nysny";
+   char wrap_indent[80];
+ #ifdef UI_OUT
+   struct ui_stream *stb = ui_out_stream_new (uiout);
+@@ -4130,11 +4130,19 @@ disable_breakpoints_in_shlibs (int silen
+   }
+ }
+ 
++int solib_is_deleting = 0;
++
+ /* Try to reenable any breakpoints in shared libraries.  */
+ void
+ re_enable_breakpoints_in_shlibs (void)
+ {
+   struct breakpoint *b;
++
++  /* If this is a dlclose(), we don't want to reenable yet, but there
++     are several places that can't tell from their state which it is,
++     so we (yetch) use a global. */
++  if (solib_is_deleting)
++      return;
+ 
+   ALL_BREAKPOINTS (b)
+     if (b->enable_state == bp_shlib_disabled)

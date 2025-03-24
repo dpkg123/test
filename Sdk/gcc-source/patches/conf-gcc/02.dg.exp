@@ -1,0 +1,11 @@
+--- libstdc++-v3/testsuite/libstdc++-v3.dg/dg.exp	Fri May 16 16:56:25 2003
++++ libstdc++-v3/testsuite/libstdc++-v3.dg/dg.exp.new	Thu Jun 26 22:45:04 2003
+@@ -22,7 +22,7 @@ load_lib libstdc++-v3-dg.exp
+ # If a testcase doesn't have special options, use these.
+ global DEFAULT_CXXFLAGS
+ if ![info exists DEFAULT_CXXFLAGS] then {
+-    set DEFAULT_CXXFLAGS "-g -O2 -DDEBUG_ASSERT"
++    set DEFAULT_CXXFLAGS "-g -O2 -DDEBUG_ASSERT -D_ALL_SOURCE"
+ }
+ 
+ # Initialize 'dg' last or dejagnu exits with an error...

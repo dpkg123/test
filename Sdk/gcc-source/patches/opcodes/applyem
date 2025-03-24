@@ -1,0 +1,7 @@
+# There is no base patch
+# q-patch opcodes 01 5
+
+if [ "$ALPHA" = 1 ]
+then
+    q-patch opcodes 50 5
+fi

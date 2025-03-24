@@ -1,0 +1,7 @@
+weak.o(.text+0x0):weak.c: multiple definition of `_weak'
+weak2.o(.text+0x0):weak.c: first defined here
+weak_d.o(.data+0x0):weak_d.c: multiple definition of `_weak_data'
+weak2_d.o(.data+0x0):weak_d.c: first defined here
+collect2: ld returned 1 exit status
+========================= RETRYING FAILED COMPILE =====================
+/dev/fs/D/gnu2.intel/local_bin/gcc[50]: /dev/fs/D/gnu2.intel/../last_known_good/gcc: not found

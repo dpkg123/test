@@ -1,0 +1,27 @@
+MSVC can't handle really long single strings.
+
+diff -u egcs.source/gcc/gcc/config/i386/i386.h.bak egcs.source/gcc/gcc/config/i386/i386.h
+--- egcs.source/gcc/gcc/config/i386/i386.h	Thu Dec 20 11:41:28 2001
++++ egcs.source/gcc/gcc/config/i386/i386.h	Fri Dec 21 15:05:02 2001
+@@ -581,8 +581,8 @@ extern int ix86_arch;
+   %{!mcpu*:-D__tune_i686__ -D__tune_pentiumpro__ }}\
+ %{march=k6:-D__k6 -D__k6__ %{!mcpu*:-D__tune_k6__ }}\
+ %{march=k6-2:-D__k6 -D__k6__ -D__k6_2__ \
+-  %{!mcpu*:-D__tune_k6__ -D__tune_k6_2__ }}\
+-%{march=k6-3:-D__k6 -D__k6__ -D__k6_3__ \
++  %{!mcpu*:-D__tune_k6__ -D__tune_k6_2__ }}" \
++"%{march=k6-3:-D__k6 -D__k6__ -D__k6_3__ \
+   %{!mcpu*:-D__tune_k6__ -D__tune_k6_3__ }}\
+ %{march=athlon|march=athlon-tbird:-D__athlon -D__athlon__ \
+   %{!mcpu*:-D__tune_athlon__ }}\
+@@ -594,8 +594,8 @@ extern int ix86_arch;
+ %{m486|mcpu=i486:-D__tune_i486__ }\
+ %{mpentium|mcpu=pentium|mcpu=i586|mcpu=pentium-mmx:-D__tune_i586__ -D__tune_pentium__ }\
+ %{mpentiumpro|mcpu=pentiumpro|mcpu=i686|cpu=pentium2|cpu=pentium3:-D__tune_i686__ \
+--D__tune_pentiumpro__ }\
+-%{mcpu=k6|mcpu=k6-2|mcpu=k6-3:-D__tune_k6__ }\
++-D__tune_pentiumpro__ }" \
++"%{mcpu=k6|mcpu=k6-2|mcpu=k6-3:-D__tune_k6__ }\
+ %{mcpu=athlon|mcpu=athlon-tbird|mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
+ -D__tune_athlon__ }\
+ %{mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\

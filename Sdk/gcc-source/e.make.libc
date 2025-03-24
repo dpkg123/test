@@ -1,0 +1,209 @@
+#!/bin/ksh
+
+function archivedate {
+   ARCH=$1
+   MEMB=$2
+   if [ ! -f $ARCH ]
+   then
+       echo Archive not found
+       exit 1
+   fi
+
+   RAWDATE=$(cd /tmp; ar -x $ARCH $MEMB; objdump -p $MEMB | grep Date)
+   perl -e '
+       @mons=("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec");
+       $_ = "'"$RAWDATE"'";
+       ($x,$x,$mn,$d,$x,$y)=split();
+       for ($i=0; $i<=11; $i++) {
+	  if ($mn eq $mons[$i]) {
+	     $m=$i+1;
+	     last;
+	  }
+       }
+       printf "%4d%02d%02d\n", $y, $m, $d;
+
+       '
+}
+
+# This version uses an imbedded date/build number
+# function versionid {
+#     ARCH=$1
+#     MEMB=$2
+#     if [ $VERS_TYPE = dynamic ]
+#     then
+# 	VERS=.$VERS_PREFIX-$(archivedate /usr/lib/libc.a confstr.o)
+#     else
+# 	: command line value
+#     fi
+# }
+
+# This version uses the largest name
+function versionid {
+    ARCH=$1
+    MEMB=$2
+    if [ $VERS_TYPE = dynamic ]
+    then
+	VERS=$(ls /usr/lib/libc.so.* | tail -1)
+	VERS=${VERS##/usr/lib/libc.so}
+    else
+	: command line value
+    fi
+}
+
+LN=ln  # could be ln -s if all worked.
+
+if [ $# -lt 1 -o $# -gt 2 ]
+then
+   echo 'usage: make.libc <target dir> [<version>]'
+   exit 1
+fi
+
+TARGETDIR=$1
+
+# If the user provides a version flag, use it for everything;
+# if not, extract the file date from a specific file in each
+# .so being built.
+
+if [ $# = 2 ]
+then
+    VERS=$2
+    VERS_TYPE=static
+else
+    VERS_TYPE=dynamic
+    if [ $(uname -s) = Interix ]
+    then
+        VERS_PREFIX=$(uname -v | sed -e 's/.*-//' -e's/\.[0-9]*$//')
+    else
+	# 2.2 is the only interesting case 
+        VERS_PREFIX=2.2
+    fi
+fi
+
+m=$(uname -m | cut -f1 -d" " )
+if [ $m = Pentium ]
+then
+   arch=i386
+elif [ $m = x86 ]
+then
+   arch=i386
+elif [ $m = Intel ]
+then
+   arch=i386
+elif [ $m = Alpha ]
+then
+   arch=alpha
+else
+   echo "What architecture am I on?"
+   exit 1
+fi
+
+cp -f /usr/lib/libc.a .
+ar -d libc.a loaderstub.o
+
+
+# -- libc
+echo "Making libc.so"
+versionid /usr/lib/libc.a confstr.o
+echo $VERS
+
+../local_bin/ld --shared --whole-archive libc.a  --no-whole-archive /usr/lib/libpsxdll.a --soname libc.so${VERS} -o libc.so${VERS} -Bsymbolic --image-base 0x77df0000
+
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
+cp libc.so${VERS} $TARGETDIR
+(cd $TARGETDIR; $LN -f libc.so${VERS} libc.so)
+
+
+# -- libm 
+echo "Making libm.so"
+versionid /usr/lib/libm.a b_exp.o
+echo $VERS
+../local_bin/ld --shared --whole-archive /usr/lib/libm.a --no-whole-archive /usr/lib/libpsxdll.a --soname libm.so${VERS} -o libm.so${VERS} -Bsymbolic --image-base 0x77dc0000
+
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
+cp libm.so${VERS} $TARGETDIR
+(cd $TARGETDIR; $LN -f libm.so${VERS} libm.so)
+
+
+# -- libg2c
+echo "Making libg2c.so"
+versionid $(pwd)/../local_bin/libg2c.a VersionI.o
+echo $VERS
+cp ../local_bin/libg2c.a .
+ar -d libg2c.a Ldate_y2kbuggy.o Lvxtidt_y2kbuggy.o
+
+../local_bin/ld --shared --whole-archive ./libg2c.a --no-whole-archive /usr/lib/libpsxdll.a ../local_bin/libgcc.a --soname libg2c.so${VERS} -o libg2c.so${VERS} -Bsymbolic
+
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
+cp libg2c.so${VERS} $TARGETDIR
+(cd $TARGETDIR; $LN -f libg2c.so${VERS} libg2c.so)
+
+
+# -- libstdc++
+echo "Making libstdc++.so"
+versionid $(pwd)/../local_bin/libstc++.a cmathi.o
+echo $VERS
+../local_bin/ld --shared --whole-archive ../local_bin/libstdc++.a --no-whole-archive /usr/lib/libpsxdll.a ../local_bin/libgcc.a --soname libstdc++.so${VERS} -o libstdc++.so${VERS} -Bsymbolic 
+
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
+cp libstdc++.so${VERS} $TARGETDIR
+(cd $TARGETDIR; $LN -f libstdc++.so${VERS} libstdc++.so)
+
+
+# -- libsupc++
+echo "Making libsupc++.so"
+versionid $(pwd)/../local_bin/libsupc++.a filedoalloc.o
+echo $VERS
+../local_bin/ld --shared --whole-archive ../local_bin/libsupc++.a --no-whole-archive ../local_bin/libgcc.a /usr/lib/libpsxdll.a --soname libsupc++.so${VERS} -o libsupc++.so${VERS} -Bsymbolic
+
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
+cp libsupc++.so${VERS} $TARGETDIR
+(cd $TARGETDIR; $LN -f libsupc++.so${VERS} libsupc++.so)
+
+
+# -- libsupc++convenience
+echo "Making libsupc++convenience.so"
+versionid $(pwd)/../local_bin/libsupc++convenience.a filedoalloc.o  # yes, the same
+echo $VERS
+../local_bin/ld --shared --whole-archive ../local_bin/libsupc++convenience.a --no-whole-archive ../local_bin/libgcc.a /usr/lib/libpsxdll.a --soname libsupc++convenience.so${VERS} -o libsupc++convenience.so${VERS} -Bsymbolic
+
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
+cp libsupc++convenience.so${VERS} $TARGETDIR
+(cd $TARGETDIR; $LN -f libsupc++convenience.so${VERS} libsupc++convenience.so)
+
+# -- libmath
+echo "Making libmath.so"
+versionid $(pwd)/../local_bin/libmath.a filedoalloc.o  # yes, the same
+echo $VERS
+../local_bin/ld --shared --whole-archive ../local_bin/libmath.a --no-whole-archive ../local_bin/libgcc.a /usr/lib/libpsxdll.a --soname libmath.so${VERS} -o libmath.so${VERS} -Bsymbolic
+
+if [ $? -ne 0 ]
+then
+    exit 1
+fi
+
+cp libmath.so${VERS} $TARGETDIR
+(cd $TARGETDIR; $LN -f libmath.so${VERS} libmath.so)

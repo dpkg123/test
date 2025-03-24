@@ -1,0 +1,823 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/Makefile.am //D/home/donn.intel/be.build/binutils/Makefile.am
+--- //Q/Gnusrc/cygwin.0414/binutils/Makefile.am	Wed Apr 14 02:18:24 1999
++++ //D/home/donn.intel/be.build/binutils/Makefile.am	Wed Apr 14 17:01:46 1999
+@@ -15,9 +15,9 @@ tooldir = $(exec_prefix)/$(target_alias)
+ CC_FOR_BUILD = @CC_FOR_BUILD@
+ EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
+ 
+-YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo bison -y ; fi`
++YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo @YACC@ ; fi`
+ YFLAGS = -d
+-LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo flex ; fi`
++LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo @LEX@ ; fi`
+ 
+ # these two are almost the same program
+ AR_PROG=ar
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/ar.c //D/home/donn.intel/be.build/binutils/ar.c
+--- //Q/Gnusrc/cygwin.0414/binutils/ar.c	Wed Apr 14 02:14:59 1999
++++ //D/home/donn.intel/be.build/binutils/ar.c	Wed Apr 14 17:06:50 1999
+@@ -33,6 +33,9 @@ Foundation, Inc., 59 Temple Place - Suit
+ #include "libbfd.h"
+ #include "arsup.h"
+ #include <sys/stat.h>
++#ifdef HAVE_STRING_H
++#include <string.h>
++#endif
+ 
+ #ifdef __GO32___
+ #define EXT_NAME_LEN 3		/* bufflen of addition to name if it's MS-DOS */
+@@ -59,10 +62,10 @@ static void
+ remove_output PARAMS ((void));
+ 
+ static void
+-map_over_members PARAMS ((bfd *, void (*)(bfd *), char **, int));
++map_over_members PARAMS ((bfd *, void (*)(bfd *, char *), char **, int));
+ 
+ static void
+-print_contents PARAMS ((bfd * member));
++print_contents PARAMS ((bfd * member, char*));
+ 
+ static void
+ delete_members PARAMS ((bfd *, char **files_to_delete));
+@@ -80,7 +83,7 @@ static void
+ replace_members PARAMS ((bfd *, char **files_to_replace, boolean quick));
+ 
+ static void
+-print_descr PARAMS ((bfd * abfd));
++print_descr PARAMS ((bfd * abfd, char *));
+ 
+ static void
+ write_archive PARAMS ((bfd *));
+@@ -125,6 +128,19 @@ int newer_only = 0;
+    if any of the members are object files.  */
+ int write_armap = 0;
+ 
++/* For extract only, if present, it means extract only the N'th instance
++   of that name, and then bail out (so as to NOT discover there are more
++   instances, which can be a problem if the discovered instance was
++   not writeable!) */
++int counted_name_mode = 0;
++int counted_name_counter = 0;
++
++/* If presented with an archive containing full pathnames (LIB.EXE does
++   that), match on the full pathname of the member with a full pathname
++   on the command line.  Extraction is still done locally, per POSIX.
++   (This ar cannot create such archives.) */
++int match_pathnames = 0;
++
+ /* Nonzero means it's the name of an existing member; position new or moved
+    files with respect to this one.  */
+ char *posname = NULL;
+@@ -160,18 +176,19 @@ mri_emul ()
+ static void
+ map_over_members (arch, function, files, count)
+      bfd *arch;
+-     void (*function) PARAMS ((bfd *));
++     void (*function) PARAMS ((bfd *, char *));
+      char **files;
+      int count;
+ {
+   bfd *head;
++  int match_count=0;
+ 
+   if (count == 0)
+     {
+       for (head = arch->next; head; head = head->next)
+ 	{
+ 	  PROGRESS (1);
+-	  function (head);
++	  function (head, NULL);
+ 	}
+       return;
+     }
+@@ -184,6 +201,19 @@ map_over_members (arch, function, files,
+   for (; count > 0; files++, count--)
+     {
+       boolean found = false;
++      char *filename;
++      const char *membername;
++
++      /* POSIX is explicit: name matching is on the filename component
++	 of the member, not the whole member name.  Thus, if we GET
++	 an archive with pathnames in the members, or our command line
++	 contains same, we need to clean up the name to get a sane
++	 match. */
++      filename = strrchr(*files, '/');
++      if (filename == NULL || match_pathnames) 
++	  filename = *files;
++      else
++	  filename++;
+ 
+       for (head = arch->next; head; head = head->next)
+ 	{
+@@ -195,11 +225,25 @@ map_over_members (arch, function, files,
+ 	      struct stat buf;
+ 	      bfd_stat_arch_elt (head, &buf);
+ 	    }
+-	  if ((head->filename != NULL) &&
+-	      (!strcmp (*files, head->filename)))
++	  if (head->filename != NULL) 
+ 	    {
+-	      found = true;
+-	      function (head);
++	      membername = strrchr(head->filename, '/');
++	      if (membername == NULL || match_pathnames) 
++		  membername = head->filename;
++	      else
++		  membername++;
++	      if (!strcmp (filename, membername))
++		{
++		  match_count++;
++		  if (counted_name_mode && 
++		      match_count != counted_name_counter) 
++		    {
++		      /* Counting, and didn't match on count; next one */
++		      continue;
++		    }
++		  found = true;
++		  function (head, *files);
++		}
+ 	    }
+ 	}
+       if (!found)
+@@ -291,7 +335,7 @@ normalize (file, abfd)
+ 
+ /* Remove any output file.  This is only called via xatexit.  */
+ 
+-static char *output_filename = NULL;
++static const char *output_filename = NULL;
+ static FILE *output_file = NULL;
+ static bfd *output_bfd = NULL;
+ 
+@@ -492,6 +536,12 @@ main (argc, argv)
+ 	case 'M':
+ 	  mri_mode = 1;
+ 	  break;
++	case 'P':
++	  match_pathnames = 1;
++	  break;
++	case 'N':
++	  counted_name_mode = 1;
++	  break;
+ 	case 'f':
+ 	  ar_truncate = true;
+ 	  break;
+@@ -539,10 +589,23 @@ main (argc, argv)
+       if (postype != pos_default)
+ 	posname = argv[arg_index++];
+ 
++      if (counted_name_mode) 
++	{
++          if (operation != extract && operation != delete) 
++	     fatal(_("`N' is only meaningful with the `x' and 'd' options."));
++	  counted_name_counter = atoi(argv[arg_index++]);
++          if (counted_name_counter <= 0)
++	     fatal(_("Value for `N' must be positive."));
++	  if (argc != arg_index+2)
++	     fatal(_("Exactly 1 member name required for 'N'."));
++	}
++
+       inarch_filename = argv[arg_index++];
+ 
+       files = arg_index < argc ? argv + arg_index : NULL;
+ 
++      if (counted_name_mode)  argc--;
++
+ #if 0
+       /* We don't use do_quick_append any more.  Too many systems
+          expect ar to always rebuild the symbol table even when q is
+@@ -681,6 +744,8 @@ open_inarch (archive_filename, file)
+ 	  || ! bfd_set_format (arch, bfd_archive)
+ 	  || ! bfd_close (arch))
+ 	bfd_fatal (archive_filename);
++      /* if we die creating a new archive , don't leave an empty one */
++      output_filename=archive_filename;
+     }
+ 
+   arch = bfd_openr (archive_filename, target);
+@@ -718,8 +783,9 @@ open_inarch (archive_filename, file)
+ }
+ 
+ static void
+-print_contents (abfd)
++print_contents (abfd, ignored)
+      bfd *abfd;
++     char *ignored;
+ {
+   int ncopied = 0;
+   char *cbuf = xmalloc (BUFSIZE);
+@@ -731,7 +797,7 @@ print_contents (abfd)
+ 
+   if (verbose)
+     /* xgettext:c-format */
+-    printf (_("\n<member %s>\n\n"), bfd_get_filename (abfd));
++    printf (_("\n<%s>\n\n"), bfd_get_filename (abfd));
+ 
+   bfd_seek (abfd, 0, SEEK_SET);
+ 
+@@ -767,8 +833,9 @@ print_contents (abfd)
+    Gilmore  */
+ 
+ void
+-extract_file (abfd)
++extract_file (abfd, target_filename)
+      bfd *abfd;
++     char *target_filename;
+ {
+   FILE *ostream;
+   char *cbuf = xmalloc (BUFSIZE);
+@@ -777,17 +844,21 @@ extract_file (abfd)
+   long size;
+   struct stat buf;
+   
++
++  if (target_filename == NULL)
++      target_filename = bfd_get_filename (abfd);
++
+   if (bfd_stat_arch_elt (abfd, &buf) != 0)
+     /* xgettext:c-format */
+-    fatal (_("internal stat error on %s"), bfd_get_filename (abfd));
++    fatal (_("internal stat error on %s"), target_filename);
+   size = buf.st_size;
+ 
+   if (size < 0)
+     /* xgettext:c-format */
+-    fatal (_("stat returns negative size for %s"), bfd_get_filename (abfd));
++    fatal (_("stat returns negative size for %s"), target_filename);
+   
+   if (verbose)
+-    printf ("x - %s\n", bfd_get_filename (abfd));
++    printf ("x - %s\n", target_filename);
+ 
+   bfd_seek (abfd, 0, SEEK_SET);
+ 
+@@ -795,12 +866,12 @@ extract_file (abfd)
+   if (size == 0)
+     {
+       /* Seems like an abstraction violation, eh?  Well it's OK! */
+-      output_filename = bfd_get_filename (abfd);
++      output_filename = target_filename;
+ 
+-      ostream = fopen (bfd_get_filename (abfd), FOPEN_WB);
++      ostream = fopen (target_filename, FOPEN_WB);
+       if (ostream == NULL)
+ 	{
+-	  perror (bfd_get_filename (abfd));
++	  perror (target_filename);
+ 	  xexit (1);
+ 	}
+ 
+@@ -823,12 +894,12 @@ extract_file (abfd)
+ 	if (ostream == NULL)
+ 	  {
+ 	    /* Seems like an abstraction violation, eh?  Well it's OK! */
+-	    output_filename = bfd_get_filename (abfd);
++	    output_filename = target_filename;
+ 
+-	    ostream = fopen (bfd_get_filename (abfd), FOPEN_WB);
++	    ostream = fopen (target_filename, FOPEN_WB);
+ 	    if (ostream == NULL)
+ 	      {
+-		perror (bfd_get_filename (abfd));
++		perror (target_filename);
+ 		xexit (1);
+ 	      }
+ 
+@@ -844,10 +915,10 @@ extract_file (abfd)
+   output_file = NULL;
+   output_filename = NULL;
+ 
+-  chmod (bfd_get_filename (abfd), buf.st_mode);
++  chmod (target_filename, buf.st_mode);
+ 
+   if (preserve_dates)
+-    set_times (bfd_get_filename (abfd), &buf);
++    set_times (target_filename, &buf);
+ 
+   free (cbuf);
+ }
+@@ -1069,6 +1140,7 @@ delete_members (arch, files_to_delete)
+   bfd **current_ptr_ptr;
+   boolean found;
+   boolean something_changed = false;
++  int match_count=0;
+   for (; *files_to_delete != NULL; ++files_to_delete)
+     {
+       /* In a.out systems, the armap is optional.  It's also called
+@@ -1088,7 +1160,8 @@ delete_members (arch, files_to_delete)
+       current_ptr_ptr = &(arch->next);
+       while (*current_ptr_ptr)
+ 	{
+-	  if (strcmp (*files_to_delete, (*current_ptr_ptr)->filename) == 0)
++	  if (strcmp (*files_to_delete, (*current_ptr_ptr)->filename) == 0
++	      && (!counted_name_mode || ++match_count == counted_name_counter))
+ 	    {
+ 	      found = true;
+ 	      something_changed = true;
+@@ -1331,8 +1404,9 @@ ranlib_touch (archname)
+ /* Things which are interesting to map over all or some of the files: */
+ 
+ static void
+-print_descr (abfd)
++print_descr (abfd, ignored)
+      bfd *abfd;
++     char *ignored;
+ {
+   print_arelt_descr (stdout, abfd, verbose);
+ }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/arsup.c //D/home/donn.intel/be.build/binutils/arsup.c
+--- //Q/Gnusrc/cygwin.0414/binutils/arsup.c	Wed Apr 14 02:15:00 1999
++++ //D/home/donn.intel/be.build/binutils/arsup.c	Wed Apr 14 17:01:46 1999
+@@ -438,7 +438,7 @@ DEFUN(ar_extract,(list),
+       {
+ 	if (strcmp(member->filename, list->name) == 0) 
+ 	{
+-	  extract_file(member);
++	  extract_file(member, list->name);
+ 	  found = 1;
+ 	  }
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/arsup.h //D/home/donn.intel/be.build/binutils/arsup.h
+--- //Q/Gnusrc/cygwin.0414/binutils/arsup.h	Wed Apr 14 02:15:00 1999
++++ //D/home/donn.intel/be.build/binutils/arsup.h	Wed Apr 14 17:01:46 1999
+@@ -70,6 +70,6 @@ yyparse PARAMS ((void));
+ /* Functions from ar.c */
+ 
+ void
+-extract_file PARAMS ((bfd * abfd));
++extract_file PARAMS ((bfd * abfd, char *));
+ 
+ extern int interactive;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/binutils.texi //D/home/donn.intel/be.build/binutils/binutils.texi
+--- //Q/Gnusrc/cygwin.0414/binutils/binutils.texi	Wed Apr 14 02:15:00 1999
++++ //D/home/donn.intel/be.build/binutils/binutils.texi	Wed Apr 14 17:01:46 1999
+@@ -914,13 +914,25 @@ inappropriately may make the output file
+ @item -S
+ @itemx --strip-all
+ Do not copy relocation and symbol information from the source file.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @item -g
+ @itemx --strip-debug
+ Do not copy debugging symbols from the source file.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @item --strip-unneeded
+ Strip all symbols that are not needed for relocation processing.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @item -K @var{symbolname}
+ @itemx --keep-symbol=@var{symbolname}
+@@ -1602,6 +1614,10 @@ strip [ -F @var{bfdname} | --target=@var
+ @sc{gnu} @code{strip} discards all symbols from object files
+ @var{objfile}.  The list of object files may include archives.
+ At least one object file must be given.
++This can result in the removal of whole sections if they are not needed.
++A section named .reloc will not be removed unless explicitly stripped,
++even if it meets all other criteria for stripping (PEI uses this name
++specially.)
+ 
+ @code{strip} modifies the files named in its argument,
+ rather than writing modified copies under different names.
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/configure.in //D/home/donn.intel/be.build/binutils/configure.in
+--- //Q/Gnusrc/cygwin.0414/binutils/configure.in	Wed Apr 14 02:26:46 1999
++++ //D/home/donn.intel/be.build/binutils/configure.in	Wed Apr 14 17:01:46 1999
+@@ -176,6 +176,10 @@ changequote([,])dnl
+ 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
+ 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+ 	 ;;
++ 	i[3-6]86-*-interix)
++   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
++ 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
++	 ;;
+ changequote(,)dnl
+ 	i[3-6]86-*pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+ changequote([,])dnl
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/nm.c //D/home/donn.intel/be.build/binutils/nm.c
+--- //Q/Gnusrc/cygwin.0414/binutils/nm.c	Wed Apr 14 02:15:03 1999
++++ //D/home/donn.intel/be.build/binutils/nm.c	Wed Apr 14 17:01:46 1999
+@@ -151,7 +151,7 @@ print_symbol_filename_posix PARAMS ((bfd
+ 
+ 
+ static void
+-print_value PARAMS ((bfd_vma));
++print_value PARAMS ((symbol_info *));
+ 
+ static void
+ print_symbol_info_bsd PARAMS ((symbol_info * info, bfd * abfd));
+@@ -229,11 +229,16 @@ static int dynamic = 0;		/* print dynami
+ static int show_version = 0;	/* show the version number */
+ static int show_stats = 0;	/* show statistics */
+ static int line_numbers = 0;	/* print line numbers for symbols */
++#ifdef __INTERIX /* for SUS conformance */
++static int full_output = 0;	/* don't suppress internal symbols */
++#endif /* __INTERIX */
+ 
+ /* When to print the names of files.  Not mutually exclusive in SYSV format.  */
+ static int filename_per_file = 0;	/* Once per file, on its own line.  */
+ static int filename_per_symbol = 0;	/* Once per symbol, at start of line.  */
+ 
++bfd_vma ImageBase = 0;		/* used for PE; zero always otherwise */
++
+ /* Print formats for printing a symbol value.  */
+ #ifndef BFD64
+ static char value_format[] = "%08lx";
+@@ -261,7 +266,12 @@ static struct option long_options[] =
+   {"demangle", no_argument, &do_demangle, 1},
+   {"dynamic", no_argument, &dynamic, 1},
+   {"extern-only", no_argument, &external_only, 1},
++#ifdef __INTERIX /* for SUS conformance */
++  {"full", no_argument, 0, 'f'},
++  {"format", required_argument, 0, 'F'},
++#else
+   {"format", required_argument, 0, 'f'},
++#endif /* __INTERIX */
+   {"help", no_argument, 0, 'h'},
+   {"line-numbers", no_argument, 0, 'l'},
+   {"no-cplus", no_argument, &do_demangle, 0},  /* Linux compatibility.  */
+@@ -289,6 +299,17 @@ usage (stream, status)
+      FILE *stream;
+      int status;
+ {
++#ifdef __INTERIX /* for SUS conformance */
++  fprintf (stream, _("\
++Usage: %s [-aABCDfglnopPrsuvV] [-t radix] [--radix=radix] [--target=bfdname]\n\
++       [--debug-syms] [--extern-only] [--print-armap] [--print-file-name]\n\
++       [--numeric-sort] [--no-sort] [--reverse-sort] [--size-sort]\n\
++       [--undefined-only] [--portability] [-F {bsd,sysv,posix}]\n\
++       [--format={bsd,sysv,posix}] [--demangle] [--no-demangle] [--dynamic]\n\
++       [--defined-only] [--line-numbers]\n\
++       [--version] [--help]\n\
++       [file...]\n"),
++#else
+   fprintf (stream, _("\
+ Usage: %s [-aABCDglnopPrsuvV] [-t radix] [--radix=radix] [--target=bfdname]\n\
+        [--debug-syms] [--extern-only] [--print-armap] [--print-file-name]\n\
+@@ -298,6 +319,7 @@ Usage: %s [-aABCDglnopPrsuvV] [-t radix]
+        [--defined-only] [--line-numbers]\n\
+        [--version] [--help]\n\
+        [file...]\n"),
++#endif
+ 	   program_name);
+   list_supported_targets (program_name, stream);
+   if (status == 0)
+@@ -388,7 +410,11 @@ main (argc, argv)
+   bfd_init ();
+   set_default_bfd_target ();
+ 
++#ifdef __INTERIX  /* Conform to SUS */
++  while ((c = getopt_long (argc, argv, "aABCDefF:glnopPrst:uvV", long_options, (int *) 0)) != EOF)
++#else
+   while ((c = getopt_long (argc, argv, "aABCDef:glnopPrst:uvV", long_options, (int *) 0)) != EOF)
++#endif
+     {
+       switch (c)
+ 	{
+@@ -411,9 +437,18 @@ main (argc, argv)
+ 	case 'e':
+ 	  /* Ignored for HP/UX compatibility.  */
+ 	  break;
++#ifdef __INTERIX /* for SUS compatability */
++	case 'F':
++	  set_output_format (optarg);
++	  break;
++	case 'f':
++          full_output = 1;
++	  break;
++#else /* __INTERIX */
+ 	case 'f':
+ 	  set_output_format (optarg);
+ 	  break;
++#endif /* __INTERIX */
+ 	case 'g':
+ 	  external_only = 1;
+ 	  break;
+@@ -572,10 +607,12 @@ display_file (filename)
+ 
+   if (bfd_check_format (file, bfd_archive))
+     {
++      ImageBase = bfd_getImageBase(file);
+       display_archive (file);
+     }
+   else if (bfd_check_format_matches (file, bfd_object, &matching))
+     {
++      ImageBase = bfd_getImageBase(file);
+       (*format->print_object_filename) (filename);
+       display_rel_file (file, NULL);
+     }
+@@ -960,6 +997,9 @@ filter_symbols (abfd, dynamic, minisyms,
+ {
+   bfd_byte *from, *fromend, *to;
+   asymbol *store;
++  char leading_char;
++
++  leading_char = bfd_get_symbol_leading_char (abfd);
+ 
+   store = bfd_make_empty_symbol (abfd);
+   if (store == NULL)
+@@ -980,7 +1020,17 @@ filter_symbols (abfd, dynamic, minisyms,
+       if (sym == NULL)
+ 	bfd_fatal (bfd_get_filename (abfd));
+ 
++/* The SUS definition of -f is so vague as to not be useful.  If/when
++   we find a clear definition, this is the place to implement it.  
++   The disabled code below suppresses "internal" symbols if the object
++   language uses _ prefixes for hidden symbols. */
++#if 0 /* for SUS conformance */
++      if (full_output)
++	keep = 1;
++      else if (undefined_only)
++#else
+       if (undefined_only)
++#endif
+ 	keep = bfd_is_und_section (sym->section);
+       else if (external_only)
+ 	keep = ((sym->flags & BSF_GLOBAL) != 0
+@@ -988,7 +1038,20 @@ filter_symbols (abfd, dynamic, minisyms,
+ 		|| bfd_is_und_section (sym->section)
+ 		|| bfd_is_com_section (sym->section));
+       else
++#if 0 /* for SUS conformance */
++        /* not full output or one of the special cases...
++	   if we have a leading character, keep symbols which begin
++	       with it (they're user symbols).
++	   if we don't, just keep them all (based on what the alpha
++	       does).  (Exactly what the discard criteria
++	       should be is unclear, but this is close; bfd needs
++	       a way to tell us) */
++        keep = (leading_char != 0 
++		  ? sym->name[0] == leading_char
++		  : 1);
++#else
+ 	keep = 1;
++#endif
+ 
+       if (keep
+ 	  && ! print_debug_syms
+@@ -1392,9 +1455,12 @@ print_symbol_filename_posix (archive_bfd
+ /* Print a symbol value.  */
+ 
+ static void
+-print_value (val)
+-     bfd_vma val;
++print_value (info)
++     symbol_info *info;
+ {
++  bfd_vma val = info->value;
++  if (info->type != 'A' && info->type != 'a')
++       val += ImageBase;
+ #if ! defined (BFD64) || BFD_HOST_64BIT_LONG
+   printf (value_format, val);
+ #else
+@@ -1427,7 +1493,7 @@ print_symbol_info_bsd (info, abfd)
+      symbol_info *info;
+      bfd *abfd;
+ {
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     {
+       printf ("%*s",
+ #ifdef BFD64
+@@ -1438,7 +1504,7 @@ print_symbol_info_bsd (info, abfd)
+ 	      "");
+     }
+   else
+-    print_value (info->value);
++    print_value (info);
+   printf (" %c", info->type);
+   if (info->type == '-')
+     {
+@@ -1458,10 +1524,10 @@ print_symbol_info_sysv (info, abfd)
+      bfd *abfd;
+ {
+   print_symname ("%-20s|", info->name, abfd);	/* Name */
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     printf ("        ");	/* Value */
+   else
+-    print_value (info->value);
++    print_value (info);
+   printf ("|   %c  |", info->type);	/* Class */
+   if (info->type == '-')
+     {
+@@ -1481,10 +1547,10 @@ print_symbol_info_posix (info, abfd)
+ {
+   print_symname ("%s ", info->name, abfd);
+   printf ("%c ", info->type);
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     printf ("        ");
+   else
+-    print_value (info->value);
++    print_value (info);
+   /* POSIX.2 wants the symbol size printed here, when applicable;
+      BFD currently doesn't provide it, so we take the easy way out by
+      considering it to never be applicable.  */
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/objcopy.c //D/home/donn.intel/be.build/binutils/objcopy.c
+--- //Q/Gnusrc/cygwin.0414/binutils/objcopy.c	Wed Apr 14 02:15:04 1999
++++ //D/home/donn.intel/be.build/binutils/objcopy.c	Wed Apr 14 17:01:46 1999
+@@ -84,7 +84,7 @@ enum strip_action
+   };
+ 
+ /* Which symbols to remove. */
+-static enum strip_action strip_symbols;
++static enum strip_action strip_symbols = STRIP_UNDEF;
+ 
+ enum locals_action
+   {
+@@ -367,10 +367,16 @@ parse_flags (s)
+   else if (strncasecmp (fname, s, len) == 0) ret |= fval
+       PARSE_FLAG ("alloc", SEC_ALLOC);
+       PARSE_FLAG ("load", SEC_LOAD);
++      PARSE_FLAG ("noload", SEC_NEVER_LOAD);
+       PARSE_FLAG ("readonly", SEC_READONLY);
++      PARSE_FLAG ("debug", SEC_DEBUGGING);
+       PARSE_FLAG ("code", SEC_CODE);
+       PARSE_FLAG ("data", SEC_DATA);
+       PARSE_FLAG ("rom", SEC_ROM);
++      PARSE_FLAG ("pe-read", SEC_READ);
++      PARSE_FLAG ("pe-write", SEC_WRITE);
++      PARSE_FLAG ("pe-exec", SEC_EXEC);
++      PARSE_FLAG ("pe-share", SEC_SHARE);
+       PARSE_FLAG ("contents", SEC_HAS_CONTENTS);
+ #undef PARSE_FLAG
+       else
+@@ -381,7 +387,7 @@ parse_flags (s)
+ 	  strncpy (copy, s, len);
+ 	  copy[len] = '\0';
+ 	  non_fatal (_("unrecognized section flag `%s'"), copy);
+-	  fatal (_("supported flags: alloc, load, readonly, code, data, rom, contents"));
++	  fatal (_("supported flags: alloc, load, noload, readonly, debug, code, data, rom, pe-read, pe-write, pe-exec, pe-share, contents"));
+ 	}
+ 
+       s = snext;
+@@ -472,7 +478,13 @@ is_strip_section (abfd, sec)
+ 	  || strip_symbols == STRIP_ALL
+ 	  || discard_locals == LOCALS_ALL
+ 	  || convert_debugging))
+-    return true;
++    {
++	/* In NT PEI format, the .reloc section (which should NOT be
++	   casually stripped) is indistinguishable based on the flags
++	   from a discardable debugging section.  Test for it by name. */
++	if (strcmp (bfd_get_section_name (abfd, sec), ".reloc") != 0)
++	  return true;
++    }
+ 
+   if (! sections_removed)
+     return false;
+@@ -1108,7 +1120,13 @@ setup_section (ibfd, isection, obfdarg)
+ 	  || strip_symbols == STRIP_ALL
+ 	  || discard_locals == LOCALS_ALL
+ 	  || convert_debugging))
+-    return;
++    {
++	/* In NT PEI format, the .reloc section (which should NOT be
++	   casually stripped) is indistinguishable based on the flags
++	   from a discardable debugging section.  Test for it by name. */
++	if (strcmp (bfd_get_section_name (ibfd, isection), ".reloc") != 0)
++	  return;
++    }
+ 
+   p = find_section_list (bfd_section_name (ibfd, isection), false);
+   if (p != NULL)
+@@ -1238,7 +1256,11 @@ copy_section (ibfd, isection, obfdarg)
+ 	  || discard_locals == LOCALS_ALL
+ 	  || convert_debugging))
+     {
+-      return;
++	/* In NT PEI format, the .reloc section (which should NOT be
++	   casually stripped) is indistinguishable based on the flags
++	   from a discardable debugging section.  Test for it by name. */
++	if (strcmp (bfd_get_section_name (ibfd, isection), ".reloc") != 0)
++	  return;
+     }
+ 
+   p = find_section_list (bfd_section_name (ibfd, isection), false);
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/objdump.c //D/home/donn.intel/be.build/binutils/objdump.c
+--- //Q/Gnusrc/cygwin.0414/binutils/objdump.c	Wed Apr 14 02:15:04 1999
++++ //D/home/donn.intel/be.build/binutils/objdump.c	Wed Apr 14 17:01:46 1999
+@@ -298,6 +298,7 @@ dump_section_header (abfd, section, igno
+   printf_vma (section->lma);
+   printf ("  %08lx  2**%u", section->filepos,
+ 	  bfd_get_section_alignment (abfd, section));
++  printf ("  %8.8x", section->flags);
+   if (! wide_output)
+     printf ("\n                ");
+   printf ("  ");
+@@ -351,6 +352,13 @@ dump_section_header (abfd, section, igno
+     }
+ 
+   printf ("\n");
++
++  if ((section->flags & SEC_LINK_ONCE) != 0 &&
++       section->comdat_symbol != -1)  
++    {
++      printf(_("                  COMDAT Symbol Index: %d %s\n)", section->comdat_symbol, section->comdat_info.name);
++    }
++
+ #undef PF
+ }
+ 
+@@ -360,9 +368,9 @@ dump_headers (abfd)
+ {
+   printf (_("Sections:\n"));
+ #ifndef BFD64
+-  printf (_("Idx Name          Size      VMA       LMA       File off  Algn\n"));
++  printf (_("Idx Name          Size      VMA       LMA       File off  Algn  Flags\n"));
+ #else
+-  printf (_("Idx Name          Size      VMA               LMA               File off  Algn\n"));
++  printf (_("Idx Name          Size      VMA               LMA               File off  Algn  Flags\n"));
+ #endif
+   bfd_map_over_sections (abfd, dump_section_header, (PTR) NULL);
+ }
+@@ -406,17 +414,17 @@ slurp_dynamic_symtab (abfd)
+   asymbol **sy = (asymbol **) NULL;
+   long storage;
+ 
++  if (!(bfd_get_file_flags (abfd) & DYNAMIC))
++    {
++      fprintf (stderr, _("%s: %s: not a dynamic object\n"),
++	       program_name, bfd_get_filename (abfd));
++      dynsymcount = 0;
++      return NULL;
++    }
++
+   storage = bfd_get_dynamic_symtab_upper_bound (abfd);
+   if (storage < 0)
+     {
+-      if (!(bfd_get_file_flags (abfd) & DYNAMIC))
+-	{
+-	  fprintf (stderr, _("%s: %s: not a dynamic object\n"),
+-		   program_name, bfd_get_filename (abfd));
+-	  dynsymcount = 0;
+-	  return NULL;
+-	}
+-
+       bfd_fatal (bfd_get_filename (abfd));
+     }
+ 
+@@ -1305,7 +1313,10 @@ disassemble_bytes (info, disassemble_fn,
+ 	      if (info->bytes_per_line != 0)
+ 		bytes_per_line = info->bytes_per_line;
+ 	      if (bytes < 0)
+-		break;
++		{
++		  printf(_("... lost instruction sync; giving up on section\n"));
++		  break;
++		}
+ 	    }
+ 	  else
+ 	    {
+@@ -2036,12 +2047,13 @@ display_bfd (abfd)
+   if (dump_private_headers)
+     dump_bfd_private_header (abfd);
+   putchar ('\n');
+-  if (dump_section_headers)
+-    dump_headers (abfd);
+   if (dump_symtab || dump_reloc_info || disassemble || dump_debugging)
+     {
+       syms = slurp_symtab (abfd);
+     }
++  /* we might need the symbol table for dump_headers */
++  if (dump_section_headers)
++    dump_headers (abfd);
+   if (dump_dynamic_symtab || dump_dynamic_reloc_info)
+     {
+       dynsyms = slurp_dynamic_symtab (abfd);
+@@ -2351,6 +2363,14 @@ dump_dynamic_relocs (abfd)
+   long relsize;
+   arelent **relpp;
+   long relcount;
++
++  if (!(bfd_get_file_flags (abfd) & DYNAMIC))
++    {
++      fprintf (stderr, _("%s: %s: not a dynamic object\n"),
++	       program_name, bfd_get_filename (abfd));
++      dynsymcount = 0;
++      return;
++    }
+ 
+   relsize = bfd_get_dynamic_reloc_upper_bound (abfd);
+   if (relsize < 0)
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/binutils/size.c //D/home/donn.intel/be.build/binutils/size.c
+--- //Q/Gnusrc/cygwin.0414/binutils/size.c	Wed Apr 14 02:15:06 1999
++++ //D/home/donn.intel/be.build/binutils/size.c	Wed Apr 14 17:01:46 1999
+@@ -374,7 +374,7 @@ berkeley_sum (abfd, sec, ignore)
+   bfd_size_type size;
+ 
+   flags = bfd_get_section_flags (abfd, sec);
+-  if ((flags & SEC_ALLOC) == 0)
++  if ((flags & SEC_ALLOC) == 0 || (flags & SEC_DEBUGGING) != 0)
+     return;
+ 
+   size = bfd_get_section_size_before_reloc (sec);

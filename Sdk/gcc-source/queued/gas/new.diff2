@@ -1,0 +1,3405 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/.gdbinit //D/home/donn.intel/be.build/gas/.gdbinit
+--- //Q/Gnusrc/cygwin.0414/gas/.gdbinit	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/.gdbinit	Wed Apr 14 21:35:23 1999
+@@ -0,0 +1,39 @@
++dir .
++dir .
++
++break as_warn
++break as_warn_where
++break as_bad
++break as_bad_where
++break as_fatal
++break as_perror
++break as_assert
++break as_abort
++
++define pe
++call print_expr ($)
++end
++
++document pe
++Print *$ as an expressionS, expanding parameters.
++end
++
++define ps
++call print_symbol_value ($)
++end
++
++document ps
++Print *$ as a symbolS, including expression value.
++end
++
++define pf
++call print_fixup ($)
++end
++
++document pf
++Print *$ as a fixS, including symbol value.
++end
++
++# Put this last, in case it fails.
++
++break abort
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/Makefile.in //D/home/donn.intel/be.build/gas/Makefile.in
+--- //Q/Gnusrc/cygwin.0414/gas/Makefile.in	Wed Apr 14 02:10:31 1999
++++ //D/home/donn.intel/be.build/gas/Makefile.in	Wed Apr 14 21:32:26 1999
+@@ -1,6 +1,6 @@
+-# Makefile.in generated automatically by automake 1.4 from Makefile.am
++# Makefile.in generated automatically by automake 1.3b from Makefile.am
+ 
+-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
++# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+ # This Makefile.in is free software; the Free Software Foundation
+ # gives unlimited permission to copy and/or distribute it,
+ # with or without modifications, as long as this notice is preserved.
+@@ -46,7 +46,7 @@ AUTOMAKE = @AUTOMAKE@
+ AUTOHEADER = @AUTOHEADER@
+ 
+ INSTALL = @INSTALL@
+-INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
++INSTALL_PROGRAM = @INSTALL_PROGRAM@
+ INSTALL_DATA = @INSTALL_DATA@
+ INSTALL_SCRIPT = @INSTALL_SCRIPT@
+ transform = @program_transform_name@
+@@ -130,10 +130,10 @@ ATOF_TARG_C = $(srcdir)/config/atof-@ato
+ ATOF_TARG_O = atof-@atof@.o
+ 
+ # use @target_cpu_type@ for refering to configured target name
+-IT_HDRS = itbl-parse.h $(srcdir)/itbl-ops.h 
+-IT_SRCS = itbl-parse.c itbl-lex.c $(srcdir)/itbl-ops.c
+-IT_DEPS = $(srcdir)/itbl-parse.y $(srcdir)/itbl-lex.l $(srcdir)/config/itbl-@target_cpu_type@.h
+-IT_OBJS = itbl-parse.o itbl-lex.o itbl-ops.o
++IT_HDRS=itbl-parse.h $(srcdir)/itbl-ops.h 
++IT_SRCS=itbl-parse.c itbl-lex.c $(srcdir)/itbl-ops.c
++IT_DEPS=$(srcdir)/itbl-parse.y $(srcdir)/itbl-lex.l $(srcdir)/config/itbl-@target_cpu_type@.h
++IT_OBJS=itbl-parse.o itbl-lex.o itbl-ops.o
+ 
+ # CPU types.  This is only used for dependency information.
+ 
+@@ -170,7 +170,6 @@ CPU_TYPES = \
+ 	v850 \
+ 	z8k
+ 
+-
+ # Object format types.  This is only used for dependency information.
+ # We deliberately omit som, since it does not work as a cross assembler.
+ 
+@@ -185,7 +184,6 @@ OBJ_FORMATS = \
+ 	ieee \
+ 	vms
+ 
+-
+ # This is an sh case which sets valid according to whether the CPU
+ # type in the shell variable c and the OS type in the shell variable o
+ # are supported.  This helps cuts down on the amount of dependency
+@@ -223,7 +221,6 @@ CPU_OBJ_VALID = \
+ 	  esac ;; \
+ 	esac;
+ 
+-
+ # This is like CPU_OBJ_VALID, for the obj=multi case.
+ 
+ CPU_MULTI_VALID = \
+@@ -232,7 +229,6 @@ CPU_MULTI_VALID = \
+ 	i386 | mips) valid=yes ;; \
+ 	esac;
+ 
+-
+ # Regular source files.
+ 
+ GAS_CFILES = \
+@@ -264,7 +260,6 @@ GAS_CFILES = \
+ 	symbols.c \
+ 	write.c
+ 
+-
+ CFILES = $(GAS_CFILES) gasp.c itbl-ops.c
+ 
+ HFILES = \
+@@ -294,7 +289,6 @@ HFILES = \
+ 	tc.h \
+ 	write.h
+ 
+-
+ # CPU files in config.
+ 
+ TARGET_CPU_CFILES = \
+@@ -329,7 +323,6 @@ TARGET_CPU_CFILES = \
+ 	config/tc-v850.c \
+ 	config/tc-z8k.c
+ 
+-
+ TARGET_CPU_HFILES = \
+ 	config/tc-a29k.h \
+ 	config/tc-alpha.h \
+@@ -362,7 +355,6 @@ TARGET_CPU_HFILES = \
+ 	config/tc-v850.h \
+ 	config/tc-z8k.h
+ 
+-
+ # OBJ files in config
+ 
+ OBJ_FORMAT_CFILES = \
+@@ -377,7 +369,6 @@ OBJ_FORMAT_CFILES = \
+ 	config/obj-som.c \
+ 	config/obj-vms.c
+ 
+-
+ OBJ_FORMAT_HFILES = \
+ 	config/obj-aout.h \
+ 	config/obj-bout.h \
+@@ -390,7 +381,6 @@ OBJ_FORMAT_HFILES = \
+ 	config/obj-som.h \
+ 	config/obj-vms.h
+ 
+-
+ # Emulation header files in config
+ 
+ TARG_ENV_HFILES = \
+@@ -424,7 +414,6 @@ TARG_ENV_HFILES = \
+ 	config/te-svr4.h \
+ 	config/te-sysv32.h
+ 
+-
+ # Multi files in config
+ 
+ MULTI_CFILES = \
+@@ -433,14 +422,12 @@ MULTI_CFILES = \
+ 	config/e-mipsecoff.c \
+ 	config/e-mipself.c
+ 
+-
+ CONFIG_OBJS = \
+ 	$(TARG_CPU_O) \
+ 	$(OBJ_FORMAT_O) \
+ 	$(ATOF_TARG_O) \
+ 	$(extra_objects)
+ 
+-
+ GENERIC_OBJS = \
+ 	app.o \
+ 	as.o \
+@@ -470,14 +457,12 @@ GENERIC_OBJS = \
+ 	sb.o \
+ 	macro.o
+ 
+-
+ OBJS = $(CONFIG_OBJS) $(GENERIC_OBJS)
+ 
+ POTFILES = $(MULTI_CFILES) $(TARGET_ENV_HFILES) $(OBJ_FORMAT_HFILES) \
+ 	$(OBJ_FORMAT_CFILES) $(TARGET_CPU_HFILES) $(TARGET_CPU_CFILES) \
+ 	$(HFILES) $(CFILES) $(GAS_CFILES)
+ 
+-
+ noinst_PROGRAMS = as-new gasp-new
+ noinst_SCRIPTS = .gdbinit
+ 
+@@ -517,11 +502,9 @@ STAGESTUFF = *.o $(noinst_PROGRAMS)
+ as_new_SOURCES = $(GAS_CFILES)
+ as_new_LDADD = $(TARG_CPU_O) $(OBJ_FORMAT_O) $(ATOF_TARG_O) \
+ 	$(extra_objects) $(GASLIBS) $(INTLLIBS)
+-
+ as_new_DEPENDENCIES = $(TARG_CPU_O) $(OBJ_FORMAT_O) $(ATOF_TARG_O) \
+ 	$(extra_objects) $(GASLIBS) $(INTLDEPS)
+ 
+-
+ gasp_new_SOURCES = gasp.c macro.c sb.c hash.c
+ gasp_new_LDADD = ../libiberty/libiberty.a $(INTLLIBS)
+ gasp_new_DEPENDENCIES = ../libiberty/libiberty.a $(INTLDEPS)
+@@ -530,12 +513,10 @@ EXPECT = `if [ -f $${rootme}/../expect/e
+           echo $${rootme}/../expect/expect ; \
+           else echo expect ; fi`
+ 
+-
+ RUNTEST = `if [ -f $${srcdir}/../dejagnu/runtest ] ; then \
+ 		echo $${srcdir}/../dejagnu/runtest ; else echo runtest; \
+ 	   fi`
+-
+-RUNTESTFLAGS = 
++RUNTESTFLAGS=
+ 
+ # The m68k operand parser.
+ 
+@@ -557,1019 +538,783 @@ MOSTLYCLEANFILES = $(STAGESTUFF) core st
+ 	testsuite/*.o testsuite/*.out testsuite/gas.log testsuite/gas.sum \
+ 	testsuite/site.exp site.bak site.exp stage stage1 stage2
+ 
+-
+ CLEANFILES = dep.sed .tcdep .objdep .dep2 .dep1 .depa .dep .depdir
+ 
+-against = stage2
++against=stage2
+ 
+ # Automatic dependency computation.  This is a real pain, because the
+ # dependencies change based on target_cpu_type and obj_format.  We
+ # currently ignore any dependencies caused by emulation files.
+ 
+-DEP_FILE_DEPS = $(CFILES) $(HFILES) $(TARGET_CPU_CFILES) \
++DEP_FILE_DEPS =  $(CFILES) $(HFILES) $(TARGET_CPU_CFILES) \
+ 	$(TARGET_CPU_HFILES) $(OBJ_FORMAT_CFILES) $(OBJ_FORMAT_HFILES)
+ 
+-
+ TCDEP_a29k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-a29k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/opcode/a29k.h
+-
+ TCDEP_a29k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-a29k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/a29k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/opcode/a29k.h
+-
+ TCDEP_a29k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-a29k.h $(INCDIR)/opcode/a29k.h
+-
+ TCDEP_alpha_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-alpha.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h ecoff.h $(INCDIR)/opcode/alpha.h \
+   $(srcdir)/config/atof-vax.c
+-
+ TCDEP_alpha_ecoff = $(srcdir)/config/obj-ecoff.h $(srcdir)/config/tc-alpha.h \
+   ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/alpha.h \
+   $(srcdir)/config/atof-vax.c
+-
+ TCDEP_alpha_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-alpha.h subsegs.h \
+   $(INCDIR)/obstack.h ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h \
+   $(INCDIR)/opcode/alpha.h $(INCDIR)/elf/alpha.h $(INCDIR)/elf/reloc-macros.h \
+   $(srcdir)/config/atof-vax.c
+-
+ TCDEP_alpha_evax = $(srcdir)/config/obj-evax.h $(srcdir)/config/tc-alpha.h \
+   subsegs.h $(INCDIR)/obstack.h ecoff.h $(INCDIR)/opcode/alpha.h \
+   $(srcdir)/config/atof-vax.c
+-
+ TCDEP_arc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arc.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/arc.h \
+   $(INCDIR)/elf/arc.h $(INCDIR)/elf/reloc-macros.h
+-
+ TCDEP_arc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arc.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/arc.h $(INCDIR)/elf/arc.h \
+   $(INCDIR)/elf/reloc-macros.h
+-
+ TCDEP_arm_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-arm.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h
+-
+ TCDEP_arm_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arm.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/arm.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h
+-
+ TCDEP_arm_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arm.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/elf/arm.h $(INCDIR)/elf/reloc-macros.h
+-
+ TCDEP_d10v_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-d10v.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/d10v.h \
+   $(INCDIR)/elf/ppc.h $(INCDIR)/elf/reloc-macros.h
+-
+ TCDEP_d10v_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-d10v.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/d10v.h $(INCDIR)/elf/ppc.h \
+   $(INCDIR)/elf/reloc-macros.h
+-
+ TCDEP_d30v_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-d30v.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/d30v.h
+-
+ TCDEP_d30v_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-d30v.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/d30v.h
+-
+ TCDEP_fr30_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-fr30.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/symcat.h $(srcdir)/../opcodes/fr30-desc.h \
+   $(INCDIR)/opcode/cgen.h $(srcdir)/../opcodes/fr30-opc.h \
+   cgen.h
+-
+ TCDEP_fr30_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-fr30.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/symcat.h $(srcdir)/../opcodes/fr30-desc.h \
+   $(INCDIR)/opcode/cgen.h $(srcdir)/../opcodes/fr30-opc.h \
+   cgen.h
+-
+ TCDEP_h8300_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-h8300.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/h8300.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/h8300.h
+-
+ TCDEP_h8300_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-h8300.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/h8300.h
+-
+ TCDEP_h8500_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-h8500.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/h8500.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(srcdir)/../opcodes/h8500-opc.h
+-
+ TCDEP_h8500_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-h8500.h subsegs.h \
+   $(INCDIR)/obstack.h $(srcdir)/../opcodes/h8500-opc.h
+-
+ TCDEP_hppa_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-hppa.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(BFDDIR)/libhppa.h $(BFDDIR)/libbfd.h \
+   $(INCDIR)/opcode/hppa.h
+-
+ TCDEP_hppa_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-hppa.h $(BFDDIR)/elf32-hppa.h \
+   $(BFDDIR)/libhppa.h $(INCDIR)/elf/hppa.h $(INCDIR)/elf/reloc-macros.h \
+   subsegs.h $(INCDIR)/obstack.h $(BFDDIR)/libbfd.h $(INCDIR)/opcode/hppa.h
+-
+ TCDEP_i386_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-i386.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h \
+   $(INCDIR)/opcode/i386.h
+-
+ TCDEP_i386_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i386.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/i386.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/i386.h
+-
+ TCDEP_i386_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i386.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/i386.h
+-
+ TCDEP_i860_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-i860.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/opcode/i860.h
+-
+ TCDEP_i860_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i860.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/opcode/i860.h
+-
+ TCDEP_i860_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i860.h $(INCDIR)/opcode/i860.h
+-
+ TCDEP_i960_bout = $(srcdir)/config/obj-bout.h $(srcdir)/config/tc-i960.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/i960.h
+-
+ TCDEP_i960_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i960.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/i960.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h $(INCDIR)/opcode/i960.h
+-
+ TCDEP_i960_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i960.h $(INCDIR)/obstack.h \
+   $(INCDIR)/opcode/i960.h
+-
+ TCDEP_m32r_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m32r.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/symcat.h $(srcdir)/../opcodes/m32r-desc.h \
+   $(INCDIR)/opcode/cgen.h $(srcdir)/../opcodes/m32r-opc.h \
+   cgen.h
+-
+ TCDEP_m32r_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m32r.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/symcat.h $(srcdir)/../opcodes/m32r-desc.h \
+   $(INCDIR)/opcode/cgen.h $(srcdir)/../opcodes/m32r-opc.h \
+   cgen.h
+-
+ TCDEP_m68k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-m68k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h \
+   subsegs.h $(INCDIR)/opcode/m68k.h $(srcdir)/config/m68k-parse.h
+-
+ TCDEP_m68k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m68k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/m68k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h $(INCDIR)/opcode/m68k.h \
+   $(srcdir)/config/m68k-parse.h
+-
+ TCDEP_m68k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m68k.h $(INCDIR)/obstack.h \
+   subsegs.h $(INCDIR)/opcode/m68k.h $(srcdir)/config/m68k-parse.h
+-
+ TCDEP_m68k_hp300 = $(srcdir)/config/obj-hp300.h $(srcdir)/config/obj-aout.h \
+   $(srcdir)/config/tc-m68k.h $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h $(INCDIR)/opcode/m68k.h \
+   $(srcdir)/config/m68k-parse.h
+-
+ TCDEP_m88k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m88k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/m88k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(srcdir)/config/m88k-opcode.h
+-
+ TCDEP_m88k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m88k.h subsegs.h \
+   $(INCDIR)/obstack.h $(srcdir)/config/m88k-opcode.h
+-
+ TCDEP_mcore_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mcore.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+-  subsegs.h $(INCDIR)/obstack.h $(INCDIR)/symcat.h $(srcdir)/../opcodes/mcore-opc.h
+-
++  subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/mcore-opc.h \
++  itbl-ops.h ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h
+ TCDEP_mcore_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mcore.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/symcat.h $(srcdir)/../opcodes/mcore-opc.h
+-
+ TCDEP_mips_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-mips.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h \
+   $(INCDIR)/opcode/mips.h itbl-ops.h ecoff.h $(INCDIR)/coff/sym.h \
+   $(INCDIR)/coff/ecoff.h
+-
+ TCDEP_mips_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mips.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/mips.h \
+   itbl-ops.h ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h
+-
+ TCDEP_mips_ecoff = $(srcdir)/config/obj-ecoff.h $(srcdir)/config/tc-mips.h \
+   ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/mips.h \
+   itbl-ops.h
+-
+ TCDEP_mips_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mips.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/mips.h itbl-ops.h \
+   $(INCDIR)/elf/mips.h $(INCDIR)/elf/reloc-macros.h ecoff.h \
+   $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h
+-
+ TCDEP_mn10200_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mn10200.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/mn10200.h
+-
+ TCDEP_mn10200_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mn10200.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/mn10200.h
+-
+ TCDEP_mn10300_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mn10300.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/mn10300.h
+-
+ TCDEP_mn10300_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mn10300.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/mn10300.h
+-
+ TCDEP_ns32k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-ns32k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/opcode/ns32k.h \
+   $(INCDIR)/obstack.h
+-
+ TCDEP_ns32k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-ns32k.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/opcode/ns32k.h $(INCDIR)/obstack.h
+-
+ TCDEP_ns32k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-ns32k.h $(INCDIR)/opcode/ns32k.h \
+   $(INCDIR)/obstack.h
+-
+ TCDEP_ppc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-ppc.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/rs6000.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/ppc.h
+-
+ TCDEP_ppc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-ppc.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/ppc.h $(INCDIR)/elf/ppc.h \
+   $(INCDIR)/elf/reloc-macros.h
+-
+ TCDEP_sh_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-sh.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/sh.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(srcdir)/../opcodes/sh-opc.h
+-
+ TCDEP_sh_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-sh.h subsegs.h \
+   $(INCDIR)/obstack.h $(srcdir)/../opcodes/sh-opc.h
+-
+ TCDEP_sparc_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-sparc.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h \
+   $(INCDIR)/opcode/sparc.h
+-
+ TCDEP_sparc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-sparc.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/sparc.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/sparc.h
+-
+ TCDEP_sparc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-sparc.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/sparc.h $(INCDIR)/elf/sparc.h \
+   $(INCDIR)/elf/reloc-macros.h
+-
+ TCDEP_tahoe_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-tahoe.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h \
+   $(INCDIR)/opcode/tahoe.h
+-
+ TCDEP_tahoe_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tahoe.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/tahoe.h
+-
+ TCDEP_tahoe_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tahoe.h $(INCDIR)/obstack.h \
+   $(INCDIR)/opcode/tahoe.h
+-
+ TCDEP_tic30_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-tic30.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/opcode/tic30.h
+-
+ TCDEP_tic30_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tic30.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/tic30.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/opcode/tic30.h
+-
+ TCDEP_tic30_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tic30.h $(INCDIR)/opcode/tic30.h
+-
+ TCDEP_tic80_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tic80.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/tic80.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/opcode/tic80.h
+-
+ TCDEP_tic80_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tic80.h $(INCDIR)/opcode/tic80.h
+-
+ TCDEP_vax_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-vax.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(srcdir)/config/vax-inst.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/vax.h
+-
+ TCDEP_vax_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-vax.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(srcdir)/config/vax-inst.h $(INCDIR)/obstack.h $(INCDIR)/opcode/vax.h
+-
+ TCDEP_vax_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-vax.h $(srcdir)/config/vax-inst.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/vax.h
+-
+ TCDEP_vax_vms = $(srcdir)/config/obj-vms.h $(srcdir)/config/tc-vax.h \
+   $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def $(srcdir)/config/vax-inst.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/vax.h
+-
+ TCDEP_w65_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-w65.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/w65.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h subsegs.h $(INCDIR)/obstack.h $(srcdir)/../opcodes/w65-opc.h
+-
+ TCDEP_w65_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-w65.h subsegs.h \
+   $(INCDIR)/obstack.h $(srcdir)/../opcodes/w65-opc.h
+-
+ TCDEP_v850_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-v850.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/opcode/v850.h
+-
+ TCDEP_v850_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-v850.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/opcode/v850.h
+-
+ TCDEP_z8k_coff = $(srcdir)/../opcodes/z8k-opc.h $(srcdir)/config/obj-coff.h \
+   $(srcdir)/config/tc-z8k.h $(INCDIR)/coff/internal.h \
+   $(INCDIR)/coff/z8k.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ TCDEP_z8k_elf = $(srcdir)/../opcodes/z8k-opc.h $(srcdir)/config/obj-elf.h \
+   $(BFDDIR)/elf-bfd.h $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h \
+   $(INCDIR)/elf/external.h $(INCDIR)/bfdlink.h $(srcdir)/config/tc-z8k.h
+-
+ TCDEP_hppa_som = $(srcdir)/config/tc-hppa.h subsegs.h \
+   $(INCDIR)/obstack.h $(BFDDIR)/libhppa.h $(INCDIR)/opcode/hppa.h \
+   $(BFDDIR)/som.h
+-
+ TCDEP_i386_multi = $(TCDEP_i386_coff) $(TCDEP_i386_elf)
+ TCDEP_mips_multi = $(TCDEP_mips_coff) $(TCDEP_mips_ecoff) \
+   $(TCDEP_mips_elf)
+-
+ OBJDEP_a29k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-a29k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_a29k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-a29k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/a29k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_a29k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-a29k.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_alpha_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-alpha.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_alpha_ecoff = $(srcdir)/config/obj-ecoff.h $(srcdir)/config/tc-alpha.h \
+   ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(BFDDIR)/libecoff.h
+-
+ OBJDEP_alpha_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-alpha.h subsegs.h \
+   $(INCDIR)/obstack.h ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h \
+   $(INCDIR)/elf/alpha.h $(INCDIR)/elf/reloc-macros.h \
+   $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_alpha_evax = $(srcdir)/config/obj-evax.h $(srcdir)/config/tc-alpha.h
+ OBJDEP_arc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arc.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_arc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arc.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_arm_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-arm.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_arm_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arm.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/arm.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_arm_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arm.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_d10v_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-d10v.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_d10v_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-d10v.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_d30v_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-d30v.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_d30v_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-d30v.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_fr30_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-fr30.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_fr30_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-fr30.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_h8300_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-h8300.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/h8300.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_h8300_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-h8300.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_h8500_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-h8500.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/h8500.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_h8500_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-h8500.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_hppa_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-hppa.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_hppa_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-hppa.h $(BFDDIR)/elf32-hppa.h \
+   $(BFDDIR)/libhppa.h $(INCDIR)/elf/hppa.h $(INCDIR)/elf/reloc-macros.h \
+   subsegs.h $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_i386_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-i386.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_i386_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i386.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/i386.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_i386_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i386.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_i860_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-i860.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_i860_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i860.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_i860_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i860.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_i960_bout = $(srcdir)/config/obj-bout.h $(srcdir)/config/tc-i960.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_i960_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i960.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/i960.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_i960_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i960.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_m32r_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m32r.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_m32r_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m32r.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_m68k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-m68k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_m68k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m68k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/m68k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_m68k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m68k.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_m68k_hp300 = $(srcdir)/config/obj-aout.c $(srcdir)/config/obj-hp300.h \
+   $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-m68k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_m88k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m88k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/m88k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_m88k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m88k.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_mips_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-mips.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_mips_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mips.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_mips_ecoff = $(srcdir)/config/obj-ecoff.h $(srcdir)/config/tc-mips.h \
+   ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(BFDDIR)/libecoff.h
+-
+ OBJDEP_mips_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mips.h subsegs.h \
+   $(INCDIR)/obstack.h ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h \
+   $(INCDIR)/elf/mips.h $(INCDIR)/elf/reloc-macros.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_mn10200_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mn10200.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_mn10200_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mn10200.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_mn10300_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mn10300.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_mn10300_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mn10300.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_ns32k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-ns32k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_ns32k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-ns32k.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_ns32k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-ns32k.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_ppc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-ppc.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/rs6000.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_ppc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-ppc.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/elf/ppc.h $(INCDIR)/elf/reloc-macros.h \
+   $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_sh_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-sh.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/sh.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_sh_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-sh.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_sparc_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-sparc.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_sparc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-sparc.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/sparc.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_sparc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-sparc.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_tahoe_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-tahoe.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_tahoe_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tahoe.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_tahoe_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tahoe.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_tic30_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-tic30.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_tic30_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tic30.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/tic30.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_tic30_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tic30.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_tic80_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tic80.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/tic80.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_tic80_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tic80.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_vax_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-vax.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h $(INCDIR)/aout/aout64.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_vax_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-vax.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_vax_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-vax.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_vax_vms = $(srcdir)/config/obj-vms.h $(srcdir)/config/tc-vax.h \
+   $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def subsegs.h \
+   $(INCDIR)/obstack.h
+-
+ OBJDEP_w65_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-w65.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/w65.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_w65_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-w65.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_v850_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-v850.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h \
+   $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_v850_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-v850.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_z8k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-z8k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/z8k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h $(INCDIR)/obstack.h subsegs.h
+-
+ OBJDEP_z8k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-z8k.h subsegs.h \
+   $(INCDIR)/obstack.h $(INCDIR)/aout/aout64.h
+-
+ OBJDEP_hppa_som = $(srcdir)/config/obj-som.h subsegs.h \
+   $(INCDIR)/obstack.h $(BFDDIR)/libhppa.h $(BFDDIR)/som.h \
+   $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def
+-
+ OBJDEP_i386_multi = $(OBJDEP_i386_coff) $(OBJDEP_i386_elf)
+ OBJDEP_mips_multi = $(OBJDEP_mips_coff) $(OBJDEP_mips_ecoff) \
+   $(OBJDEP_mips_elf)
+-
+ DEP_a29k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-a29k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_a29k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-a29k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/a29k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_a29k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-a29k.h
+-
+ DEP_alpha_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-alpha.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_alpha_ecoff = $(srcdir)/config/obj-ecoff.h $(srcdir)/config/tc-alpha.h \
+   ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h
+-
+ DEP_alpha_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-alpha.h
+-
+ DEP_alpha_evax = $(srcdir)/config/obj-evax.h $(srcdir)/config/tc-alpha.h
+ DEP_arc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arc.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_arc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arc.h
+-
+ DEP_arm_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-arm.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_arm_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-arm.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/arm.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_arm_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-arm.h
+-
+ DEP_d10v_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-d10v.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_d10v_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-d10v.h
+-
+ DEP_d30v_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-d30v.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_d30v_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-d30v.h
+-
+ DEP_fr30_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-fr30.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_fr30_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-fr30.h
+-
+ DEP_h8300_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-h8300.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/h8300.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_h8300_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-h8300.h
+-
+ DEP_h8500_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-h8500.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/h8500.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_h8500_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-h8500.h
+-
+ DEP_hppa_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-hppa.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_hppa_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-hppa.h $(BFDDIR)/elf32-hppa.h \
+   $(BFDDIR)/libhppa.h $(INCDIR)/elf/hppa.h $(INCDIR)/elf/reloc-macros.h
+-
+ DEP_i386_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-i386.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_i386_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i386.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/i386.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_i386_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i386.h
+-
+ DEP_i860_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-i860.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_i860_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i860.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_i860_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i860.h
+-
+ DEP_i960_bout = $(srcdir)/config/obj-bout.h $(srcdir)/config/tc-i960.h
+ DEP_i960_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-i960.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/i960.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_i960_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-i960.h
+-
+ DEP_m32r_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m32r.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_m32r_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m32r.h
+-
+ DEP_m68k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-m68k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_m68k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m68k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/m68k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_m68k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m68k.h
+-
+ DEP_m68k_hp300 = $(srcdir)/config/obj-hp300.h $(srcdir)/config/obj-aout.h \
+   $(srcdir)/config/tc-m68k.h $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_m88k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-m88k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/m88k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_m88k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-m88k.h
+-
+ DEP_mips_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-mips.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_mips_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mips.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_mips_ecoff = $(srcdir)/config/obj-ecoff.h $(srcdir)/config/tc-mips.h \
+   ecoff.h $(INCDIR)/coff/sym.h $(INCDIR)/coff/ecoff.h
+-
+ DEP_mips_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mips.h
+-
+ DEP_mn10200_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mn10200.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_mn10200_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mn10200.h
+-
+ DEP_mn10300_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-mn10300.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_mn10300_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-mn10300.h
+-
+ DEP_ns32k_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-ns32k.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_ns32k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-ns32k.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_ns32k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-ns32k.h
+-
+ DEP_ppc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-ppc.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/rs6000.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_ppc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-ppc.h
+-
+ DEP_sh_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-sh.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/sh.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_sh_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-sh.h
+-
+ DEP_sparc_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-sparc.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_sparc_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-sparc.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/sparc.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_sparc_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-sparc.h
+-
+ DEP_tahoe_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-tahoe.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_tahoe_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tahoe.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_tahoe_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tahoe.h
+-
+ DEP_tic30_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-tic30.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_tic30_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tic30.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/tic30.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_tic30_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tic30.h
+-
+ DEP_tic80_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-tic80.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/tic80.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_tic80_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-tic80.h
+-
+ DEP_vax_aout = $(srcdir)/config/obj-aout.h $(srcdir)/config/tc-vax.h \
+   $(BFDDIR)/libaout.h $(INCDIR)/bfdlink.h
+-
+ DEP_vax_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-vax.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_vax_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-vax.h
+-
+ DEP_vax_vms = $(srcdir)/config/obj-vms.h $(srcdir)/config/tc-vax.h \
+   $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def
+-
+ DEP_w65_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-w65.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/w65.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_w65_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-w65.h
+-
+ DEP_v850_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-v850.h \
+   $(INCDIR)/coff/internal.h $(BFDDIR)/libcoff.h $(INCDIR)/bfdlink.h
+-
+ DEP_v850_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-v850.h
+-
+ DEP_z8k_coff = $(srcdir)/config/obj-coff.h $(srcdir)/config/tc-z8k.h \
+   $(INCDIR)/coff/internal.h $(INCDIR)/coff/z8k.h $(BFDDIR)/libcoff.h \
+   $(INCDIR)/bfdlink.h
+-
+ DEP_z8k_elf = $(srcdir)/config/obj-elf.h $(BFDDIR)/elf-bfd.h \
+   $(INCDIR)/elf/common.h $(INCDIR)/elf/internal.h $(INCDIR)/elf/external.h \
+   $(INCDIR)/bfdlink.h $(srcdir)/config/tc-z8k.h
+-
+ DEP_hppa_som = $(BFDDIR)/som.h
+ DEP_i386_multi = $(DEP_i386_coff) $(DEP_i386_elf)
+ DEP_mips_multi = $(DEP_mips_coff) $(DEP_mips_ecoff) \
+   $(DEP_mips_elf)
+-
+ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+ mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
+ CONFIG_HEADER = config.h
+@@ -1602,56 +1347,49 @@ YLWRAP = $(top_srcdir)/../ylwrap
+ CFLAGS = @CFLAGS@
+ COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+ LTCOMPILE = $(LIBTOOL) --mode=compile $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+-CCLD = $(CC)
+-LINK = $(LIBTOOL) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+-DIST_COMMON =  README ./stamp-h.in COPYING ChangeLog Makefile.am \
+-Makefile.in NEWS acinclude.m4 aclocal.m4 config.in config/m68k-parse.c \
+-configure configure.in gdbinit.in itbl-lex.c itbl-parse.c
++LINK = $(LIBTOOL) --mode=link $(CC) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
++DIST_COMMON =  README COPYING ChangeLog Makefile.am Makefile.in NEWS \
++acinclude.m4 aclocal.m4 config.in config/m68k-parse.c configure \
++configure.in gdbinit.in itbl-lex.c itbl-parse.c stamp-h.in
+ 
+ 
+ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+ 
+-TAR = gtar
+-GZIP_ENV = --best
++TAR = tar
++GZIP = --best
+ SOURCES = $(itbl_test_SOURCES) $(as_new_SOURCES) $(EXTRA_as_new_SOURCES) $(gasp_new_SOURCES)
+ OBJECTS = $(itbl_test_OBJECTS) $(as_new_OBJECTS) $(gasp_new_OBJECTS)
+ 
+-all: all-redirect
++all: all-recursive-am all-am
++
+ .SUFFIXES:
+ .SUFFIXES: .S .c .l .lo .o .s .y
+-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
++$(srcdir)/Makefile.in: @MAINT@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4)
+ 	cd $(top_srcdir) && $(AUTOMAKE) --cygnus Makefile
+ 
+ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+ 	cd $(top_builddir) \
+ 	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+ 
+-$(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ configure.in  acinclude.m4
++$(ACLOCAL_M4): @MAINT@ configure.in  acinclude.m4
+ 	cd $(srcdir) && $(ACLOCAL)
+ 
+ config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+ 	$(SHELL) ./config.status --recheck
+-$(srcdir)/configure: @MAINTAINER_MODE_TRUE@$(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
++$(srcdir)/configure: @MAINT@$(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
+ 	cd $(srcdir) && $(AUTOCONF)
+ 
+ config.h: stamp-h
+-	@if test ! -f $@; then \
+-		rm -f stamp-h; \
+-		$(MAKE) stamp-h; \
+-	else :; fi
++	@:
+ stamp-h: $(srcdir)/config.in $(top_builddir)/config.status
+ 	cd $(top_builddir) \
+ 	  && CONFIG_FILES= CONFIG_HEADERS=config.h:config.in \
+ 	     $(SHELL) ./config.status
+-	@echo timestamp > stamp-h 2> /dev/null
+-$(srcdir)/config.in: @MAINTAINER_MODE_TRUE@$(srcdir)/stamp-h.in
+-	@if test ! -f $@; then \
+-		rm -f $(srcdir)/stamp-h.in; \
+-		$(MAKE) $(srcdir)/stamp-h.in; \
+-	else :; fi
++	@echo timestamp > stamp-h
++$(srcdir)/config.in: @MAINT@$(srcdir)/stamp-h.in
+ $(srcdir)/stamp-h.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+ 	cd $(top_srcdir) && $(AUTOHEADER)
+-	@echo timestamp > $(srcdir)/stamp-h.in 2> /dev/null
++	@echo timestamp > $(srcdir)/stamp-h.in
+ 
+ mostlyclean-hdr:
+ 
+@@ -1722,13 +1460,13 @@ as-new$(EXEEXT): $(as_new_OBJECTS) $(as_
+ gasp-new$(EXEEXT): $(gasp_new_OBJECTS) $(gasp_new_DEPENDENCIES)
+ 	@rm -f gasp-new$(EXEEXT)
+ 	$(LINK) $(gasp_new_LDFLAGS) $(gasp_new_OBJECTS) $(gasp_new_LDADD) $(LIBS)
+-.l.c:
+-	$(LEX) $(AM_LFLAGS) $(LFLAGS) $< && mv $(LEX_OUTPUT_ROOT).c $@
+ .y.c:
+ 	$(SHELL) $(YLWRAP) "$(YACC)" $< y.tab.c $*.c y.tab.h $*.h -- $(AM_YFLAGS) $(YFLAGS)
+ config/m68k-parse.h: config/m68k-parse.c
+ itbl-parse.h: itbl-parse.c
+ 
++.l.c:
++	$(LEX) $(AM_LFLAGS) $(LFLAGS) $< && mv $(LEX_OUTPUT_ROOT).c $@
+ 
+ # This directory's subdirectories are mostly independent; you can cd
+ # into them and run `make' without going through this Makefile.
+@@ -1743,65 +1481,41 @@ all-recursive install-data-recursive ins
+ installdirs-recursive install-recursive uninstall-recursive install-info-recursive \
+ check-recursive installcheck-recursive info-recursive dvi-recursive:
+ 	@set fnord $(MAKEFLAGS); amf=$$2; \
+-	dot_seen=no; \
+-	target=`echo $@ | sed s/-recursive//`; \
+ 	list='$(SUBDIRS)'; for subdir in $$list; do \
++	  target=`echo $@ | sed s/-recursive//`; \
+ 	  echo "Making $$target in $$subdir"; \
+-	  if test "$$subdir" = "."; then \
+-	    dot_seen=yes; \
+-	    local_target="$$target-am"; \
+-	  else \
+-	    local_target="$$target"; \
+-	  fi; \
+-	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
++	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$target) \
+ 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+-	done; \
+-	if test "$$dot_seen" = "no"; then \
+-	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
+-	fi; test -z "$$fail"
++	done && test -z "$$fail"
+ 
+ mostlyclean-recursive clean-recursive distclean-recursive \
+ maintainer-clean-recursive:
+ 	@set fnord $(MAKEFLAGS); amf=$$2; \
+-	dot_seen=no; \
+ 	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
+ 	  rev="$$subdir $$rev"; \
+-	  test "$$subdir" = "." && dot_seen=yes; \
+ 	done; \
+-	test "$$dot_seen" = "no" && rev=". $$rev"; \
+-	target=`echo $@ | sed s/-recursive//`; \
+ 	for subdir in $$rev; do \
++	  target=`echo $@ | sed s/-recursive//`; \
+ 	  echo "Making $$target in $$subdir"; \
+-	  if test "$$subdir" = "."; then \
+-	    local_target="$$target-am"; \
+-	  else \
+-	    local_target="$$target"; \
+-	  fi; \
+-	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
++	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$target) \
+ 	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+ 	done && test -z "$$fail"
+ tags-recursive:
+ 	list='$(SUBDIRS)'; for subdir in $$list; do \
+-	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
++	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
+ 	done
+ 
+ tags: TAGS
+ 
+ ID: $(HEADERS) $(SOURCES) $(LISP)
+-	list='$(SOURCES) $(HEADERS)'; \
+-	unique=`for i in $$list; do echo $$i; done | \
+-	  awk '    { files[$$0] = 1; } \
+-	       END { for (i in files) print i; }'`; \
+ 	here=`pwd` && cd $(srcdir) \
+-	  && mkid -f$$here/ID $$unique $(LISP)
++	  && mkid -f$$here/ID $(SOURCES) $(HEADERS) $(LISP)
+ 
+ TAGS: tags-recursive $(HEADERS) $(SOURCES) config.in $(TAGS_DEPENDENCIES) $(LISP)
+ 	tags=; \
+ 	here=`pwd`; \
+ 	list='$(SUBDIRS)'; for subdir in $$list; do \
+-   if test "$$subdir" = .; then :; else \
+-	    test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
+-   fi; \
++	  test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
+ 	done; \
+ 	list='$(SOURCES) $(HEADERS)'; \
+ 	unique=`for i in $$list; do echo $$i; done | \
+@@ -1827,7 +1541,7 @@ top_distdir = $(distdir)
+ # tarfile.
+ distcheck: dist
+ 	-rm -rf $(distdir)
+-	GZIP=$(GZIP_ENV) $(TAR) zxf $(distdir).tar.gz
++	GZIP=$(GZIP) $(TAR) zxf $(distdir).tar.gz
+ 	mkdir $(distdir)/=build
+ 	mkdir $(distdir)/=inst
+ 	dc_install_base=`cd $(distdir)/=inst && pwd`; \
+@@ -1840,18 +1554,16 @@ distcheck: dist
+ 	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
+ 	  && $(MAKE) $(AM_MAKEFLAGS) dist
+ 	-rm -rf $(distdir)
+-	@banner="$(distdir).tar.gz is ready for distribution"; \
+-	dashes=`echo "$$banner" | sed s/./=/g`; \
+-	echo "$$dashes"; \
+-	echo "$$banner"; \
+-	echo "$$dashes"
++	@echo "========================"; \
++	echo "$(distdir).tar.gz is ready for distribution"; \
++	echo "========================"
+ dist: distdir
+ 	-chmod -R a+r $(distdir)
+-	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
++	GZIP=$(GZIP) $(TAR) chozf $(distdir).tar.gz $(distdir)
+ 	-rm -rf $(distdir)
+ dist-all: distdir
+ 	-chmod -R a+r $(distdir)
+-	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
++	GZIP=$(GZIP) $(TAR) chozf $(distdir).tar.gz $(distdir)
+ 	-rm -rf $(distdir)
+ distdir: $(DISTFILES)
+ 	-rm -rf $(distdir)
+@@ -1859,23 +1571,17 @@ distdir: $(DISTFILES)
+ 	-chmod 777 $(distdir)
+ 	@for file in $(DISTFILES); do \
+ 	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+-	  if test -d $$d/$$file; then \
+-	    cp -pr $$/$$file $(distdir)/$$file; \
+-	  else \
+-	    test -f $(distdir)/$$file \
+-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+-	  fi; \
++	  test -f $(distdir)/$$file \
++	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
++	  || cp -p $$d/$$file $(distdir)/$$file; \
+ 	done
+ 	for subdir in $(SUBDIRS); do \
+-	  if test "$$subdir" = .; then :; else \
+-	    test -d $(distdir)/$$subdir \
+-	    || mkdir $(distdir)/$$subdir \
++	  test -d $(distdir)/$$subdir \
++	  || mkdir $(distdir)/$$subdir \
++	  || exit 1; \
++	  chmod 777 $(distdir)/$$subdir; \
++	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir=../$(distdir) distdir=../$(distdir)/$$subdir distdir) \
+ 	    || exit 1; \
+-	    chmod 777 $(distdir)/$$subdir; \
+-	    (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir=../$(distdir) distdir=../$(distdir)/$$subdir distdir) \
+-	      || exit 1; \
+-	  fi; \
+ 	done
+ 
+ DEJATOOL = $(PACKAGE)
+@@ -1883,7 +1589,7 @@ DEJATOOL = $(PACKAGE)
+ RUNTESTDEFAULTFLAGS = --tool $(DEJATOOL) --srcdir $$srcdir
+ site.exp: Makefile
+ 	@echo 'Making a new site.exp file...'
+-	@test ! -f site.bak || rm -f site.bak
++	-@rm -f site.bak
+ 	@echo '## these variables are automatically generated by make ##' > $@-t
+ 	@echo '# Do not edit here.  If you wish to override these values' >> $@-t
+ 	@echo '# edit the last section' >> $@-t
+@@ -1897,40 +1603,36 @@ site.exp: Makefile
+ 	@echo 'set build_alias $(build_alias)' >> $@-t
+ 	@echo 'set build_triplet $(build_triplet)' >> $@-t
+ 	@echo '## All variables above are generated by configure. Do Not Edit ##' >> $@-t
+-	@test ! -f site.exp || sed '1,/^## All variables above are.*##/ d' site.exp >> $@-t
+-	@test ! -f site.exp || mv site.exp site.bak
++	-@sed '1,/^## All variables above are.*##/ d' site.bak >> $@-t
++	-@mv site.exp site.bak
+ 	@mv $@-t site.exp
+-info-am:
+ info: info-recursive
+-dvi-am:
+ dvi: dvi-recursive
+-check-am:
+-	$(MAKE) $(AM_MAKEFLAGS) check-DEJAGNU
+-check: check-recursive
+-installcheck-am:
++check:
++	$(MAKE) $(AM_MAKEFLAGS) check-recursive check-DEJAGNU
+ installcheck: installcheck-recursive
+-install-info-am: 
+ install-info: install-info-recursive
+ all-recursive-am: config.h
+ 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+ 
++all-am: Makefile $(PROGRAMS) $(SCRIPTS) config.h
++
+ install-exec-am: install-exec-local
+-install-exec: install-exec-recursive
+ 
+-install-data-am:
++install-exec: install-exec-recursive install-exec-am
++	@$(NORMAL_INSTALL)
++
+ install-data: install-data-recursive
++	@$(NORMAL_INSTALL)
++
++install: install-recursive install-exec-am
++	@:
+ 
+-install-am: all-am
+-	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+-install: install-recursive
+-uninstall-am:
+ uninstall: uninstall-recursive
+-all-am: Makefile $(PROGRAMS) $(SCRIPTS) config.h
+-all-redirect: all-recursive-am
++
+ install-strip:
+-	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
++	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+ installdirs: installdirs-recursive
+-installdirs-am:
+ 
+ 
+ mostlyclean-generic:
+@@ -1945,35 +1647,35 @@ distclean-generic:
+ 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
+ 
+ maintainer-clean-generic:
+-	-test -z "itbl-lexlconfig/m68k-parsehconfig/m68k-parsecitbl-parsehitbl-parsec" || rm -f itbl-lexl config/m68k-parseh config/m68k-parsec itbl-parseh itbl-parsec
++	-test -z "config/m68k-parsehconfig/m68k-parsecitbl-parsehitbl-parsecitbl-lexl" || rm -f config/m68k-parseh config/m68k-parsec itbl-parseh itbl-parsec itbl-lexl
+ mostlyclean-am:  mostlyclean-hdr mostlyclean-noinstPROGRAMS \
+ 		mostlyclean-compile mostlyclean-libtool \
+ 		mostlyclean-tags mostlyclean-generic
+ 
+-mostlyclean: mostlyclean-recursive
+-
+ clean-am:  clean-hdr clean-noinstPROGRAMS clean-compile clean-libtool \
+ 		clean-tags clean-generic mostlyclean-am
+ 
+-clean: clean-recursive
+-
+ distclean-am:  distclean-hdr distclean-noinstPROGRAMS distclean-compile \
+ 		distclean-libtool distclean-tags distclean-generic \
+ 		clean-am
+-	-rm -f libtool
+-
+-distclean: distclean-recursive
+-	-rm -f config.status
+ 
+ maintainer-clean-am:  maintainer-clean-hdr \
+ 		maintainer-clean-noinstPROGRAMS \
+ 		maintainer-clean-compile maintainer-clean-libtool \
+ 		maintainer-clean-tags maintainer-clean-generic \
+ 		distclean-am
++
++mostlyclean:  mostlyclean-recursive mostlyclean-am
++
++clean:  clean-recursive clean-am
++
++distclean:  distclean-recursive distclean-am
++	-rm -f config.status
++	-rm -f libtool
++
++maintainer-clean:  maintainer-clean-recursive maintainer-clean-am
+ 	@echo "This command is intended for maintainers to use;"
+ 	@echo "it deletes files that may require special tools to rebuild."
+-
+-maintainer-clean: maintainer-clean-recursive
+ 	-rm -f config.status
+ 
+ .PHONY: mostlyclean-hdr distclean-hdr clean-hdr maintainer-clean-hdr \
+@@ -1988,10 +1690,8 @@ all-recursive check-recursive installche
+ dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
+ maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
+ distclean-tags clean-tags maintainer-clean-tags distdir check-DEJAGNU \
+-info-am info dvi-am dvi check check-am installcheck-am installcheck \
+-install-info-am install-info all-recursive-am install-exec-local \
+-install-exec-am install-exec install-data-am install-data install-am \
+-install uninstall-am uninstall all-redirect all-am all installdirs-am \
++info dvi installcheck install-info all-recursive-am all-am \
++install-exec-am install-exec install-data install uninstall all \
+ installdirs mostlyclean-generic distclean-generic clean-generic \
+ maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+ 
+Binary files //Q/Gnusrc/cygwin.0414/gas/as-new and //D/home/donn.intel/be.build/gas/as-new differ
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/as.c //D/home/donn.intel/be.build/gas/as.c
+--- //Q/Gnusrc/cygwin.0414/gas/as.c	Wed Apr 14 02:10:32 1999
++++ //D/home/donn.intel/be.build/gas/as.c	Wed Apr 14 21:31:38 1999
+@@ -678,6 +678,7 @@ the GNU General Public License.  This pr
+   *pargv = new_argv;
+ }
+ 
++static void dump_statistics PARAMS((void));
+ static long start_time;
+ 
+ int 
+@@ -939,11 +940,15 @@ perform_an_assembly_pass (argc, argv)
+   applicable = bfd_applicable_section_flags (stdoutput);
+   bfd_set_section_flags (stdoutput, text_section,
+ 			 applicable & (SEC_ALLOC | SEC_LOAD | SEC_RELOC
+-				       | SEC_CODE | SEC_READONLY));
++				       | SEC_CODE | SEC_READONLY | SEC_EXEC
++			               | SEC_HAS_CONTENTS | SEC_READ));
+   /* @@ FIXME -- SEC_CODE seems to mean code only, rather than code possibly.*/
+   bfd_set_section_flags (stdoutput, data_section,
+-			 applicable & (SEC_ALLOC | SEC_LOAD | SEC_RELOC));
+-  bfd_set_section_flags (stdoutput, bss_section, applicable & SEC_ALLOC);
++			 applicable & 
++			     (SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_WRITE
++			      | SEC_DATA | SEC_HAS_CONTENTS | SEC_READ));
++  bfd_set_section_flags (stdoutput, bss_section, 
++			 applicable & (SEC_ALLOC | SEC_WRITE | SEC_READ));
+   seg_info (bss_section)->bss = 1;
+   subseg_new (BFD_ABS_SECTION_NAME, 0);
+   subseg_new (BFD_UND_SECTION_NAME, 0);
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/as.h //D/home/donn.intel/be.build/gas/as.h
+--- //Q/Gnusrc/cygwin.0414/gas/as.h	Wed Apr 14 02:10:32 1999
++++ //D/home/donn.intel/be.build/gas/as.h	Wed Apr 14 21:31:38 1999
+@@ -555,7 +555,7 @@ int had_warnings PARAMS ((void));
+ 
+ void print_version_id PARAMS ((void));
+ char *app_push PARAMS ((void));
+-char *atof_ieee PARAMS ((char *str, int what_kind, LITTLENUM_TYPE * words));
++char *atof_ieee PARAMS ((char *str, char what_kind, LITTLENUM_TYPE * words));
+ char *input_scrub_include_file PARAMS ((char *filename, char *position));
+ char *input_scrub_new_file PARAMS ((char *filename));
+ char *input_scrub_next_buffer PARAMS ((char **bufp));
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/config/atof-vax.c //D/home/donn.intel/be.build/gas/config/atof-vax.c
+--- //Q/Gnusrc/cygwin.0414/gas/config/atof-vax.c	Wed Apr 14 02:10:39 1999
++++ //D/home/donn.intel/be.build/gas/config/atof-vax.c	Wed Apr 14 21:31:38 1999
+@@ -260,7 +260,7 @@ atof_vax (str, what_kind, words)
+ 
+ int				/* 0: OK. */
+ flonum_gen2vax (format_letter, f, words)
+-     char format_letter;	/* One of 'd' 'f' 'g' 'h'. */
++     int format_letter;	/* One of 'd' 'f' 'g' 'h'. */
+      FLONUM_TYPE *f;
+      LITTLENUM_TYPE *words;	/* Deliver answer here. */
+ {
+@@ -511,7 +511,7 @@ md_atof (what_statement_type, literalP, 
+     };
+ 
+   *sizeP = number_of_chars;
+-  return kind_of_float ? 0 : _("Bad call to md_atof()");
++  return kind_of_float ? (char *)0 : _("Bad call to md_atof()");
+ }
+ 
+ /* end of atof-vax.c */
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/config/obj-coff.c //D/home/donn.intel/be.build/gas/config/obj-coff.c
+--- //Q/Gnusrc/cygwin.0414/gas/config/obj-coff.c	Wed Apr 14 02:10:40 1999
++++ //D/home/donn.intel/be.build/gas/config/obj-coff.c	Wed Apr 14 21:31:38 1999
+@@ -220,7 +220,7 @@ obj_coff_weak (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
+-#ifdef BFD_ASSEMBLER
++#ifdef BFD_ASSEMBLER /* [ */
+ 
+ static void SA_SET_SYM_TAGNDX PARAMS ((symbolS *, symbolS *));
+ 
+@@ -272,7 +272,7 @@ static int
+ S_GET_DATA_TYPE (sym)
+      symbolS *sym;
+ {
+-  return coffsymbol (sym->bsym)->native->u.syment.n_type;
++  return coffsymbol (sym->bsym)->native[0].u.syment.n_type;
+ }
+ 
+ int
+@@ -280,7 +280,7 @@ S_SET_DATA_TYPE (sym, val)
+      symbolS *sym;
+      int val;
+ {
+-  coffsymbol (sym->bsym)->native->u.syment.n_type = val;
++  coffsymbol (sym->bsym)->native[0].u.syment.n_type = val;
+   return val;
+ }
+ 
+@@ -288,7 +288,7 @@ int
+ S_GET_STORAGE_CLASS (sym)
+      symbolS *sym;
+ {
+-  return coffsymbol (sym->bsym)->native->u.syment.n_sclass;
++  return coffsymbol (sym->bsym)->native[0].u.syment.n_sclass;
+ }
+ 
+ int
+@@ -296,7 +296,7 @@ S_SET_STORAGE_CLASS (sym, val)
+      symbolS *sym;
+      int val;
+ {
+-  coffsymbol (sym->bsym)->native->u.syment.n_sclass = val;
++  coffsymbol (sym->bsym)->native[0].u.syment.n_sclass = val;
+   return val;
+ }
+ 
+@@ -333,13 +333,14 @@ c_dot_file_symbol (filename)
+      char *filename;
+ {
+   symbolS *symbolP;
+-
++  /* bfd converts filename to a .file + aux entry; it also
++     handles chaining */
+   symbolP = symbol_new (filename, bfd_abs_section_ptr, 0, &zero_address_frag);
+ 
+   S_SET_STORAGE_CLASS (symbolP, C_FILE);
+   S_SET_NUMBER_AUXILIARY (symbolP, 1);
+ 
+-  symbolP->bsym->flags = BSF_DEBUGGING;
++  SF_SET_DEBUG (symbolP);
+ 
+ #ifndef NO_LISTING
+   {
+@@ -420,6 +421,12 @@ add_lineno (frag, offset, num)
+     {
+       abort ();
+     }
++  if (num <= 0) 
++    {
++      /* allowing zero (because it's used as an end marker) wreaks
++	 havoc later */
++      as_fatal(_("Line numbers must be positive integers\n"));
++    }
+   new_line->next = line_nos;
+   new_line->frag = frag;
+   new_line->l.line_number = num;
+@@ -441,6 +448,7 @@ coff_add_linesym (sym)
+   current_lineno_sym = sym;
+ }
+ 
++static void obj_coff_ln PARAMS((int));
+ static void
+ obj_coff_ln (appline)
+      int appline;
+@@ -479,6 +487,68 @@ obj_coff_ln (appline)
+   demand_empty_rest_of_line ();
+ }
+ 
++/* .loc is essentially the same as .ln; parse it for assembler
++   compatibility */
++
++static void obj_coff_loc PARAMS((int));
++void
++obj_coff_loc (ignore)
++     int ignore;
++{
++  int lineno;
++
++  if (now_seg != text_section)
++    {
++      as_warn (_(".loc outside of .text"));
++      demand_empty_rest_of_line ();
++      return;
++    }
++
++  if (def_symbol_in_progress != NULL)
++    {
++      as_warn (_(".loc pseudo-op inside .def/.endef: ignored."));
++      demand_empty_rest_of_line ();
++      return;
++    }
++
++  /* Skip the file number.  */
++  SKIP_WHITESPACE ();
++  get_absolute_expression ();
++  SKIP_WHITESPACE ();
++
++  lineno = get_absolute_expression ();
++
++#ifndef NO_LISTING
++  {
++    extern int listing;
++
++    if (listing)
++      {
++        lineno += coff_line_base - 1;
++	listing_source_line (lineno);
++      }
++  }
++#endif
++
++#if 0
++  /* If we're building stabs, then output a special label rather than
++     COFF line number info.  */
++  if (stabs_seen)
++    {
++      (void) add_ecoff_symbol ((char *) NULL, st_Label, sc_Text,
++			       symbol_new ("L0\001", now_seg,
++					   (valueT) frag_now_fix (),
++					   frag_now),
++			       (bfd_vma) 0, 0, lineno);
++      return;
++    }
++#endif
++  demand_empty_rest_of_line ();  /* this seems reasonable, but... */
++
++  add_lineno (frag_now, frag_now_fix (), lineno);
++
++}
++
+ /*
+  *			def()
+  *
+@@ -498,6 +568,7 @@ obj_coff_ln (appline)
+ 				       *input_line_pointer == '\t') \
+     input_line_pointer++;
+ 
++static void obj_coff_def PARAMS((int));
+ static void
+ obj_coff_def (what)
+      int what;
+@@ -545,6 +616,7 @@ obj_coff_def (what)
+ 
+ unsigned int dim_index;
+ 
++static void obj_coff_endef PARAMS((int));
+ static void
+ obj_coff_endef (ignore)
+      int ignore;
+@@ -586,15 +658,31 @@ obj_coff_endef (ignore)
+ 	S_SET_SEGMENT (def_symbol_in_progress, text_section);
+ 
+ 	name = bfd_asymbol_name (def_symbol_in_progress->bsym);
+-	if (name[1] == 'b' && name[2] == 'f')
+-	  {
++	if (name[0] == '.' && name[2] == 'f' && name[3] == '\0')
++  	  {
++	  switch (name[1])
++	    {
++	  case 'b':  
++	    /* .bf */
+ 	    if (! in_function ())
+ 	      as_warn (_("`%s' symbol without preceding function"), name);
+ /*	    SA_SET_SYM_LNNO (def_symbol_in_progress, 12345);*/
+ 	    /* Will need relocating */
+ 	    SF_SET_PROCESS (def_symbol_in_progress);
+ 	    clear_function ();
+-	  }
++	    break;
++#ifdef TE_PE
++	  case 'e':  
++	    /* .ef */
++	    /* The MS compilers output the actual endline, not the function-
++	       relative one... we want to match without changing
++	       the assembler input */
++	       SA_SET_SYM_LNNO (def_symbol_in_progress, 
++	       SA_GET_SYM_LNNO(def_symbol_in_progress) + coff_line_base);
++	    break;
++#endif
++	    }
++	 }
+       }
+       break;
+ 
+@@ -638,7 +726,10 @@ obj_coff_endef (ignore)
+ 
+   /* Now that we have built a debug symbol, try to find if we should
+      merge with an existing symbol or not.  If a symbol is C_EFCN or
+-     SEG_ABSOLUTE or untagged SEG_DEBUG it never merges. */
++     absolute_section or untagged SEG_DEBUG it never merges.  We also
++     don't merge labels, which are in a different namespace, nor
++     symbols which have not yet been defined since they are typically
++     unique, nor do we merge tags with non-tags.  */
+ 
+   /* Two cases for functions.  Either debug followed by definition or
+      definition followed by debug.  For definition first, we will
+@@ -653,16 +744,24 @@ obj_coff_endef (ignore)
+      time. */
+ 
+   if (S_GET_STORAGE_CLASS (def_symbol_in_progress) == C_EFCN
++      || S_GET_STORAGE_CLASS (def_symbol_in_progress) == C_LABEL
+       || (!strcmp (bfd_get_section_name (stdoutput,
+-					 S_GET_SEGMENT (def_symbol_in_progress)),
++			 S_GET_SEGMENT (def_symbol_in_progress)),
+ 		   "*DEBUG*")
+ 	  && !SF_GET_TAG (def_symbol_in_progress))
+       || S_GET_SEGMENT (def_symbol_in_progress) == absolute_section
+-      || (symbolP = symbol_find_base (S_GET_NAME (def_symbol_in_progress), DO_NOT_STRIP)) == NULL)
++      || def_symbol_in_progress->sy_value.X_op != O_constant
++      || (symbolP = symbol_find_base (S_GET_NAME (def_symbol_in_progress),
++                                      DO_NOT_STRIP)) == NULL
++      || (SF_GET_TAG (def_symbol_in_progress) != SF_GET_TAG (symbolP)))
+     {
++      /* If it already is at the end of the symbol list, do nothing */
+       if (def_symbol_in_progress != symbol_lastP)
+-	symbol_append (def_symbol_in_progress, symbol_lastP, &symbol_rootP,
+-		       &symbol_lastP);
++        {
++	  symbol_remove (def_symbol_in_progress, &symbol_rootP, &symbol_lastP);
++	  symbol_append (def_symbol_in_progress, symbol_lastP, &symbol_rootP,
++  		       &symbol_lastP);
++        }
+     }
+   else
+     {
+@@ -725,6 +824,7 @@ obj_coff_endef (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_dim PARAMS((int));
+ static void
+ obj_coff_dim (ignore)
+      int ignore;
+@@ -765,6 +865,7 @@ obj_coff_dim (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_line PARAMS((int));
+ static void
+ obj_coff_line (ignore)
+      int ignore;
+@@ -783,7 +884,7 @@ obj_coff_line (ignore)
+     coff_line_base = this_base;
+ 
+   S_SET_NUMBER_AUXILIARY (def_symbol_in_progress, 1);
+-  SA_SET_SYM_LNNO (def_symbol_in_progress, coff_line_base);
++  SA_SET_SYM_LNNO (def_symbol_in_progress, this_base);
+ 
+   demand_empty_rest_of_line ();
+ 
+@@ -793,11 +894,12 @@ obj_coff_line (ignore)
+       extern int listing;
+ 
+       if (listing)
+-	listing_source_line ((unsigned int) coff_line_base);
++	listing_source_line ((unsigned int) this_base);
+     }
+ #endif
+ }
+ 
++static void obj_coff_size PARAMS((int));
+ static void
+ obj_coff_size (ignore)
+      int ignore;
+@@ -814,6 +916,7 @@ obj_coff_size (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_scl PARAMS((int));
+ static void
+ obj_coff_scl (ignore)
+      int ignore;
+@@ -829,6 +932,7 @@ obj_coff_scl (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_tag PARAMS((int));
+ static void
+ obj_coff_tag (ignore)
+      int ignore;
+@@ -888,6 +992,7 @@ obj_coff_type (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_val PARAMS((int));
+ static void
+ obj_coff_val (ignore)
+      int ignore;
+@@ -925,8 +1030,15 @@ obj_coff_val (ignore)
+ 	     resolved, then copy the segment id from the forward
+ 	     symbol.  */
+ 	  SF_SET_GET_SEGMENT (def_symbol_in_progress);
++          /* FIXME: gcc can generate address expressions
++             here in unusual cases (search for "obscure"
++             in sdbout.c).  We just ignore the offset
++             here, thus generating incorrect debugging
++             information.  We ignore the rest of the
++             line just below.  */
+ 	}
+-      /* Otherwise, it is the name of a non debug symbol and its value will be calculated later. */
++      /* Otherwise, it is the name of a non debug symbol and 
++	 its value will be calculated later. */
+       *input_line_pointer = name_end;
+     }
+   else
+@@ -937,6 +1049,7 @@ obj_coff_val (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++void coff_obj_read_begin_hook PARAMS((void));
+ void
+ coff_obj_read_begin_hook ()
+ {
+@@ -1034,7 +1147,7 @@ coff_frob_symbol (symp, punt)
+ 	      coff_last_function = symp;
+ 	      if (S_GET_NUMBER_AUXILIARY (symp) < 1)
+ 		S_SET_NUMBER_AUXILIARY (symp, 1);
+-	      auxp = &coffsymbol (symp->bsym)->native[1].u.auxent;
++	      auxp = SYM_AUXENT(symp);
+ 	      memset (auxp->x_sym.x_fcnary.x_ary.x_dimen, 0,
+ 		      sizeof (auxp->x_sym.x_fcnary.x_ary.x_dimen));
+ 	    }
+@@ -1126,6 +1239,16 @@ coff_frob_symbol (symp, punt)
+ 	  lptr = lptr->next;
+ 	}
+     }
++    
++#ifdef TE_PE
++    /* Double check weak symbols.  */
++    if (symp->bsym->flags & BSF_WEAK)
++      {
++	if (S_IS_COMMON (symp))
++	  as_bad (_("Symbol `%s' can not be both weak and common"),
++		  S_GET_NAME (symp));
++      }
++#endif
+ }
+ 
+ void
+@@ -1166,10 +1289,13 @@ coff_adjust_section_syms (abfd, sec, x)
+       && sec != bss_section)
+     return;
+   secsym = section_symbol (sec);
++  /* This is an estimate; we'll plug in the real value using 
++     SET_SECTION_RELOC_COUNT later */
+   SA_SET_SCN_NRELOC (secsym, nrelocs);
+   SA_SET_SCN_NLINNO (secsym, nlnno);
+ }
+ 
++void coff_frob_file_after_relocs PARAMS((void));
+ void
+ coff_frob_file_after_relocs ()
+ {
+@@ -1193,6 +1319,7 @@ coff_frob_file_after_relocs ()
+  * subsegment number.
+  */
+ 
++void obj_coff_section PARAMS((int));
+ void
+ obj_coff_section (ignore)
+      int ignore;
+@@ -1224,7 +1351,7 @@ obj_coff_section (ignore)
+   SKIP_WHITESPACE ();
+ 
+   exp = 0;
+-  flags = SEC_NO_FLAGS;
++  flags = SEC_READ | SEC_LOAD;
+ 
+   if (*input_line_pointer == ',')
+     {
+@@ -1235,6 +1362,7 @@ obj_coff_section (ignore)
+       else
+ 	{
+ 	  ++input_line_pointer;
++	  flags = SEC_READ | SEC_LOAD;
+ 	  while (*input_line_pointer != '"'
+ 		 && ! is_end_of_line[(unsigned char) *input_line_pointer])
+ 	    {
+@@ -1242,11 +1370,15 @@ obj_coff_section (ignore)
+ 		{
+ 		case 'b': flags |= SEC_ALLOC; flags &=~ SEC_LOAD; break;
+ 		case 'n': flags &=~ SEC_LOAD; break;
+-		case 'd':
+-		case 'w': flags &=~ SEC_READONLY; break;
+-		case 'x': flags |= SEC_CODE; break;
+-		case 'r': flags |= SEC_READONLY; break;
+-
++		case 'd': flags |= SEC_DATA;
++			  flags |= SEC_LOAD; /* drop thru */
++		case 'w': flags &=~ SEC_READONLY;
++			  flags |= SEC_WRITE; break;
++		case 'x': flags |= SEC_CODE; 
++			  flags |= SEC_LOAD;
++			  flags |= SEC_EXEC; break;
++		case 'r': flags |= SEC_READONLY;
++			  flags &= ~ SEC_WRITE; break;
+ 		case 'i': /* STYP_INFO */
+ 		case 'l': /* STYP_LIB */
+ 		case 'o': /* STYP_OVER */
+@@ -1285,6 +1417,25 @@ obj_coff_section (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_ident PARAMS ((int));
++static void
++obj_coff_ident (ignore)
++     int ignore;
++{
++  asection *sec;
++
++  segT current_seg = now_seg;		/* save current seg	*/
++  subsegT current_subseg = now_subseg;
++  /* we could put it in .comment, but that creates an extra section
++     that shouldn't be loaded into memory, which requires linker changes...
++     For now, until proven otherwise, use .rdata */
++  sec = subseg_new (".rdata$zzz", 0);
++  bfd_set_section_flags (stdoutput, sec, 
++	 (SEC_READ|SEC_ALLOC|SEC_LOAD|SEC_READONLY|SEC_DATA) & bfd_applicable_section_flags (stdoutput));
++  stringer (1);				/* read string		*/
++  subseg_set (current_seg, current_subseg);	/* restore current seg	*/
++}
++
+ void
+ coff_adjust_symtab ()
+ {
+@@ -1407,7 +1558,7 @@ symbol_dump ()
+ 
+ #endif /* DEBUG */
+ 
+-#else /* not BFD_ASSEMBLER */
++#else /* ][ not BFD_ASSEMBLER */
+ 
+ #include "frags.h"
+ /* This is needed because we include internal bfd things. */
+@@ -2156,6 +2307,7 @@ obj_coff_ln (appline)
+ 				      *input_line_pointer == '\t') \
+                                          input_line_pointer++;
+ 
++static void obj_coff_def PARAMS((int));
+ static void
+ obj_coff_def (what)
+      int what;
+@@ -2546,6 +2698,7 @@ obj_coff_tag (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_type PARAMS((int));
+ static void
+ obj_coff_type (ignore)
+      int ignore;
+@@ -2651,7 +2804,7 @@ obj_coff_pe_handle_link_once (type)
+ #endif /* TE_PE */
+ 
+ void
+-coff_obj_read_begin_hook ()
++coff_obj_read_begin_hook PARAMS((void))
+ {
+   /* These had better be the same.  Usually 18 bytes. */
+ #ifndef BFD_HEADERS
+@@ -4381,7 +4534,7 @@ adjust_stab_section(abfd, seg)
+   bfd_h_put_32 (abfd, (bfd_vma) strsz, (bfd_byte *) p + 8);
+ }
+ 
+-#endif /* not BFD_ASSEMBLER */
++#endif /* not BFD_ASSEMBLER ] */
+ 
+ const pseudo_typeS obj_pseudo_table[] =
+ {
+@@ -4390,6 +4543,9 @@ const pseudo_typeS obj_pseudo_table[] =
+   {"endef", obj_coff_endef, 0},
+   {"line", obj_coff_line, 0},
+   {"ln", obj_coff_ln, 0},
++#ifdef OBJ_COFF
++  {"loc", obj_coff_loc, 0},
++#endif
+   {"appline", obj_coff_ln, 1},
+   {"scl", obj_coff_scl, 0},
+   {"size", obj_coff_size, 0},
+@@ -4413,7 +4569,7 @@ const pseudo_typeS obj_pseudo_table[] =
+   {"ident", obj_coff_ident, 0},
+ #else
+   {"optim", s_ignore, 0},	/* For sun386i cc (?) */
+-  {"ident", s_ignore, 0},	/* we don't yet handle this. */
++  {"ident", obj_coff_ident, 0},
+ #endif
+   {"version", s_ignore, 0},
+   {"ABORT", s_abort, 0},
+@@ -4428,12 +4584,14 @@ const pseudo_typeS obj_pseudo_table[] =
+ 
+ /* Support for a COFF emulation.  */
+ 
++static void coff_pop_insert PARAMS((void));
+ static void
+-coff_pop_insert ()
++coff_pop_insert PARAMS((void))
+ {
+   pop_insert (obj_pseudo_table);
+ }
+ 
++static int coff_sec_sym_ok_for_reloc PARAMS((asection*));
+ static int
+ coff_sec_sym_ok_for_reloc (sec)
+      asection *sec;
+@@ -4441,8 +4599,9 @@ coff_sec_sym_ok_for_reloc (sec)
+   return 0;
+ }
+ 
++static void no_func PARAMS((void));
+ static void
+-no_func ()
++no_func PARAMS((void))
+ {
+   abort ();
+ }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/config/obj-coff.h //D/home/donn.intel/be.build/gas/config/obj-coff.h
+--- //Q/Gnusrc/cygwin.0414/gas/config/obj-coff.h	Wed Apr 14 02:10:40 1999
++++ //D/home/donn.intel/be.build/gas/config/obj-coff.h	Wed Apr 14 21:31:38 1999
+@@ -838,4 +838,20 @@ extern void obj_coff_pe_handle_link_once
+ extern void obj_coff_init_stab_section PARAMS ((segT));
+ #define INIT_STAB_SECTION(seg) obj_coff_init_stab_section (seg)
+ 
++/* we'd plugged in an estimate of the reloction count into the symbol
++   table before.  Now we'll plug in an exact value, as well as doing
++   what write.c needs to have done with the final exact value. */
++
++#define SET_SECTION_RELOC_COUNT(stdoutput, abfd, sec, relocs, n) \
++{ symbolS *secsym;						\
++  secsym = section_symbol (sec);				\
++  SA_SET_SCN_NRELOC (secsym, n);				\
++  if (n) 							\
++    bfd_set_reloc (stdoutput, sec, relocs, n);			\
++  else								\
++    bfd_set_section_flags (abfd, sec,				\
++			   (bfd_get_section_flags (abfd, sec)	\
++			    & (flagword) ~SEC_RELOC));		\
++}
++
+ #endif /* OBJ_FORMAT_H */
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/config/tc-i386.c //D/home/donn.intel/be.build/gas/config/tc-i386.c
+--- //Q/Gnusrc/cygwin.0414/gas/config/tc-i386.c	Wed Apr 14 02:10:47 1999
++++ //D/home/donn.intel/be.build/gas/config/tc-i386.c	Wed Apr 14 22:07:36 1999
+@@ -932,6 +932,7 @@ tc_i386_fix_adjustable(fixP)
+   if (fixP->fx_r_type == BFD_RELOC_386_GOTOFF
+       || fixP->fx_r_type == BFD_RELOC_386_PLT32
+       || fixP->fx_r_type == BFD_RELOC_386_GOT32
++      || fixP->fx_r_type == BFD_RELOC_RVA
+       || fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
+       || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
+     return 0;
+@@ -2478,7 +2479,8 @@ md_assemble (line)
+ 					== O_subtract))))
+ 			  {
+ 			    r_type = BFD_RELOC_386_GOTPC;
+-			    i.imms[n]->X_add_number += 3;
++			    i.imms[n]->X_add_number += insn_size;
++			    pcrel = true; // benign
+ 			  }
+ #endif
+ 			fix_new_exp (frag_now, p - frag_now->fr_literal, size,
+@@ -2522,6 +2524,8 @@ i386_is_reg (reg_string)
+     return 1;
+ }
+  
++enum bfd_reloc_code_real special_reloc;
++
+ static int i386_immediate PARAMS ((char *));
+ 
+ static int
+@@ -2547,60 +2551,9 @@ i386_immediate (imm_start)
+   save_input_line_pointer = input_line_pointer;
+   input_line_pointer = imm_start;
+ 
+-#ifndef LEX_AT
+-    {
+-      /*
+-       * We can have operands of the form
+-       *   <symbol>@GOTOFF+<nnn>
+-       * Take the easy way out here and copy everything
+-       * into a temporary buffer...
+-       */
+-      register char *cp;
+-
+-      cp = strchr (input_line_pointer, '@');
+-      if (cp != NULL)
+-        {
+-	  char *tmpbuf;
+-	  int len, first;
+-
+-	  /* GOT relocations are not supported in 16 bit mode */
+-	  if (flag_16bit_code)
+-	    as_bad (_("GOT relocations not supported in 16 bit mode"));
+-
+-	  if (GOT_symbol == NULL)
+-	    GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+-
+-	  if (strncmp (cp + 1, "PLT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
+-	      len = 3;
+-	    }
+-	  else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
+-	      len = 6;
+-	    }
+-	  else if (strncmp (cp + 1, "GOT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
+-	      len = 3;
+-	    }
+-	  else
+-	    as_bad (_("Bad reloc specifier in expression"));
+-
+-	  /* Replace the relocation token with ' ', so that errors like
+-	     foo@GOTOFF1 will be detected.  */
+-	  first = cp - input_line_pointer;
+-	  tmpbuf = (char *) alloca (strlen(input_line_pointer));
+-	  memcpy (tmpbuf, input_line_pointer, first);
+-	  tmpbuf[first] = ' ';
+-	  strcpy (tmpbuf + first + 1, cp + 1 + len);
+-	  input_line_pointer = tmpbuf;
+-	}
+-    }
+-#endif
+-
++  special_reloc = NO_RELOC;
+   exp_seg = expression (exp);
++  i.disp_reloc[this_operand] = special_reloc;
+ 
+   if (*input_line_pointer)
+     as_bad (_("Ignoring junk `%s' after expression"), input_line_pointer);
+@@ -2725,7 +2678,6 @@ i386_displacement (disp_start, disp_end)
+ 
+   exp = &disp_expressions[i.disp_operands];
+   i.disps[this_operand] = exp;
+-  i.disp_reloc[this_operand] = NO_RELOC;
+   i.disp_operands++;
+   save_input_line_pointer = input_line_pointer;
+   input_line_pointer = disp_start;
+@@ -2776,60 +2728,10 @@ i386_displacement (disp_start, disp_end)
+     *displacement_string_end = '0';
+     }
+ #endif
+-#ifndef LEX_AT
+-    {
+-      /*
+-       * We can have operands of the form
+-       *   <symbol>@GOTOFF+<nnn>
+-       * Take the easy way out here and copy everything
+-       * into a temporary buffer...
+-       */
+-      register char *cp;
+-
+-      cp = strchr (input_line_pointer, '@');
+-      if (cp != NULL)
+-        {
+-	  char *tmpbuf;
+-	  int len, first;
+-
+-	 /* GOT relocations are not supported in 16 bit mode */
+-	 if (flag_16bit_code)
+-	   as_bad (_("GOT relocations not supported in 16 bit mode"));
+-
+-	  if (GOT_symbol == NULL)
+-	    GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+-
+-	  if (strncmp (cp + 1, "PLT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
+-	      len = 3;
+-	    }
+-	  else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
+-	      len = 6;
+-	    }
+-	  else if (strncmp (cp + 1, "GOT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
+-	      len = 3;
+-	    }
+-	  else
+-	    as_bad (_("Bad reloc specifier in expression"));
+-
+-	  /* Replace the relocation token with ' ', so that errors like
+-	     foo@GOTOFF1 will be detected.  */
+-	  first = cp - input_line_pointer;
+-	  tmpbuf = (char *) alloca (strlen(input_line_pointer));
+-	  memcpy (tmpbuf, input_line_pointer, first);
+-	  tmpbuf[first] = ' ';
+-	  strcpy (tmpbuf + first + 1, cp + 1 + len);
+-	  input_line_pointer = tmpbuf;
+-	}
+-    }
+-#endif
+ 
++    special_reloc = NO_RELOC;
+     exp_seg = expression (exp);
++    i.disp_reloc[this_operand] = special_reloc;
+ 
+ #ifdef BFD_ASSEMBLER
+     /* We do this to make sure that the section symbol is in
+@@ -3355,6 +3257,64 @@ i386_intel_operand (operand_string, got_
+   return 1;
+ }
+ 
++#ifdef LEX_AT
++/*
++ * We can have a name of the form
++ *   <symbol>@GOTOFF
++ * Strip off the @GOTOFF (or whatever) and set a global giving the
++ * relocation type.  This is called from within expr(), and we
++ * don't have access to the per-operand relocations there, so we use
++ * (yetch) a global to pass it back.  (If expr() is ever rewritten...)
++ *
++ * Note: @ can be an ordinary identifier character; only if the name is
++ * suffixed by EXACTLY one of the reserved operators do we recognize
++ * it.  In any other case, it's just passed thru like an ordinary 
++ * identifier.
++ */
++
++int
++i386_parse_name (name, expressionP)
++  char *name;
++  expressionS *expressionP;
++{
++    register char *cp;
++
++    if ((cp = strrchr (name,'@')) == NULL)
++       return 0;
++
++    if (strcmp(cp+1, "PLT") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_PLT32;
++      } 
++    else if (strcmp(cp+1, "GOTOFF") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_GOTOFF;
++      }
++    else if (strcmp(cp+1, "GOT") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_GOT32;
++      } 
++    else if (strcmp(cp+1, "IMAGEBASE") == 0) 
++      {
++	special_reloc = BFD_RELOC_RVA;
++      } 
++    else
++      return 0;
++
++    /* GOT relocations are not supported in 16 bit mode */
++    if (flag_16bit_code)
++      as_bad (_("GOT relocations not supported in 16 bit mode"));
++
++    if(special_reloc != BFD_RELOC_RVA && !GOT_symbol)
++      GOT_symbol = symbol_find_or_make(GLOBAL_OFFSET_TABLE_NAME);
++
++    *cp = '\0';
++
++    return 0;
++}
++#endif
++ 
++
+ /* Parse OPERAND_STRING into the i386_insn structure I.  Returns non-zero
+    on error. */
+ 
+@@ -3689,6 +3649,58 @@ i386_operand (operand_string)
+     }
+   return 1;			/* normal return */
+ }
++
++void
++i386_parse_cons_expression (exp)
++     expressionS *exp;
++{
++  /* All we do different here from the normal is initialize special_reloc,
++     so we can pick it up below in i386_cons_fix_new. */
++  special_reloc = NO_RELOC;
++  expression(exp);
++}
++
++void
++i386_cons_fix_new (frag, where, size, exp)
++     fragS *frag;
++     int where;
++     int size;
++     expressionS *exp;
++{
++  unsigned int rel_type;
++
++  bfd_reloc_code_real_type r;
++
++  /* now that we know that special_reloc is properly initialized, we check
++     it; if it got set we have a foo@PLT type relocation.  Else, just like
++     the generic stuff (BFD style) */
++  if (special_reloc != NO_RELOC)
++    {
++       r = special_reloc;
++       if (size != 4)
++          as_bad (_("unsupported PIC BFD relocation size %u"), size);
++    }
++  else switch (size)
++    {
++    case 1:
++      r = BFD_RELOC_8;
++      break;
++    case 2:
++      r = BFD_RELOC_16;
++      break;
++    case 4:
++      r = BFD_RELOC_32;
++      break;
++    case 8:
++      r = BFD_RELOC_64;
++      break;
++    default:
++      as_bad (_("unsupported BFD relocation size %u"), size);
++      r = BFD_RELOC_32;
++      break;
++    }
++  fix_new_exp (frag, where, size, exp, 0, r);
++}
+ 
+ /*
+  *			md_estimate_size_before_relax()
+@@ -3918,12 +3930,20 @@ md_apply_fix3 (fixP, valp, seg)
+   if (fixP->fx_r_type == BFD_RELOC_32 && fixP->fx_pcrel)
+      fixP->fx_r_type = BFD_RELOC_32_PCREL;
+ 
+-#if defined (BFD_ASSEMBLER) && !defined (TE_Mach)
++#if defined (BFD_ASSEMBLER) && !defined (TE_Mach) && !defined(PUSHMI_PULLU)
+   /*
+    * This is a hack.  There should be a better way to
+-   * handle this.
++   * handle this.  This covers for the fact that bfd_install_reloc
++   * will subtract the current location; see more below.
++   * The last clause is in case it'll be transformed to a GOTPC later.
++   * This is another "pushme-pullyou bandaid.
+    */
+-  if (fixP->fx_r_type == BFD_RELOC_32_PCREL && fixP->fx_addsy)
++  if ((fixP->fx_r_type == BFD_RELOC_32_PCREL
++        || fixP->fx_r_type == BFD_RELOC_386_GOTPC
++        || fixP->fx_r_type == BFD_RELOC_386_PLT32
++	|| (fixP->fx_r_type == BFD_RELOC_32
++	    && GOT_symbol && fixP->fx_addsy == GOT_symbol)
++    ) && fixP->fx_addsy)
+     {
+ #ifndef OBJ_AOUT
+       if (OUTPUT_FLAVOR == bfd_target_elf_flavour
+@@ -3946,6 +3966,10 @@ md_apply_fix3 (fixP, valp, seg)
+ 	     bfd_perform_relocation subtracts them out again.  I think
+ 	     bfd_perform_relocation is broken, but I don't dare change
+ 	     it.  FIXME.  */
++	  /* I think this is fixed now with a change to
++           * bfd:coff_i386_reloc that looks safe.  See also
++	   * the "ugly" change to tc_gen_reloc below.
++	   */
+ 	  value += fixP->fx_where + fixP->fx_frag->fr_address;
+ 	}
+ #endif
+@@ -4056,7 +4080,7 @@ md_chars_to_number (con, nbytes)
+    is stored in *sizeP .  An error message is returned, or NULL on OK.  */
+ char *
+ md_atof (type, litP, sizeP)
+-     char type;
++     int type;
+      char *litP;
+      int *sizeP;
+ {
+@@ -4086,7 +4110,7 @@ md_atof (type, litP, sizeP)
+       *sizeP = 0;
+       return _("Bad call to md_atof ()");
+     }
+-  t = atof_ieee (input_line_pointer, type, words);
++  t = atof_ieee (input_line_pointer, (char)type, words);
+   if (t)
+     input_line_pointer = t;
+ 
+@@ -4246,7 +4270,11 @@ symbolS *
+ md_undefined_symbol (name)
+      char *name;
+ {
+-	if (*name == '_' && *(name+1) == 'G'
++	/* slightly strange coding, but this makes changing the string
++	   constant work right. */
++	if (name[0] == GLOBAL_OFFSET_TABLE_NAME[0]
++	 && name[1] == GLOBAL_OFFSET_TABLE_NAME[1]
++	 && name[2] == GLOBAL_OFFSET_TABLE_NAME[2]
+ 	    && strcmp(name, GLOBAL_OFFSET_TABLE_NAME) == 0)
+ 	  {
+ 	    if (!GOT_symbol)
+@@ -4399,6 +4427,20 @@ tc_gen_reloc (section, fixp)
+       assert (rel->howto != NULL);
+     }
+ 
++ #ifndef PUSHMI_PULLU
++  /*
++   * Ohhh, this is ugly.  The problem is that if this is a local global
++   * symbol, the relocation will entirely be performed at link time, not
++   * at assembly time.  bfd_install_reloc doesn't know about this sort
++   * of thing, and as a result we need to fake it out here.
++   *
++   * Note that if you change this as part of cleaning up the apalling
++   * mess of complementary adds/subtracts of which this is part, that
++   * bfd:coff_i386_reloc may need attention too.
++   */
++  if (S_IS_EXTERN (fixp->fx_addsy) && !S_IS_COMMON(fixp->fx_addsy))
++    rel->addend -= fixp->fx_addsy->bsym->value;
++ #endif
+   return rel;
+ }
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/config/tc-i386.h //D/home/donn.intel/be.build/gas/config/tc-i386.h
+--- //Q/Gnusrc/cygwin.0414/gas/config/tc-i386.h	Wed Apr 14 02:10:47 1999
++++ //D/home/donn.intel/be.build/gas/config/tc-i386.h	Wed Apr 14 21:31:38 1999
+@@ -105,6 +105,29 @@ extern const char *i386_target_format PA
+ #endif
+ #endif
+ 
++#define GLOBAL_OFFSET_TABLE_NAME "__GLOBAL_OFFSET_TABLE_"
++
++#ifdef LEX_AT
++/* Parse names from inside expr; allows @ to be an ordinary character
++   except in very narrow contexts. */
++#define md_parse_name(n, e) i386_parse_name(n,e)
++extern int i386_parse_name PARAMS((char *, expressionS *));
++
++/* The above has the mostly desireable side-effect of allowing @PLT (etc.)
++   in immediate constants and in .long (et al.).  However, the relocations 
++   won't work right for .long unless we also grab it here (in a fairly trivial 
++   fashion, but ...).  Mostly this prevents mysterious bugs, as the
++   compiler currently doesn't use such constructs (but it certainly
++   could to avoid that awfulness with __GOT__-[Lnn-.] ) */
++#define TC_PARSE_CONS_EXPRESSION(e,n) i386_parse_cons_expression(e,n)
++extern void i386_cons_expression PARAMS((expressionS *, int));
++
++/* And to hook the relocation back into everything right */
++#define TC_CONS_FIX_NEW i386_cons_fix_new
++extern void i386_cons_fix_new PARAMS((fragS *, int, int, expressionS *));
++
++#endif /* LEX_AT */
++
+ #else /* ! BFD_ASSEMBLER */
+ 
+ /* COFF STUFF */
+@@ -423,7 +446,6 @@ extern const struct relax_type md_relax_
+ #define TC_GENERIC_RELAX_TABLE md_relax_table
+ 
+ 
+-extern int flag_16bit_code;
+ 
+ #ifdef BFD_ASSEMBLER
+ #define md_maybe_text() \
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/config/te-interix.h //D/home/donn.intel/be.build/gas/config/te-interix.h
+--- //Q/Gnusrc/cygwin.0414/gas/config/te-interix.h	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/config/te-interix.h	Wed Apr 14 21:31:38 1999
+@@ -0,0 +1,14 @@
++#define TE_INTERIX
++#define TE_PE
++#define LEX_AT 1 /* can have @'s inside labels */
++#define LEX_QM 3 /* can have ?'s in or begin labels */
++
++/* The PE format supports long section names.  */
++#define COFF_LONG_SECTION_NAMES
++
++/* Both architectures use these */
++#ifndef LOCAL_LABELS_FB
++#define LOCAL_LABELS_FB 1
++#endif
++
++#include "obj-format.h"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/configure.in //D/home/donn.intel/be.build/gas/configure.in
+--- //Q/Gnusrc/cygwin.0414/gas/configure.in	Wed Apr 14 02:26:47 1999
++++ //D/home/donn.intel/be.build/gas/configure.in	Wed Apr 14 21:31:38 1999
+@@ -199,6 +199,7 @@ changequote([,])dnl
+       i386-*-pe)            fmt=coff em=pe ;;
+       i386-*-cygwin*)       fmt=coff em=pe bfd_gas=yes ;;
+       i386-*-mingw32*)      fmt=coff em=pe bfd_gas=yes ;;
++      i386-*-interix)       fmt=coff em=pe bfd_gas=yes ;;
+       i386-*-*nt*)          fmt=coff em=pe ;;
+       i960-*-bout)          fmt=bout ;;
+       i960-*-coff)          fmt=coff em=ic960 ;;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/doc/Makefile.in //D/home/donn.intel/be.build/gas/doc/Makefile.in
+--- //Q/Gnusrc/cygwin.0414/gas/doc/Makefile.in	Wed Apr 14 02:10:55 1999
++++ //D/home/donn.intel/be.build/gas/doc/Makefile.in	Wed Apr 14 21:32:27 1999
+@@ -1,6 +1,6 @@
+-# Makefile.in generated automatically by automake 1.4 from Makefile.am
++# Makefile.in generated automatically by automake 1.3b from Makefile.am
+ 
+-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
++# Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
+ # This Makefile.in is free software; the Free Software Foundation
+ # gives unlimited permission to copy and/or distribute it,
+ # with or without modifications, as long as this notice is preserved.
+@@ -46,7 +46,7 @@ AUTOMAKE = @AUTOMAKE@
+ AUTOHEADER = @AUTOHEADER@
+ 
+ INSTALL = @INSTALL@
+-INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
++INSTALL_PROGRAM = @INSTALL_PROGRAM@
+ INSTALL_DATA = @INSTALL_DATA@
+ INSTALL_SCRIPT = @INSTALL_SCRIPT@
+ transform = @program_transform_name@
+@@ -111,7 +111,7 @@ te_file = @te_file@
+ AUTOMAKE_OPTIONS = cygnus
+ 
+ # What version of the manual you want; "all" includes everything
+-CONFIG = all
++CONFIG=all
+ 
+ man_MANS = as.1
+ 
+@@ -135,7 +135,6 @@ CPU_DOCS = \
+ 	c-v850.texi \
+ 	c-z8k.texi
+ 
+-
+ # This one isn't ready for prime time yet.  Not even a little bit.
+ 
+ noinst_TEXINFOS = internals.texi
+@@ -160,12 +159,13 @@ DIST_COMMON =  Makefile.am Makefile.in
+ 
+ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+ 
+-TAR = gtar
+-GZIP_ENV = --best
+-all: all-redirect
++TAR = tar
++GZIP = --best
++all: Makefile $(MANS)
++
+ .SUFFIXES:
+ .SUFFIXES: .dvi .info .ps .texi .texinfo .txi
+-$(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
++$(srcdir)/Makefile.in: @MAINT@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4)
+ 	cd $(top_srcdir) && $(AUTOMAKE) --cygnus doc/Makefile
+ 
+ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+@@ -188,7 +188,7 @@ DVIPS = dvips
+ 	$(MAKEINFO) -I $(srcdir) $<
+ 
+ .texi.dvi:
+-	TEXINPUTS=$(top_srcdir)/../texinfo/texinfo.tex:$$TEXINPUTS \
++	TEXINPUTS=$(top_srcdir)/../texinfo:$$TEXINPUTS \
+ 	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+ 
+ .texi:
+@@ -204,7 +204,7 @@ DVIPS = dvips
+ 	$(MAKEINFO) -I $(srcdir) $<
+ 
+ .texinfo.dvi:
+-	TEXINPUTS=$(top_srcdir)/../texinfo/texinfo.tex:$$TEXINPUTS \
++	TEXINPUTS=$(top_srcdir)/../texinfo:$$TEXINPUTS \
+ 	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+ 
+ .txi.info:
+@@ -212,7 +212,7 @@ DVIPS = dvips
+ 	$(MAKEINFO) -I $(srcdir) $<
+ 
+ .txi.dvi:
+-	TEXINPUTS=$(top_srcdir)/../texinfo/texinfo.tex:$$TEXINPUTS \
++	TEXINPUTS=$(top_srcdir)/../texinfo:$$TEXINPUTS \
+ 	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+ 
+ .txi:
+@@ -224,8 +224,7 @@ DVIPS = dvips
+ install-info-am: $(INFO_DEPS)
+ 	@$(NORMAL_INSTALL)
+ 	$(mkinstalldirs) $(DESTDIR)$(infodir)
+-	@list='$(INFO_DEPS)'; \
+-	for file in $$list; do \
++	@for file in $(INFO_DEPS); do \
+ 	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+ 	  for ifile in `cd $$d && echo $$file $$file-[0-9] $$file-[0-9][0-9]`; do \
+ 	    if test -f $$d/$$ifile; then \
+@@ -236,8 +235,7 @@ install-info-am: $(INFO_DEPS)
+ 	done
+ 	@$(POST_INSTALL)
+ 	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+-	  list='$(INFO_DEPS)'; \
+-	  for file in $$list; do \
++	  for file in $(INFO_DEPS); do \
+ 	    echo " install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file";\
+ 	    install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file || :;\
+ 	  done; \
+@@ -248,20 +246,17 @@ uninstall-info:
+ 	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+ 	  ii=yes; \
+ 	else ii=; fi; \
+-	list='$(INFO_DEPS)'; \
+-	for file in $$list; do \
++	for file in $(INFO_DEPS); do \
+ 	  test -z "$ii" \
+ 	    || install-info --info-dir=$(DESTDIR)$(infodir) --remove $$file; \
+ 	done
+ 	@$(NORMAL_UNINSTALL)
+-	list='$(INFO_DEPS)'; \
+-	for file in $$list; do \
++	for file in $(INFO_DEPS); do \
+ 	  (cd $(DESTDIR)$(infodir) && rm -f $$file $$file-[0-9] $$file-[0-9][0-9]); \
+ 	done
+ 
+ dist-info: $(INFO_DEPS)
+-	list='$(INFO_DEPS)'; \
+-	for base in $$list; do \
++	for base in $(INFO_DEPS); do \
+ 	  if test -f $$base; then d=.; else d=$(srcdir); fi; \
+ 	  for file in `cd $$d && eval echo $$base*`; do \
+ 	    test -f $(distdir)/$$file \
+@@ -340,40 +335,29 @@ subdir = doc
+ distdir: $(DISTFILES)
+ 	@for file in $(DISTFILES); do \
+ 	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+-	  if test -d $$d/$$file; then \
+-	    cp -pr $$/$$file $(distdir)/$$file; \
+-	  else \
+-	    test -f $(distdir)/$$file \
+-	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+-	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+-	  fi; \
++	  test -f $(distdir)/$$file \
++	  || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
++	  || cp -p $$d/$$file $(distdir)/$$file; \
+ 	done
+ 	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-info
+-info-am: $(INFO_DEPS)
+-info: info-am
+-dvi-am: $(DVIS)
+-dvi: dvi-am
+-check-am:
+-check: check-am
+-installcheck-am:
+-installcheck: installcheck-am
+-install-info-am: 
++info: $(INFO_DEPS)
++dvi: $(DVIS)
++check:
++installcheck:
+ install-info: install-info-am
+-install-exec-am:
+-install-exec: install-exec-am
++install-exec: 
++	@$(NORMAL_INSTALL)
+ 
+-install-data-am: install-man
+-install-data: install-data-am
++install-data: install-man
++	@$(NORMAL_INSTALL)
++
++install: install-exec install-data all
++	@:
++
++uninstall: uninstall-man
+ 
+-install-am: all-am
+-	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+-install: install-am
+-uninstall-am: uninstall-man
+-uninstall: uninstall-am
+-all-am: Makefile $(MANS)
+-all-redirect: all-am
+ install-strip:
+-	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
++	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
+ installdirs:
+ 	$(mkinstalldirs)  $(DESTDIR)$(mandir)/man1
+ 
+@@ -389,33 +373,24 @@ distclean-generic:
+ 
+ maintainer-clean-generic:
+ 	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+-mostlyclean-am:  mostlyclean-aminfo mostlyclean-generic
+-
+-mostlyclean: mostlyclean-am
+-
+-clean-am:  clean-aminfo clean-generic mostlyclean-am
++mostlyclean:  mostlyclean-aminfo mostlyclean-generic
+ 
+-clean: clean-am
++clean:  clean-aminfo clean-generic mostlyclean
+ 
+-distclean-am:  distclean-aminfo distclean-generic clean-am
++distclean:  distclean-aminfo distclean-generic clean
++	-rm -f config.status
+ 	-rm -f libtool
+ 
+-distclean: distclean-am
+-
+-maintainer-clean-am:  maintainer-clean-aminfo maintainer-clean-generic \
+-		distclean-am
++maintainer-clean:  maintainer-clean-aminfo maintainer-clean-generic \
++		distclean
+ 	@echo "This command is intended for maintainers to use;"
+ 	@echo "it deletes files that may require special tools to rebuild."
+ 
+-maintainer-clean: maintainer-clean-am
+-
+ .PHONY: install-info-am uninstall-info mostlyclean-aminfo \
+ distclean-aminfo clean-aminfo maintainer-clean-aminfo install-man1 \
+-uninstall-man1 install-man uninstall-man tags distdir info-am info \
+-dvi-am dvi check check-am installcheck-am installcheck install-info-am \
+-install-info install-exec-am install-exec install-data-am install-data \
+-install-am install uninstall-am uninstall all-redirect all-am all \
+-installdirs mostlyclean-generic distclean-generic clean-generic \
++uninstall-man1 install-man uninstall-man tags distdir info dvi \
++installcheck install-info install-exec install-data install uninstall \
++all installdirs mostlyclean-generic distclean-generic clean-generic \
+ maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+ 
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/doc/internals.texi //D/home/donn.intel/be.build/gas/doc/internals.texi
+--- //Q/Gnusrc/cygwin.0414/gas/doc/internals.texi	Wed Apr 14 02:10:57 1999
++++ //D/home/donn.intel/be.build/gas/doc/internals.texi	Wed Apr 14 21:31:38 1999
+@@ -961,6 +961,13 @@ fixup @var{fixp} to @var{stream}.  This 
+ A C statement to initialize the target specific fields of frag @var{fragp}.
+ These fields are defined with the @code{TC_FRAG_TYPE} macro.
+ 
++@item SET_SECTION_RELOC_COUNT (@var{stdoutput}, @var{abfd}, @var{sec}, @var{relocs}, @var{m})
++@cindex SET_SECTION_RELOC_COUNT
++You may define this to set the final relocation count (on final output).
++This is important on some systems because otherwise the count may be
++slightly too large (because the assembler itself resolves some relocations
++after arriving at the initial count).  It is called from @code{write_relocs}.
++
+ @item md_number_to_chars
+ @cindex md_number_to_chars
+ This should just call either @code{number_to_chars_bigendian} or
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/expr.c //D/home/donn.intel/be.build/gas/expr.c
+--- //Q/Gnusrc/cygwin.0414/gas/expr.c	Wed Apr 14 02:10:34 1999
++++ //D/home/donn.intel/be.build/gas/expr.c	Wed Apr 14 21:31:38 1999
+@@ -385,7 +385,7 @@ integer_constant (radix, expressionP)
+       break;
+     case 10:
+       maxdig = radix = 10;
+-      too_many_digits = (valuesize + 12) / 4; /* very rough */
++      too_many_digits = (valuesize + 11) / 4; /* very rough */
+     }
+ #undef valuesize
+   start = input_line_pointer;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/expr.h //D/home/donn.intel/be.build/gas/expr.h
+--- //Q/Gnusrc/cygwin.0414/gas/expr.h	Wed Apr 14 02:10:34 1999
++++ //D/home/donn.intel/be.build/gas/expr.h	Wed Apr 14 21:31:38 1999
+@@ -147,7 +147,7 @@ typedef char operator_rankT;
+ extern char get_symbol_end PARAMS ((void));
+ extern void expr_begin PARAMS ((void));
+ extern void expr_set_precedence PARAMS ((void));
+-extern segT expr PARAMS ((int rank, expressionS * resultP));
++extern segT expr PARAMS ((operator_rankT rank, expressionS * resultP));
+ extern unsigned int get_single_number PARAMS ((void));
+ extern struct symbol *make_expr_symbol PARAMS ((expressionS * expressionP));
+ extern int expr_symbol_where
+Binary files //Q/Gnusrc/cygwin.0414/gas/gasp-new and //D/home/donn.intel/be.build/gas/gasp-new differ
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/itbl-cpu.h //D/home/donn.intel/be.build/gas/itbl-cpu.h
+--- //Q/Gnusrc/cygwin.0414/gas/itbl-cpu.h	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/itbl-cpu.h	Wed Apr 14 21:35:24 1999
+@@ -0,0 +1 @@
++#include "itbl-i386.h"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/obj-format.h //D/home/donn.intel/be.build/gas/obj-format.h
+--- //Q/Gnusrc/cygwin.0414/gas/obj-format.h	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/obj-format.h	Wed Apr 14 21:35:24 1999
+@@ -0,0 +1 @@
++#include "obj-coff.h"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/po/Makefile.in //D/home/donn.intel/be.build/gas/po/Makefile.in
+--- //Q/Gnusrc/cygwin.0414/gas/po/Makefile.in	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/po/Makefile.in	Wed Apr 14 21:35:23 1999
+@@ -0,0 +1,251 @@
++# Generated automatically from Make-in by configure.
++# Makefile for program source directory in GNU NLS utilities package.
++# Copyright (C) 1995, 1996, 1997 by Ulrich Drepper <drepper@gnu.ai.mit.edu>
++#
++# This file file be copied and used freely without restrictions.  It can
++# be used in projects which are not available under the GNU Public License
++# but which still want to provide support for the GNU gettext functionality.
++# Please note that the actual code is *not* freely available.
++
++PACKAGE = gas
++VERSION = 990414
++
++SHELL = /bin/sh
++
++
++srcdir = .
++top_srcdir = ..
++
++prefix = /usr/contrib
++exec_prefix = ${prefix}
++datadir = $(prefix)/share
++localedir = $(datadir)/locale
++gnulocaledir = $(prefix)/share/locale
++gettextsrcdir = $(prefix)/share/gettext/po
++subdir = po
++
++INSTALL = //C/Interix/bin/install -c
++INSTALL_DATA = ${INSTALL} -m 644
++MKINSTALLDIRS = $(srcdir)/../../mkinstalldirs
++
++CC = gcc -D_ALL_SOURCE
++GENCAT = @GENCAT@
++GMSGFMT = PATH=../src:$$PATH 
++MSGFMT = 
++XGETTEXT = PATH=../src:$$PATH 
++MSGMERGE = PATH=../src:$$PATH msgmerge
++
++DEFS = -DHAVE_CONFIG_H
++CFLAGS = -g
++CPPFLAGS = 
++
++INCLUDES = -I.. -I$(top_srcdir)/intl
++
++COMPILE = $(CC) -c $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) $(XCFLAGS)
++
++SOURCES = cat-id-tbl.c
++POFILES = 
++GMOFILES = 
++DISTFILES = ChangeLog Makefile.in.in POTFILES.in $(PACKAGE).pot \
++stamp-cat-id $(POFILES) $(GMOFILES) $(SOURCES)
++
++POTFILES = \
++
++CATALOGS = 
++CATOBJEXT = 
++INSTOBJEXT = 
++
++.SUFFIXES:
++.SUFFIXES: .c .o .po .pox .gmo .mo .msg .cat
++
++.c.o:
++	$(COMPILE) $<
++
++.po.pox:
++	$(MAKE) $(PACKAGE).pot
++	$(MSGMERGE) $< $(srcdir)/$(PACKAGE).pot -o $*.pox
++
++.po.mo:
++	$(MSGFMT) -o $@ $<
++
++.po.gmo:
++	file=$(srcdir)/`echo $* | sed 's,.*/,,'`.gmo \
++	  && rm -f $$file && $(GMSGFMT) -o $$file $<
++
++.po.cat:
++	sed -f ../intl/po2msg.sed < $< > $*.msg \
++	  && rm -f $@ && $(GENCAT) $@ $*.msg
++
++
++all: all-no
++
++all-yes: $(CATALOGS) # $(PACKAGE).pot
++all-no:
++
++$(srcdir)/$(PACKAGE).pot: $(POTFILES)
++	$(XGETTEXT) --default-domain=$(PACKAGE) --directory=$(top_srcdir) \
++	  --add-comments --keyword=_ --keyword=N_ \
++	  --files-from=$(srcdir)/POTFILES.in
++	rm -f $(srcdir)/$(PACKAGE).pot
++	mv $(PACKAGE).po $(srcdir)/$(PACKAGE).pot
++
++$(srcdir)/cat-id-tbl.c: stamp-cat-id; @:
++$(srcdir)/stamp-cat-id: $(PACKAGE).pot
++	rm -f cat-id-tbl.tmp
++	sed -f ../intl/po2tbl.sed $(srcdir)/$(PACKAGE).pot \
++		| sed -e "s/@PACKAGE NAME@/$(PACKAGE)/" > cat-id-tbl.tmp
++	if cmp -s cat-id-tbl.tmp $(srcdir)/cat-id-tbl.c; then \
++	  rm cat-id-tbl.tmp; \
++	else \
++	  echo cat-id-tbl.c changed; \
++	  rm -f $(srcdir)/cat-id-tbl.c; \
++	  mv cat-id-tbl.tmp $(srcdir)/cat-id-tbl.c; \
++	fi
++	cd $(srcdir) && rm -f stamp-cat-id && echo timestamp > stamp-cat-id
++
++
++install: install-exec install-data
++install-exec:
++install-info:
++install-data: install-data-no
++install-data-no: all
++install-data-yes: all
++	if test -r $(MKINSTALLDIRS); then \
++	  $(MKINSTALLDIRS) $(datadir); \
++	else \
++	  $(top_srcdir)/mkinstalldirs $(datadir); \
++	fi
++	@catalogs='$(CATALOGS)'; \
++	for cat in $$catalogs; do \
++	  cat=`basename $$cat`; \
++	  case "$$cat" in \
++	    *.gmo) destdir=$(gnulocaledir);; \
++	    *)     destdir=$(localedir);; \
++	  esac; \
++	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
++	  dir=$$destdir/$$lang/LC_MESSAGES; \
++	  if test -r $(MKINSTALLDIRS); then \
++	    $(MKINSTALLDIRS) $$dir; \
++	  else \
++	    $(top_srcdir)/mkinstalldirs $$dir; \
++	  fi; \
++	  if test -r $$cat; then \
++	    $(INSTALL_DATA) $$cat $$dir/$(PACKAGE)$(INSTOBJEXT); \
++	    echo "installing $$cat as $$dir/$(PACKAGE)$(INSTOBJEXT)"; \
++	  else \
++	    $(INSTALL_DATA) $(srcdir)/$$cat $$dir/$(PACKAGE)$(INSTOBJEXT); \
++	    echo "installing $(srcdir)/$$cat as" \
++		 "$$dir/$(PACKAGE)$(INSTOBJEXT)"; \
++	  fi; \
++	  if test -r $$cat.m; then \
++	    $(INSTALL_DATA) $$cat.m $$dir/$(PACKAGE)$(INSTOBJEXT).m; \
++	    echo "installing $$cat.m as $$dir/$(PACKAGE)$(INSTOBJEXT).m"; \
++	  else \
++	    if test -r $(srcdir)/$$cat.m ; then \
++	      $(INSTALL_DATA) $(srcdir)/$$cat.m \
++		$$dir/$(PACKAGE)$(INSTOBJEXT).m; \
++	      echo "installing $(srcdir)/$$cat as" \
++		   "$$dir/$(PACKAGE)$(INSTOBJEXT).m"; \
++	    else \
++	      true; \
++	    fi; \
++	  fi; \
++	done
++	if test "$(PACKAGE)" = "gettext"; then \
++	  if test -r $(MKINSTALLDIRS); then \
++	    $(MKINSTALLDIRS) $(gettextsrcdir); \
++	  else \
++	    $(top_srcdir)/mkinstalldirs $(gettextsrcdir); \
++	  fi; \
++	  $(INSTALL_DATA) $(srcdir)/Makefile.in.in \
++			  $(gettextsrcdir)/Makefile.in.in; \
++	else \
++	  : ; \
++	fi
++
++# Define this as empty until I found a useful application.
++installcheck:
++
++uninstall:
++	catalogs='$(CATALOGS)'; \
++	for cat in $$catalogs; do \
++	  cat=`basename $$cat`; \
++	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
++	  rm -f $(localedir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT); \
++	  rm -f $(localedir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT).m; \
++	  rm -f $(gnulocaledir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT); \
++	  rm -f $(gnulocaledir)/$$lang/LC_MESSAGES/$(PACKAGE)$(INSTOBJEXT).m; \
++	done
++	rm -f $(gettextsrcdir)/po-Makefile.in.in
++
++check: all
++
++cat-id-tbl.o: ../intl/libgettext.h
++
++dvi info tags TAGS ID:
++
++mostlyclean:
++	rm -f core core.* *.pox $(PACKAGE).po *.old.po cat-id-tbl.tmp
++	rm -fr *.o
++
++clean: mostlyclean
++
++distclean: clean
++	rm -f Makefile Makefile.in POTFILES *.mo *.msg *.cat *.cat.m
++
++maintainer-clean: distclean
++	@echo "This command is intended for maintainers to use;"
++	@echo "it deletes files that may require special tools to rebuild."
++	rm -f $(GMOFILES)
++
++distdir = ../$(PACKAGE)-$(VERSION)/$(subdir)
++dist distdir: update-po $(DISTFILES)
++	dists="$(DISTFILES)"; \
++	for file in $$dists; do \
++	  ln $(srcdir)/$$file $(distdir) 2> /dev/null \
++	    || cp -p $(srcdir)/$$file $(distdir); \
++	done
++
++update-po: Makefile
++	$(MAKE) $(PACKAGE).pot
++	PATH=`pwd`/../src:$$PATH; \
++	cd $(srcdir); \
++	catalogs='$(CATALOGS)'; \
++	for cat in $$catalogs; do \
++	  cat=`basename $$cat`; \
++	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
++	  mv $$lang.po $$lang.old.po; \
++	  echo "$$lang:"; \
++	  if $(MSGMERGE) $$lang.old.po $(PACKAGE).pot -o $$lang.po; then \
++	    rm -f $$lang.old.po; \
++	  else \
++	    echo "msgmerge for $$cat failed!"; \
++	    rm -f $$lang.po; \
++	    mv $$lang.old.po $$lang.po; \
++	  fi; \
++	done
++
++POTFILES: POTFILES.in
++	( if test 'x$(srcdir)' != 'x.'; then \
++	    posrcprefix='$(top_srcdir)/'; \
++	  else \
++	    posrcprefix="../"; \
++	  fi; \
++	  rm -f $@-t $@ \
++	    && (sed -e '/^#/d' -e '/^[ 	]*$$/d' \
++		    -e "s@.*@	$$posrcprefix& \\\\@" < $(srcdir)/$@.in \
++		| sed -e '$$s/\\$$//') > $@-t \
++	    && chmod a-w $@-t \
++	    && mv $@-t $@ )
++
++POTFILES.in: # ../Makefile
++	cd .. && $(MAKE) po/POTFILES.in
++
++Makefile: Make-in ../config.status POTFILES
++	cd .. \
++	  && CONFIG_FILES=$(subdir)/Makefile.in:$(subdir)/Make-in \
++	     CONFIG_HEADERS= $(SHELL) ./config.status
++
++# Tell versions [3.59,3.63) of GNU make not to export all variables.
++# Otherwise a system limit (for SysV at least) may be exceeded.
++.NOEXPORT:
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/symbols.c //D/home/donn.intel/be.build/gas/symbols.c
+--- //Q/Gnusrc/cygwin.0414/gas/symbols.c	Wed Apr 14 02:10:37 1999
++++ //D/home/donn.intel/be.build/gas/symbols.c	Wed Apr 14 21:31:38 1999
+@@ -942,7 +942,7 @@ exit_dont_set_value:
+ 	symp->sy_resolved = 1;
+       else if (S_GET_SEGMENT (symp) != expr_section)
+ 	{
+-	  as_bad (_("can't resolve value for symbol \"%s\""), S_GET_NAME (symp));
++	  as_bad (_("symbols can't resolve value for symbol \"%s\""), S_GET_NAME (symp));
+ 	  symp->sy_resolved = 1;
+ 	}
+     }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/targ-cpu.h //D/home/donn.intel/be.build/gas/targ-cpu.h
+--- //Q/Gnusrc/cygwin.0414/gas/targ-cpu.h	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/targ-cpu.h	Wed Apr 14 21:35:24 1999
+@@ -0,0 +1 @@
++#include "tc-i386.h"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/targ-env.h //D/home/donn.intel/be.build/gas/targ-env.h
+--- //Q/Gnusrc/cygwin.0414/gas/targ-env.h	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/targ-env.h	Wed Apr 14 21:35:24 1999
+@@ -0,0 +1 @@
++#include "te-pe.h"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/test.s //D/home/donn.intel/be.build/gas/test.s
+--- //Q/Gnusrc/cygwin.0414/gas/test.s	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/test.s	Wed Apr 14 22:08:59 1999
+@@ -0,0 +1,6 @@
++	# addl    foo@GOTOFF, %eax        #// addl 0x0,%eax + reload
++        addl    $foo@GOTOFF, %eax       #// addl $0x0,%eax + reload
++        addl    $foo@PLT, %eax       #// addl $0x0,%eax + reload
++        addl    $foo@GOTOFF1, %eax      #// error
++        addl    $foo@GOTOFF + 1, %eax   #// addl $0x1,%eax + reload
++        addl    $foo@PLT + 1, %eax   #// addl $0x1,%eax + reload
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/testsuite/dump.out //D/home/donn.intel/be.build/gas/testsuite/dump.out
+--- //Q/Gnusrc/cygwin.0414/gas/testsuite/dump.out	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/testsuite/dump.out	Wed Apr 14 21:41:30 1999
+@@ -0,0 +1,6 @@
++
++dump.o:     file format pe-i386
++
++Contents of section .text:
++ 0000 3b203b20 3a203a20 00000000 00000000  ; ; : : ........
++ 0010 00000000 00000000 00000000 00000000  ................
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/testsuite/gas/all/gas.exp //D/home/donn.intel/be.build/gas/testsuite/gas/all/gas.exp
+--- //Q/Gnusrc/cygwin.0414/gas/testsuite/gas/all/gas.exp	Wed Apr 14 02:20:28 1999
++++ //D/home/donn.intel/be.build/gas/testsuite/gas/all/gas.exp	Wed Apr 14 21:31:38 1999
+@@ -112,6 +112,7 @@ if {   ([istarget *-*-coff*] && ![istarg
+      || [istarget i*86-*-go32*] \
+      || [istarget i*86-*-cygwin*] \
+      || [istarget i*86-*-*nt] \
++     || [istarget i*86-*-interix] \
+      || ([istarget i960-*-vxworks5.*] && ![istarget i960-*-vxworks5.0*]) } {
+     run_dump_test cofftag
+ }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/testsuite/gasp.out //D/home/donn.intel/be.build/gas/testsuite/gasp.out
+--- //Q/Gnusrc/cygwin.0414/gas/testsuite/gasp.out	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/testsuite/gasp.out	Wed Apr 14 21:41:35 1999
+@@ -0,0 +1,16 @@
++;	rept	3
++;	dc.l	1
++;	endr
++;	dc.l	1
++	dc.l	1
++;	REPT	2
++;	dc.l	1
++;	ENDR
++;	dc.l	1
++	dc.l	1
++;	REPT	1
++;	dc.l	1
++;	ENDR
++;	dc.l	1
++	dc.l	1
++;
+\ No newline at end of file
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/testsuite/lib/gas-defs.exp //D/home/donn.intel/be.build/gas/testsuite/lib/gas-defs.exp
+--- //Q/Gnusrc/cygwin.0414/gas/testsuite/lib/gas-defs.exp	Wed Apr 14 02:12:41 1999
++++ //D/home/donn.intel/be.build/gas/testsuite/lib/gas-defs.exp	Wed Apr 14 21:31:38 1999
+@@ -253,6 +253,7 @@ proc run_dump_test { name } {
+     }
+     set opt_array [slurp_options "${file}.d"]
+     if { $opt_array == -1 } {
++	perror "error reading options from $file.d"
+ 	unresolved $subdir/$name
+ 	return
+     }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/gas/write.c //D/home/donn.intel/be.build/gas/write.c
+--- //Q/Gnusrc/cygwin.0414/gas/write.c	Wed Apr 14 02:10:38 1999
++++ //D/home/donn.intel/be.build/gas/write.c	Wed Apr 14 21:31:38 1999
+@@ -426,6 +426,8 @@ chain_frchains_together_1 (section, frch
+ 
+ #ifdef BFD_ASSEMBLER
+ 
++static void chain_frchains_together PARAMS((bfd *, asection *, PTR));
++
+ static void
+ chain_frchains_together (abfd, section, xxx)
+      bfd *abfd;			/* unused */
+@@ -569,6 +571,8 @@ cvt_frag_to_fill (headersP, sec, fragP)
+ #endif /* defined (BFD_ASSEMBLER) || !defined (BFD) */
+ 
+ #ifdef BFD_ASSEMBLER
++static void relax_and_size_seg PARAMS((bfd *, asection *, PTR));
++
+ static void
+ relax_and_size_seg (abfd, sec, xxx)
+      bfd *abfd;
+@@ -656,8 +660,17 @@ dump_section_relocs (abfd, sec, stream_)
+       symbolS *s = fixp->fx_addsy;
+       if (s)
+ 	{
++	  const char *secname;
++	  if (s->bsym->section == NULL) 
++	    {
++	       secname = "*unknown*";
++	    }
++	  else
++	    {
++	       secname = s->bsym->section->name;
++	    }
+ 	  fprintf (stream, "  %08x: %s(%s", fixp, S_GET_NAME (s),
+-		   s->bsym->section->name);
++		   secname);
+ 	  if (s->bsym->flags & BSF_SECTION_SYM)
+ 	    {
+ 	      fprintf (stream, " section sym");
+@@ -681,6 +694,8 @@ dump_section_relocs (abfd, sec, stream_)
+ #define EMIT_SECTION_SYMBOLS 1
+ #endif
+ 
++static void adjust_reloc_syms PARAMS((bfd *, asection *, PTR));
++
+ static void
+ adjust_reloc_syms (abfd, sec, xxx)
+      bfd *abfd;
+@@ -860,6 +875,10 @@ adjust_reloc_syms (abfd, sec, xxx)
+ 	fixp->fx_offset += S_GET_VALUE (sym);
+ 	fixp->fx_addsy = section_symbol (S_GET_SEGMENT (sym));
+ 	fixp->fx_addsy->sy_used_in_reloc = 1;
++#ifdef DEBUG5
++	fprintf (stderr, "\nadjusted fixup:\n");
++	print_fixup (fixp);
++#endif
+ 
+       done:
+ 	;
+@@ -880,6 +899,8 @@ adjust_reloc_syms (abfd, sec, xxx)
+   dump_section_relocs (abfd, sec, stderr);
+ }
+ 
++static void write_relocs PARAMS((bfd *, asection *, PTR));
++
+ static void
+ write_relocs (abfd, sec, xxx)
+      bfd *abfd;
+@@ -1057,12 +1078,16 @@ write_relocs (abfd, sec, xxx)
+   }
+ #endif
+ 
++#ifdef SET_SECTION_RELOC_COUNT
++  SET_SECTION_RELOC_COUNT (stdoutput, abfd, sec, relocs, n);
++#else
+   if (n)
+     bfd_set_reloc (stdoutput, sec, relocs, n);
+   else
+     bfd_set_section_flags (abfd, sec,
+ 			   (bfd_get_section_flags (abfd, sec)
+ 			    & (flagword) ~SEC_RELOC));
++#endif
+ 
+ #ifdef DEBUG3
+   {
+@@ -1081,6 +1106,8 @@ write_relocs (abfd, sec, xxx)
+ #endif
+ }
+ 
++static void write_contents PARAMS((bfd *, asection *, PTR));
++
+ static void
+ write_contents (abfd, sec, xxx)
+      bfd *abfd;
+@@ -1881,7 +1908,7 @@ write_object_file ()
+ 	  /* Make sure we really got a value for the symbol.  */
+ 	  if (! symp->sy_resolved)
+ 	    {
+-	      as_bad (_("can't resolve value for symbol \"%s\""),
++	      as_bad (_("write can't resolve value for symbol \"%s\""),
+ 		      S_GET_NAME (symp));
+ 	      symp->sy_resolved = 1;
+ 	    }
+@@ -2687,7 +2714,11 @@ fixup_segment (fixP, this_segment_type)
+ 	    }
+ 	}
+ 
+-      if (pcrel)
++      /* if the relocation is against a section symbol, then 
++	 we need to adjust it for that.  However, if something
++	 prevented it from becoming a relocation against a section
++	 symbol, it's a Bad Thing to do this. */
++      if (pcrel && (fixP->fx_addsy->bsym->flags & BSF_SECTION_SYM))
+ 	{
+ 	  add_number -= MD_PCREL_FROM_SECTION (fixP, this_segment_type);
+ 	  if (add_symbolP == 0)

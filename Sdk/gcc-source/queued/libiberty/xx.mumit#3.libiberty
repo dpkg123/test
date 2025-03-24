@@ -1,0 +1,56 @@
+APPLIED by CYGNUS to EGCS
+Not yet submitted for Binutils.
+
+The following patch adds support for i386-pc-interix. Diffs against dev
+snapshot 1999-01-17.
+
+Wed Jan 20 19:08:44 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+        * clock.c (HZ): Define in terms of (ISO C) CLOCKS_PER_SEC on
+          platforms that don't have HZ.
+        * getruntime.c (HZ): Likewise.
+
+Index: egcs-dev/libiberty/clock.c
+diff -u egcs-dev/libiberty/clock.c:1.1.1.1 egcs-dev/libiberty/clock.c:1.2
+--- egcs-dev/libiberty/clock.c:1.1.1.1  Tue Jan 19 21:28:27 1999
++++ egcs-dev/libiberty/clock.c  Wed Jan 20 19:10:07 1999
+@@ -1,5 +1,5 @@
+ /* ANSI-compatible clock function.
+-   Copyright (C) 1994, 1995 Free Software Foundation, Inc.
++   Copyright (C) 1994, 1995, 1999 Free Software Foundation, Inc.
+
+ This file is part of the libiberty library.  This library is free
+ software; you can redistribute it and/or modify it under the
+@@ -34,6 +34,10 @@
+ #include <sys/param.h>
+ #endif
+ #include <sys/times.h>
++#endif
++
++#if defined (HAVE_TIMES) && ! defined (HZ) && defined (CLOCKS_PER_SEC)
++#define HZ CLOCKS_PER_SEC
+ #endif
+
+ /* FIXME: should be able to declare as clock_t. */
+Index: egcs-dev/libiberty/getruntime.c
+diff -u egcs-dev/libiberty/getruntime.c:1.1.1.1 egcs-dev/libiberty/getruntime.c:1.2
+--- egcs-dev/libiberty/getruntime.c:1.1.1.1     Tue Jan 19 21:28:29 1999
++++ egcs-dev/libiberty/getruntime.c     Wed Jan 20 19:10:07 1999
+@@ -1,5 +1,5 @@
+ /* Return time used so far, in microseconds.
+-   Copyright (C) 1994 Free Software Foundation, Inc.
++   Copyright (C) 1994, 1999 Free Software Foundation, Inc.
+
+ This file is part of the libiberty library.
+ Libiberty is free software; you can redistribute it and/or
+@@ -45,6 +45,10 @@
+
+ #ifndef CLOCKS_PER_SEC
+ #define CLOCKS_PER_SEC 1
++#endif
++
++#if defined (HAVE_TIMES) && ! defined (HZ)
++#define HZ CLOCKS_PER_SEC
+ #endif
+
+ long

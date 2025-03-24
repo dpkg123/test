@@ -1,0 +1,17 @@
+See corresponding changes to bfd (and gas) for details of why we need
+this flag.  This simply will print it.
+
+	* objdump.c(dump_section_header): print "NOREAD" flag.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files objdump.c.orig objdump.c
+--- objdump.c.orig	Sat Mar 18 15:26:17 2000
++++ objdump.c	Fri Mar 10 15:33:26 2000
+@@ -378,6 +378,8 @@ dump_section_header (abfd, section, igno
+   PF (SEC_CLINK, "CLINK");
+   PF (SEC_SMALL_DATA, "SMALL_DATA");
+   PF (SEC_SHARED, "SHARED");
++  if (bfd_section_flag_value(abfd, section, sec_flag_NOREAD))
++      { printf ("%s%s", comma, "NOREAD"); comma = ", "; }
+   PF (SEC_ARCH_BIT_0, "ARCH_BIT_0");
+ 
+   if ((section->flags & SEC_LINK_ONCE) != 0)

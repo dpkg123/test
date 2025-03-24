@@ -1,0 +1,119 @@
+When storing to memory (using p with =), check the target
+section for read-only.  It may be possible for gdb to write into a 
+section that the application has set up as read-only.  The gdb
+user should be warned.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* valops.c(check_mem_access_internal, check_mem_access): New.
+	(value_assign): Use.
+
+Index: src/gdb/valops.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/valops.c,v
+retrieving revision 1.3
+diff -p -u -r1.3 valops.c
+--- src/gdb/valops.c	2001/12/24 00:57:25	1.3
++++ src/gdb/valops.c	2001/12/24 02:11:41
+@@ -529,7 +529,80 @@ value_fetch_lazy (register value_ptr val
+   return 0;
+ }
+ 
++struct _check_info {
++   CORE_ADDR start_addr;
++   CORE_ADDR end_addr;
++   int mode;
++   int matched;
++};  
++
++/* Look to see if the specified flags are set in the section containing
++   the address range.  If the address range spans section boundaries,
++   the flags must apply to all parts. */
++static void
++check_mem_access_internal PARAMS((bfd *, asection *, PTR));
++
++static void
++check_mem_access_internal(abfd, asect, inf)
++bfd *abfd;
++asection *asect;
++PTR inf;
++{
++   register struct _check_info *check_info = inf;
++   CORE_ADDR section_start, section_end;
++   int flags;
++   int page_size = getpagesize();
++    
++   flags = bfd_get_section_flags(abfd, asect);
++
++   /* is it really in the image? */
++   if ((flags & (SEC_LOAD|SEC_ALLOC)) == 0)
++       return;
++
++   section_start = bfd_section_vma (abfd, asect) + NONZERO_LINK_BASE(abfd);
++   section_end = bfd_section_size(abfd, asect);
++   section_end = ((section_end+page_size-1) & ~(page_size-1))
++		 + section_start;
++
++   if (section_start <= check_info->start_addr
++	             && check_info->start_addr < section_end)
++     {
++	check_info->matched = ((flags & check_info->mode) != 0);
++     }
++   /* do it separately so we check when it spans sections */
++   if (section_start <= check_info->end_addr
++	             && check_info->end_addr < section_end)
++     {
++	check_info->matched &= ((flags & check_info->mode) != 0);
++     }
++}
++
++
++int
++check_mem_access PARAMS((CORE_ADDR, LONGEST, int));
++
++int
++check_mem_access(start, length, mode)
++CORE_ADDR start;
++LONGEST length;
++int mode;
++{
++   struct _check_info check_info;
+ 
++   check_info.start_addr = start;
++   check_info.end_addr = start + length;
++   check_info.mode = mode;
++   check_info.matched = 0;
++   if (exec_bfd)
++     {
++       bfd_map_over_sections(exec_bfd, check_mem_access_internal, 
++	   (PTR)&check_info);
++       return check_info.matched;
++     }
++   else
++       return 0;   /* no target, allow other protections to deal with it */
++}
++
+ /* Store the contents of FROMVAL into the location of TOVAL.
+    Return a new value with the location of TOVAL and contents of FROMVAL.  */
+ 
+@@ -593,6 +666,21 @@ value_assign (register value_ptr toval, 
+ 	char *dest_buffer;
+ 	CORE_ADDR changed_addr;
+ 	int changed_len;
++
++	/* if this is in readonly memory, don't proceed without a complaint:
++	   We might be able to read/write memory the application thinks is
++	   readonly (e.g. when writing breakpoints when text is readonly,
++	   we must be able to do that).  However, if the user tries to change
++	   something the application thinks is readonly data, we should warn.
++	   (It'd be too heavy-handed to reject.) */
++
++	if (check_mem_access(VALUE_ADDRESS (toval) + VALUE_OFFSET (toval),
++		 (use_buffer ? use_buffer : TYPE_LENGTH (type)) - 1,
++		 SEC_READONLY)
++	    && !query("This would modify target's read-only memory; proceed?"))
++	  {
++	      break;
++	  }
+ 
+ 	if (VALUE_BITSIZE (toval))
+ 	  {

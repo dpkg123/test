@@ -1,0 +1,51 @@
+bfd_get_dynamic_symtab_upper_bound isn't guaranteed to do anything
+sensibile if the file isn't dynamic.  Don't ask it to.
+
+	* objdump.c (slurp_dynamic_symtab): look for DYNAMIC earlier.
+	(dump_dynamic_relocs): bail out if not DYNAMIC.
+
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/objdump.c binutils/objdump.c
+--- binutils.nil/objdump.c	Wed Jul  7 16:58:52 1999
++++ binutils/objdump.c	Wed Jul  7 17:01:10 1999
+@@ -411,17 +419,17 @@ slurp_dynamic_symtab (abfd)
+   asymbol **sy = (asymbol **) NULL;
+   long storage;
+ 
++  if (!(bfd_get_file_flags (abfd) & DYNAMIC))
++    {
++      fprintf (stderr, _("%s: %s: not a dynamic object\n"),
++	       program_name, bfd_get_filename (abfd));
++      dynsymcount = 0;
++      return NULL;
++    }
++
+   storage = bfd_get_dynamic_symtab_upper_bound (abfd);
+   if (storage < 0)
+     {
+-      if (!(bfd_get_file_flags (abfd) & DYNAMIC))
+-	{
+-	  fprintf (stderr, _("%s: %s: not a dynamic object\n"),
+-		   program_name, bfd_get_filename (abfd));
+-	  dynsymcount = 0;
+-	  return NULL;
+-	}
+-
+       bfd_fatal (bfd_get_filename (abfd));
+     }
+ 
+@@ -2363,6 +2373,14 @@ dump_dynamic_relocs (abfd)
+   long relsize;
+   arelent **relpp;
+   long relcount;
++
++  if (!(bfd_get_file_flags (abfd) & DYNAMIC))
++    {
++      fprintf (stderr, _("%s: %s: not a dynamic object\n"),
++	       program_name, bfd_get_filename (abfd));
++      dynsymcount = 0;
++      return;
++    }
+ 
+   relsize = bfd_get_dynamic_reloc_upper_bound (abfd);
+   if (relsize < 0)

@@ -1,0 +1,33 @@
+--- testsuite/gdb.mi/gdb669.exp~	Fri May 30 22:05:00 2003
++++ testsuite/gdb.mi/gdb669.exp	Sat May 31 18:35:00 2003
+@@ -179,7 +179,7 @@ set srcfile "$testfile.c"
+ set binfile "$objdir/$subdir/$testfile"
+ 
+ set options [list debug incdir=$subdir]
+-if  {[gdb_compile_pthreads "$srcdir/$subdir/$srcfile" $binfile executable $options]
++if  {[gdb_compile "$srcdir/$subdir/$srcfile" $binfile executable $options]
+      != "" } {
+   gdb_suppress_entire_file \
+     "Testcase compile failed, so all tests in this file will automatically fail."
+--- testsuite/gdb.mi/mi1-pthreads.exp~	Fri May 30 22:05:00 2003
++++ testsuite/gdb.mi/mi1-pthreads.exp	Sat May 31 18:35:26 2003
+@@ -205,7 +205,7 @@ set srcfile "$testfile.c"
+ set binfile "$objdir/$subdir/$testfile"
+ 
+ set options [list debug incdir=$subdir]
+-if  {[gdb_compile_pthreads "$srcdir/$subdir/$srcfile" $binfile executable $options]
++if  {[gdb_compile "$srcdir/$subdir/$srcfile" $binfile executable $options]
+      != "" } {
+   gdb_suppress_entire_file \
+     "Testcase compile failed, so all tests in this file will automatically fail."
+--- testsuite/gdb.mi/mi-pthreads.exp~	Fri May 30 22:05:00 2003
++++ testsuite/gdb.mi/mi-pthreads.exp	Sat May 31 18:35:14 2003
+@@ -205,7 +205,7 @@ set srcfile "$testfile.c"
+ set binfile "$objdir/$subdir/$testfile"
+ 
+ set options [list debug incdir=$subdir]
+-if  {[gdb_compile_pthreads "$srcdir/$subdir/$srcfile" $binfile executable $options]
++if  {[gdb_compile "$srcdir/$subdir/$srcfile" $binfile executable $options]
+      != "" } {
+   gdb_suppress_entire_file \
+     "Testcase compile failed, so all tests in this file will automatically fail."

@@ -1,0 +1,11 @@
+--- libdl/Makefile	Thu Nov 30 20:41:51 2006
++++ libdl/MAkefile.new	Thu Nov 30 20:43:13 2006
+@@ -45,7 +45,7 @@
+ 
+ # This RPATH becomes the system default RPATH; in use, we want the 
+ # UNEXPANDED macros included; expansion occurs at runtime.
+-RPATH=/usr/lib:/lib
++RPATH=/usr/lib:/lib:/usr/lib/x86
+ 
+ CFLAGS =	$(DEBUG_FLAGS) -DDEFAULT_RPATH=\"'$(RPATH)'\" -g -O2 -D_ALL_SOURCE -D_REENTRANT
+ RANLIB =	@RANLIB@

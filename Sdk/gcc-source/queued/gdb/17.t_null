@@ -1,0 +1,44 @@
+Problem: calls to the inferior's malloc() (as needed by gdb itself
+upon occasion) weren't working.  Cause: the (coff) symbol table
+thought it was of return type T_NULL, which is equivalent to T_VOID.
+(Occurs when linking stripped, MSVC-generated .o files, because
+MSVC doesn't fill in the function type.)
+
+Fix: change coffread.c to recognize T_NULL functions and make them
+T_INT functions (which is in general more likely anyway.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* coffread.c(process_coff_symbol): Treat T_NULL function as
+	T_INT for internal calls.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.3
+diff -p -u -r1.3 coffread.c
+--- src/gdb/coffread.c	2001/12/23 23:50:50	1.3
++++ src/gdb/coffread.c	2001/12/24 01:10:46
+@@ -1532,8 +1532,21 @@ process_coff_symbol (register struct cof
+   if (ISFCN (cs->c_type))
+     {
+       SYMBOL_VALUE (sym) += ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT (objfile));
+-      SYMBOL_TYPE (sym) =
+-	lookup_function_type (decode_function_type (cs, cs->c_type, aux));
++#ifdef COFF_IMAGE_WITH_PE
++      /* If we get a "function returning T_NULL" it's probably from
++	 MSVC, and altho we can't say much about it, it's unlikely
++	 that it really returns nothing; so we'll guess and say it
++	 returns an integer (or pointer).  This would mostly be a
++	 nuisance except that value_allocate_space_in_inferior
++	 needs somewhat meaningful type information (at least a size)
++	 to successfully do things such as 'print "foo"'. */
++      if (cs->c_type == (T_NULL | (DT_FCN << N_BTSHFT)))
++	  SYMBOL_TYPE(sym) = lookup_function_type (
++	    decode_function_type (cs, (T_INT | (DT_FCN << N_BTSHFT)), aux));
++      else
++#endif
++	  SYMBOL_TYPE (sym) =
++	    lookup_function_type (decode_function_type (cs, cs->c_type, aux));
+ 
+       SYMBOL_CLASS (sym) = LOC_BLOCK;
+       if (cs->c_sclass == C_STAT || cs->c_sclass == C_THUMBSTAT

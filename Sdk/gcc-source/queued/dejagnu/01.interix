@@ -1,0 +1,63 @@
+Lots of standards conformance, some stuff needed specifically for
+Interix (prob just <= SP1).
+
+
+diff -drup dejagnu-19981026/dejagnu/config/unix.exp dejagnu/dejagnu/config/unix.exp
+--- dejagnu-19981026/dejagnu/config/unix.exp	Fri Oct  2 00:17:30 1998
++++ dejagnu/dejagnu/config/unix.exp	Sun May 23 15:39:44 1999
+@@ -123,6 +123,10 @@ proc unix_load { dest prog args } {
+     if ![string match "" $output] {
+ 	verbose -- "$output" 2
+     }
++    if [string match "couldn't execute*" $output] {
++	verbose -log $output
++	set result "unresolved"
++    }
+     if { $status == 0 } {
+ 	set result "pass";
+     } else {
+diff -drup dejagnu-19981026/dejagnu/lib/remote.exp dejagnu/dejagnu/lib/remote.exp
+--- dejagnu-19981026/dejagnu/lib/remote.exp	Thu Oct 15 17:34:21 1998
++++ dejagnu/dejagnu/lib/remote.exp	Mon May 24 17:03:57 1999
+@@ -666,6 +666,11 @@ proc unix_clean_filename { dest file } {
+ 	set file [remote_file $dest join [pwd] $file];
+     }
+     set result "";
++    set leading "";
++    # if it's //.... retain the //
++    if [regexp "^//\[^/\]" $file] {
++	set leading "/";
++    }
+     foreach x [split $file "/"] {
+ 	if { $x == "." || $x == "" } {
+ 	    continue;
+@@ -681,7 +686,7 @@ proc unix_clean_filename { dest file } {
+ 	}
+ 	lappend result $x;
+     }
+-    return "/[join $result /]"
++    return "$leading/[join $result /]"
+ }
+ 
+ #
+diff -drup dejagnu-19981026/dejagnu/runtest.exp dejagnu/dejagnu/runtest.exp
+--- dejagnu-19981026/dejagnu/runtest.exp	Thu Sep 17 16:04:18 1998
++++ dejagnu/dejagnu/runtest.exp	Mon May 24 17:09:11 1999
+@@ -1546,8 +1546,15 @@ if [info exists host_board] {
+ if [info exists errorInfo] {
+     unset errorInfo
+ }
+-# make sure we have only single path delimiters
+-regsub -all "\(\[^/\]\)//*" $srcdir "\\1/" srcdir
++
++# make sure we have only single path delimiters, except for possible
++# leading //
++if [regexp {^//[^/].*} $srcdir] {
++   regsub -all "//*" $srcdir "/" srcdir
++   set srcdir "/$srcdir"
++} else {
++   regsub -all "//*" $srcdir "/" srcdir
++}
+ 
+ if ![info exists target_list] {
+ # Make sure there is at least one target machine. It's probably a Unix box,

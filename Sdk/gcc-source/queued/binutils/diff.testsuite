@@ -1,0 +1,129 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0404/binutils/testsuite/binutils-all/exittest.c //D/home/donn.intel/be.build/binutils/testsuite/binutils-all/exittest.c
+--- //Q/Gnusrc/cygwin.0404/binutils/testsuite/binutils-all/exittest.c	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/binutils/testsuite/binutils-all/exittest.c	Mon Apr 12 11:22:20 1999
+@@ -0,0 +1,6 @@
++/* This is used to test objcopy: we're interested if it runs correctly */
++main()
++{
++   printf("Ran OK");
++   exit(0);
++}
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0404/binutils/testsuite/binutils-all/objcopy.exp //D/home/donn.intel/be.build/binutils/testsuite/binutils-all/objcopy.exp
+--- //Q/Gnusrc/cygwin.0404/binutils/testsuite/binutils-all/objcopy.exp	Sun Apr  4 03:15:01 1999
++++ //D/home/donn.intel/be.build/binutils/testsuite/binutils-all/objcopy.exp	Mon Apr 12 11:22:20 1999
+@@ -60,7 +60,7 @@ if ![string match "" $got] then {
+ 	set src1 ${tempfile}
+ 	set src2 ${copyfile}.o
+     }
+-    set status [remote_exec build cmp "${src1} ${src2}"];
++    set status [remote_exec build "cmp -i8" "${src1} ${src2}"];
+     set exec_output [lindex $status 1];
+     set exec_output [prune_warnings $exec_output]
+ 
+@@ -100,6 +100,97 @@ if ![string match "" $got] then {
+     }
+ }
+ 
++proc copy_compare_objdump { } {
++    global CC
++    global OBJCOPY
++    global OBJCOPYFLAGS
++    global OBJDUMP
++    global srcdir
++    global subdir
++
++    # This is a more forgiving version of the same test above, which far
++    # more machines should pass; it's also more thorough in other regards.
++    # It also exercises objdump.
++
++    set test "simple objcopy #2"
++
++    if {[which $OBJCOPY] == 0} then {
++	perror "$OBJCOPY does not exist"
++	return
++    }
++
++    send_user "Version [binutil_version $OBJCOPY]"
++
++    if { [target_compile $srcdir/$subdir/exittest.c tmpdir/exitttest executable debug] != "" } {
++	untested $test
++	return
++    }
++
++    # copy the file
++    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS tmpdir/exitttest tmpdir/exitcopy"]
++
++    # It better just do it.
++    if ![string match "" $got] then {
++	fail "objcopy (simple copy #2: copy of executable)"
++	return
++    }
++
++    set got [binutils_run "tmpdir/exitttest" ""]
++
++    if ![string match "Ran OK" $got] then {
++	unresolved "objcopy (simple copy #2: running original exeutable)"
++	return
++    }
++
++    set got [binutils_run "tmpdir/exitcopy" ""]
++
++    if ![string match "Ran OK" $got] then {
++	fail "objcopy (simple copy #2: running copied exeutable)"
++	return
++    }
++
++    # dump the results; they should be similar
++    exec $OBJDUMP --headers -p --file-header --syms tmpdir/exitttest  >tmpdir/exitttest.objd 
++    exec $OBJDUMP --headers -p --file-header --syms tmpdir/exitcopy  >tmpdir/exitcopy.objd 
++
++    # Normalize things a bit and check the headers.
++    exec sed -e "s,Time/Date.*\$,Time/Date," \
++	-e "/SYMBOL TABLE/,\$d" \
++	<tmpdir/exitttest.objd >tmpdir/exitttest.objd1
++
++    exec sed -e "s,Time/Date.*\$,Time/Date," \
++	-e "s,exitcopy,exitttest," \
++	-e "/SYMBOL TABLE/,\$d" \
++	<tmpdir/exitcopy.objd >tmpdir/exitcopy.objd1
++
++    set got [binutils_run diff "tmpdir/exitttest.objd1 tmpdir/exitcopy.objd1"]
++
++    if ![string match "" $got] then {
++	fail "objcopy: (simple copy #2: comparison of headers)"
++	return
++    }
++
++    # Check the symbol table (it will probably be reordered).
++    exec sed -e "1,/SYMBOL TABLE/d" \
++	-e s/\\\[.*\\\]// \
++	<tmpdir/exitttest.objd | sort >tmpdir/exitttest.objd1
++
++    exec sed -e "1,/SYMBOL TABLE/d" \
++	-e s/\\\[.*\\\]// \
++	<tmpdir/exitcopy.objd | sort >tmpdir/exitcopy.objd1
++
++    set got [binutils_run diff "tmpdir/exitttest.objd1 tmpdir/exitcopy.objd1"]
++
++    if ![string match "" $got] then {
++	fail "objcopy: (simple copy #2: comparison of symbol tables)"
++	return
++    }
++
++    pass "objcopy (simple copy #2)"
++}
++
++copy_compare_objdump
++
+ # Test generating S records.
+ 
+ # We make the srec filename 8.3 compatible. Note that the header string
+@@ -449,7 +540,7 @@ proc copy_executable { prog flags test1 
+ 	remote_upload host $testcopy tmpdir/copyprog
+     }
+ 
+-    set status [remote_exec build "cmp" "tmpdir/testprog tmpdir/copyprog"]
++    set status [remote_exec build "cmp -i140" "tmpdir/testprog tmpdir/copyprog"]
+     set exec_output [lindex $status 1];
+ 
+     if [string match "" $exec_output] then {

@@ -1,0 +1,143 @@
+The newly "enabled for everything" tests for attach have a number
+of problems for /proc based gdb, and also has an HP-UX specific test
+that is not so marked.  Because of this it leaves a cpu-eating
+process behind slowing down all subsequent tests significantly.
+See 2002-03-25  Fred Fish  <fnf@redhat.com>.
+
+1) /proc generates different messages.
+2) /proc chatters more (which is a different issue) and consequently
+   some patterns fail to match.  (It looks to me as if the unmodified
+   patterns should match, but they don't while the shortened ones do.)
+3) For (at least Interix?) /proc, the name of the executable is not found
+   and thus automatic symbol loads don't happen.  Add recovery code
+   in any case, so the subsequent tests don't lose sync and leave
+   the dangling process around.  (Without symbols, the dangling process
+   doesn't get killed, even though there appear to be some efforts to dot
+   that.)
+4) One test is clearly HP-UX specific.  Not having "i r" hang in the
+   attach case is a useful test, but the exact test is too specific.
+   The fix is a bit "bandaidy" (the original author here would be
+   better able to fix it.)
+
+
+--- testsuite/gdb.base/attach.exp.orig	Tue Apr  2 10:44:01 2002
++++ testsuite/gdb.base/attach.exp	Tue Apr  2 15:44:57 2002
+@@ -113,6 +113,9 @@ proc do_attach_tests {} {
+    gdb_expect {
+       -re ".*Illegal process-id: abc.*$gdb_prompt $"\
+                       {pass "attach to nonsense is prohibited"}
++      # /proc based systems.
++      -re "Attaching to.*, process .*couldn.t open .proc file.*$gdb_prompt $"\
++                      {pass "attach to nonexistent process is prohibited"}
+       -re "Attaching to.*$gdb_prompt $"\
+                       {fail "attach to nonsense is prohibited (bogus pid allowed)"}
+       -re "$gdb_prompt $" {fail "attach to nonsense is prohibited"}
+@@ -133,6 +136,9 @@ proc do_attach_tests {} {
+                       {pass "attach to nonexistent process is prohibited"}
+       -re "Attaching to.*, process 0.*denied.*$gdb_prompt $"\
+                       {pass "attach to nonexistent process is prohibited"}
++      # /proc based systems.
++      -re "Attaching to.*, process .*couldn.t open .proc file.*$gdb_prompt $"\
++                      {pass "attach to nonexistent process is prohibited"}
+       -re "$gdb_prompt $" {fail "attach to nonexistent process is prohibited"}
+       timeout         {fail "(timeout) attach to nonexistent process is prohibited"}
+    }
+@@ -163,8 +169,11 @@ proc do_attach_tests {} {
+    }
+ 
+    send_gdb "attach $testpid\n"
++   # Caution here: /proc attaches chatter a lot, and expect won't
++   # match all the way from "Attaching" to "main...", so just look
++   # for the tail part.
+    gdb_expect {
+-      -re "Attaching to program.*$binfile, process $testpid.*main.*at .*$srcfile:.*$gdb_prompt $"\
++      -re ".*main.*at .*$srcfile:.*$gdb_prompt $"\
+                       {pass "attach1, after setting file"}
+       -re "$gdb_prompt $" {fail "attach1, after setting file"}
+       timeout         {fail "(timeout) attach1, after setting file"}
+@@ -225,14 +234,65 @@ proc do_attach_tests {} {
+    # Verify that we can attach to the process just by giving the
+    # process ID.
+    #
++   # As for the above, /proc chatters.
+    send_gdb "attach $testpid\n"
+    gdb_expect {
+-      -re "Attaching to process $testpid.*Reading symbols from $binfile.*main.*at .*$gdb_prompt $"\
++      -re ".*main.*at .*$gdb_prompt $"\
+                       {pass "attach2"}
+       -re "$gdb_prompt $" {fail "attach2"}
+       timeout         {fail "(timeout) attach2"}
+    }
+ 
++   # Verify that we can still "see" the variable "should_exit" in the
++   # program, and that it is zero.  If we can't, recover with a 'file'
++   # command so the rest of the tests here run correctly.
++   #
++   send_gdb "print should_exit\n"
++   gdb_expect {
++      -re "No symbol table.*$gdb_prompt $" {
++
++	  fail "after attach2, print should_exit (no symbols)"
++
++	  send_gdb "detach\n"
++	  gdb_expect {
++	      -re "Detaching from program: .*$gdb_prompt $"\
++			      {pass "attach2a detach"}
++	      -re "$gdb_prompt $" {fail "attach2a detach"}
++	      timeout         {fail "(timeout) attach2a detach"}
++	  }
++
++	  send_gdb "file $binfile\n"
++	  gdb_expect {
++	      -re "Load new symbol table from.*y or n.*$" {
++		 send_gdb "y\n"
++		 gdb_expect {
++		    -re "Reading .*done.*$gdb_prompt $"\
++				    {pass "(re)set file, before attach2a"}
++		    -re "$gdb_prompt $" {fail "(re)set file, after attach2a"}
++		    timeout   {fail "(timeout) (re)set file, after attach2a"}
++		 }
++	      }
++	      -re "Reading symbols from .*done.*$gdb_prompt $"\
++			      {pass "set file, after attach2a"}
++	      -re "$gdb_prompt $" {fail "set file, after attach2a"}
++	      timeout         {fail "(timeout) set file, after attach2a"}
++	    }
++
++	  send_gdb "attach $testpid\n"
++	  gdb_expect {
++	      -re ".*main.*at .*$gdb_prompt $"\
++			      {pass "reattach attach2a"}
++	      -re "$gdb_prompt $" {fail "reattach attach2a"}
++	      timeout         {fail "(timeout) reattach attach2a"}
++	  }
++      } 
++
++      -re ".* = 0.*$gdb_prompt $"\
++                      {pass "after attach2, print should_exit"}
++      -re "$gdb_prompt $" {fail "after attach2, print should_exit"}
++      timeout         {fail "(timeout) after attach2, print should_exit"}
++   }
++
+    # Verify that we can modify the variable "should_exit" in the
+    # program.
+    #
+@@ -373,6 +433,8 @@ proc do_call_attach_tests {} {
+       timeout         {fail "(timeout) attach call"}
+    }
+ 
++   # This appears to be painfully HP-UX specific.
++
+    # See if other registers are problems
+    #
+    send_gdb "i r r3\n"
+@@ -382,6 +444,9 @@ proc do_call_attach_tests {} {
+        }
+        -re ".*r3.*$gdb_prompt $" {
+            pass "Bug fixed, Yayyy!"
++       }
++       -re "$gdb_prompt $" {
++           pass "Apparent pass."
+        }
+        timeout { fail "timeout on info reg" }
+    }

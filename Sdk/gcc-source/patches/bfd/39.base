@@ -1,0 +1,846 @@
+This has been updated to 09/13 version, and some previously rejected
+patchs added in (that should have been part of this to begin with).
+
+I kept one patch to coffcode.h as a separate patch to a file,
+because it deserves more discussion, but it only makes sense
+in the context of the rest of these patches.  [DISCUSSION TO
+BE ADDED.]
+
+COFF_NO_HACK_SCNHDR_SIZE may be an undo of my doing, it breaks objcopy;
+why did I do it?  (Gotta check out carefully; note use in pe-mips.c)
+
+This batch of patches accomplishes two (very!) interrelated things.
+Even if you wanted to apply them as separate patches, I would
+do so at one time.
+
+1) It cleans up the use of image base and vma removing a lot of
+PE special cases (it moves the special cases elsewhere, in effect,
+where they don't affect as much code.)  In particular, it deletes
+the special "is this a -r link" test for PE relocate section, which
+is not needed (and works right) based on the other changes.
+(This includes fixing the part in peigen.c that broke objdump
+"right", instead of "works" as done in peigen.c patch 1.9).
+
+2) It is a fairly major overhaul of _bfd_coff_generic_relocate_section 
+which is intended to have NO net effect except code clarity if PE is
+not involved.  There are a few places where changes are made that
+look like there would be an easier way (and you'd be right), but 
+they lay groundwork for the dynamic linking stuff that will come along
+some day.
+
+
+	* coff-i386.c (coff_pe_i386_relocate_section): delete.
+	* coffcode.h (coff_slurp_symbol_table): delete PE special case.
+	* coffgen.c (fixup_symbol_value): ditto.
+	(write_alien_symbol): ditto.
+	(coff_set_symbol_class): ditto.
+	* cofflink.c (coff_link_add_symbols): ditto.
+	(_bfd_coff_write_global_sym): ditto.
+	(_bfd_coff_link_input_bfd): ditto.
+	(_bfd_coff_generic_relocate_sectyion): ditto, rewrite several
+	sections for clarity/preciseness, pave way for future patch.
+	* peicode.h (coff_swap_scnhdr_in): delete special treatment of 
+	ImageBase
+	* peigen.c (pei_swap_aouthdr_in): ditto.
+	(add_data_entry): ditto.
+	(pei_swap_aouthdr_out): ditto.
+	(pei_swap_scnhdr_out): ditto.
+
+Index: src/bfd/coff-i386.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/coff-i386.c,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 coff-i386.c
+*** src/bfd/coff-i386.c	2001/12/23 00:34:28	1.1.1.1
+--- src/bfd/coff-i386.c	2001/12/23 01:45:13
+*************** static reloc_howto_type howto_table[] =
+*** 374,421 ****
+        cache_ptr->addend += asect->vma;				\
+    }
+  
+! /* We use the special COFF backend linker.  For normal i386 COFF, we
+!    can use the generic relocate_section routine.  For PE, we need our
+!    own routine.  */
+! 
+! #ifndef COFF_WITH_PE
+! 
+  #define coff_relocate_section _bfd_coff_generic_relocate_section
+- 
+- #else /* COFF_WITH_PE */
+- 
+- /* The PE relocate section routine.  The only difference between this
+-    and the regular routine is that we don't want to do anything for a
+-    relocateable link.  */
+- 
+- static boolean coff_pe_i386_relocate_section
+-   PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
+- 	   struct internal_reloc *, struct internal_syment *, asection **));
+- 
+- static boolean
+- coff_pe_i386_relocate_section (output_bfd, info, input_bfd,
+- 			       input_section, contents, relocs, syms,
+- 			       sections)
+-      bfd *output_bfd;
+-      struct bfd_link_info *info;
+-      bfd *input_bfd;
+-      asection *input_section;
+-      bfd_byte *contents;
+-      struct internal_reloc *relocs;
+-      struct internal_syment *syms;
+-      asection **sections;
+- {
+-   if (info->relocateable)
+-     return true;
+- 
+-   return _bfd_coff_generic_relocate_section (output_bfd, info, input_bfd,
+- 					     input_section, contents,
+- 					     relocs, syms, sections);
+- }
+- 
+- #define coff_relocate_section coff_pe_i386_relocate_section
+- 
+- #endif /* COFF_WITH_PE */
+  
+  /* Convert an rtype to howto for the COFF backend linker.  */
+  
+--- 374,381 ----
+        cache_ptr->addend += asect->vma;				\
+    }
+  
+! /* We use the special COFF backend linker.  */
+  #define coff_relocate_section _bfd_coff_generic_relocate_section
+  
+  /* Convert an rtype to howto for the COFF backend linker.  */
+  
+Index: src/bfd/coffcode.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/coffcode.h,v
+retrieving revision 1.4
+diff -p -c -r1.4 coffcode.h
+*** src/bfd/coffcode.h	2001/12/23 01:24:49	1.4
+--- src/bfd/coffcode.h	2001/12/23 01:45:13
+*************** coff_slurp_symbol_table (abfd)
+*** 4411,4424 ****
+  		{
+  		case COFF_SYMBOL_GLOBAL:
+  		  dst->symbol.flags = BSF_EXPORT | BSF_GLOBAL;
+- #if defined COFF_WITH_PE
+- 		  /* PE sets the symbol to a value relative to the
+-                      start of the section.  */
+- 		  dst->symbol.value = src->u.syment.n_value;
+- #else
+  		  dst->symbol.value = (src->u.syment.n_value
+  				       - dst->symbol.section->vma);
+- #endif
+  		  if (ISFCN ((src->u.syment.n_type)))
+  		    {
+  		      /* A function ext does not go at the end of a
+--- 4411,4418 ----
+*************** coff_slurp_symbol_table (abfd)
+*** 4497,4510 ****
+  		 section, if there is one.  */
+  	      if (dst->symbol.section)
+  		{
+- #if defined COFF_WITH_PE
+- 		  /* PE sets the symbol to a value relative to the
+-                      start of the section.  */
+- 		  dst->symbol.value = src->u.syment.n_value;
+- #else
+  		  dst->symbol.value = (src->u.syment.n_value
+  				       - dst->symbol.section->vma);
+- #endif
+  		}
+  	      else
+  		dst->symbol.value = src->u.syment.n_value;
+--- 4491,4498 ----
+*************** coff_slurp_symbol_table (abfd)
+*** 4614,4620 ****
+  		  dst->symbol.flags = BSF_DEBUGGING;
+  		}
+  	      else
+! 		dst->symbol.flags = BSF_DEBUGGING | BSF_DEBUGGING_RELOC;
+  #else
+  	      /* Base the value as an index from the base of the
+  		 section.  */
+--- 4602,4614 ----
+  		  dst->symbol.flags = BSF_DEBUGGING;
+  		}
+  	      else
+! 		{
+! 		  dst->symbol.flags = BSF_DEBUGGING | BSF_DEBUGGING_RELOC;
+! 		  /* Base the value as an index from the base of the
+! 		     section. */
+! 		  dst->symbol.value = 
+! 		    (src->u.syment.n_value - dst->symbol.section->vma);
+! 		}
+  #else
+  	      /* Base the value as an index from the base of the
+  		 section.  */
+Index: src/bfd/coffgen.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/coffgen.c,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 coffgen.c
+*** src/bfd/coffgen.c	2001/12/23 00:34:29	1.1.1.1
+--- src/bfd/coffgen.c	2001/12/23 01:50:23
+*************** fixup_symbol_value (abfd, coff_symbol_pt
+*** 625,636 ****
+  
+  	  syment->n_value = (coff_symbol_ptr->symbol.value
+  			     + coff_symbol_ptr->symbol.section->output_offset);
+! 	  if (! obj_pe (abfd))
+!             {
+!               syment->n_value += (syment->n_sclass == C_STATLAB)
+!                 ? coff_symbol_ptr->symbol.section->output_section->lma
+!                 : coff_symbol_ptr->symbol.section->output_section->vma;
+!             }
+  	}
+        else
+  	{
+--- 625,634 ----
+  
+  	  syment->n_value = (coff_symbol_ptr->symbol.value
+  			     + coff_symbol_ptr->symbol.section->output_offset);
+! 
+! 	  syment->n_value += (syment->n_sclass == C_STATLAB)
+! 	    ? coff_symbol_ptr->symbol.section->output_section->lma
+! 	    : coff_symbol_ptr->symbol.section->output_section->vma;
+  	}
+        else
+  	{
+*************** coff_write_alien_symbol (abfd, symbol, w
+*** 1062,1070 ****
+        native->u.syment.n_scnum =
+  	symbol->section->output_section->target_index;
+        native->u.syment.n_value = (symbol->value
+  				  + symbol->section->output_offset);
+-       if (! obj_pe (abfd))
+- 	native->u.syment.n_value += symbol->section->output_section->vma;
+  
+        /* Copy the any flags from the file header into the symbol.
+           FIXME: Why?  */
+--- 1060,1067 ----
+        native->u.syment.n_scnum =
+  	symbol->section->output_section->target_index;
+        native->u.syment.n_value = (symbol->value
++ 	                          + symbol->section->output_section->vma
+  				  + symbol->section->output_offset);
+  
+        /* Copy the any flags from the file header into the symbol.
+           FIXME: Why?  */
+*************** bfd_coff_set_symbol_class (abfd, symbol,
+*** 2477,2485 ****
+  	  native->u.syment.n_scnum =
+  	    symbol->section->output_section->target_index;
+  	  native->u.syment.n_value = (symbol->value
+  				      + symbol->section->output_offset);
+- 	  if (! obj_pe (abfd))
+- 	    native->u.syment.n_value += symbol->section->output_section->vma;
+  
+  	  /* Copy the any flags from the file header into the symbol.
+  	     FIXME: Why?  */
+--- 2474,2481 ----
+  	  native->u.syment.n_scnum =
+  	    symbol->section->output_section->target_index;
+  	  native->u.syment.n_value = (symbol->value
++ 				      + symbol->section->output_section->vma
+  				      + symbol->section->output_offset);
+  
+  	  /* Copy the any flags from the file header into the symbol.
+  	     FIXME: Why?  */
+Index: src/bfd/cofflink.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/cofflink.c,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 cofflink.c
+*** src/bfd/cofflink.c	2001/12/23 00:34:29	1.1.1.1
+--- src/bfd/cofflink.c	2001/12/23 02:38:36
+*************** coff_link_add_symbols (abfd, info)
+*** 394,401 ****
+  	    case COFF_SYMBOL_GLOBAL:
+  	      flags = BSF_EXPORT | BSF_GLOBAL;
+  	      section = coff_section_from_bfd_index (abfd, sym.n_scnum);
+! 	      if (! obj_pe (abfd))
+! 		value -= section->vma;
+  	      break;
+  
+  	    case COFF_SYMBOL_UNDEFINED:
+--- 394,400 ----
+  	    case COFF_SYMBOL_GLOBAL:
+  	      flags = BSF_EXPORT | BSF_GLOBAL;
+  	      section = coff_section_from_bfd_index (abfd, sym.n_scnum);
+! 	      value -= section->vma;
+  	      break;
+  
+  	    case COFF_SYMBOL_UNDEFINED:
+*************** _bfd_coff_link_input_bfd (finfo, input_b
+*** 1810,1820 ****
+  	    if (isym.n_scnum > 0)
+  	      {
+  		isym.n_scnum = (*secpp)->output_section->target_index;
+! 		isym.n_value += (*secpp)->output_offset;
+! 		if (! obj_pe (input_bfd))
+! 		  isym.n_value -= (*secpp)->vma;
+! 		if (! obj_pe (finfo->output_bfd))
+! 		  isym.n_value += (*secpp)->output_section->vma;
+  	      }
+  	    break;
+  
+--- 1809,1817 ----
+  	    if (isym.n_scnum > 0)
+  	      {
+  		isym.n_scnum = (*secpp)->output_section->target_index;
+! 		isym.n_value += ((*secpp)->output_offset
+! 		                 + (*secpp)->output_section->vma
+! 		                 - (*secpp)->vma);
+  	      }
+  	    break;
+  
+*************** _bfd_coff_write_global_sym (h, data)
+*** 2531,2540 ****
+  	  isym.n_scnum = N_ABS;
+  	else
+  	  isym.n_scnum = sec->target_index;
+  	isym.n_value = (h->root.u.def.value
+  			+ h->root.u.def.section->output_offset);
+- 	if (! obj_pe (finfo->output_bfd))
+- 	  isym.n_value += sec->vma;
+        }
+        break;
+  
+--- 2528,2538 ----
+  	  isym.n_scnum = N_ABS;
+  	else
+  	  isym.n_scnum = sec->target_index;
++ 	/* for a section symbol, the value is noise, so we'll take what
++ 	   we get. */
+  	isym.n_value = (h->root.u.def.value
++ 			+ sec->vma
+  			+ h->root.u.def.section->output_offset);
+        }
+        break;
+  
+*************** _bfd_coff_generic_relocate_section (outp
+*** 2868,2874 ****
+--- 2866,2876 ----
+  {
+    struct internal_reloc *rel;
+    struct internal_reloc *relend;
++   bfd_vma imagebase = 0;
+  
++   if (pe_data(output_bfd) != NULL)
++       imagebase = pe_data(output_bfd)->pe_opthdr.ImageBase;
++ 
+    rel = relocs;
+    relend = rel + input_section->reloc_count;
+    for (; rel < relend; rel++)
+*************** _bfd_coff_generic_relocate_section (outp
+*** 2880,2885 ****
+--- 2882,2892 ----
+        bfd_vma val;
+        reloc_howto_type *howto;
+        bfd_reloc_status_type rstat;
++       enum coff_symbol_classification classification;
++       asection *sec;
++       boolean need_imagebase;  /* Not all relocs get ImageBase */
++       boolean valIsValid;  /* whether the computed val is to be trusted */
++       struct internal_reloc outrel;
+  
+        symndx = rel->r_symndx;
+  
+*************** _bfd_coff_generic_relocate_section (outp
+*** 2898,2904 ****
+  	}
+        else
+  	{
+! 	  h = obj_coff_sym_hashes (input_bfd)[symndx];
+  	  sym = syms + symndx;
+  	}
+  
+--- 2905,2930 ----
+  	}
+        else
+  	{
+! 	  classification = bfd_coff_classify_symbol(input_bfd, &syms[symndx]);
+! 	  if (classification == COFF_SYMBOL_PE_SECTION)
+! 	    {
+! 	      /* a reference to a section definition wants to just use the
+! 		 section information (which is what this does).  We can't
+! 		 look at h, because the (local) symbol table entry might
+! 		 be an ordinary reference to a section symbol OR a section
+! 		 definition, and those are treated differently.  Only
+! 		 the local symbol table tells us which. */
+! 	      h = NULL;
+! 	    }
+! 	  else
+! 	    {
+! 	      /* If this is a relocateable link, and we're dealing with
+! 		 a relocation against a symbol (rather than a section),
+! 		 leave it alone */
+! 	      if (info->relocateable)
+! 		continue;
+! 	      h = obj_coff_sym_hashes (input_bfd)[symndx];
+! 	    }
+  	  sym = syms + symndx;
+  	}
+  
+*************** _bfd_coff_generic_relocate_section (outp
+*** 2931,2940 ****
+  
+        val = 0;
+  
+        if (h == NULL)
+  	{
+- 	  asection *sec;
+- 
+  	  if (symndx == -1)
+  	    {
+  	      sec = bfd_abs_section_ptr;
+--- 2957,2966 ----
+  
+        val = 0;
+  
++       valIsValid = true;
++ 
+        if (h == NULL)
+  	{
+  	  if (symndx == -1)
+  	    {
+  	      sec = bfd_abs_section_ptr;
+*************** _bfd_coff_generic_relocate_section (outp
+*** 2943,2983 ****
+  	  else
+  	    {
+  	      sec = sections[symndx];
+!               val = (sec->output_section->vma
+  		     + sec->output_offset
+! 		     + sym->n_value);
+! 	      if (! obj_pe (input_bfd))
+! 		val -= sec->vma;
+  	    }
+  	}
+        else
+  	{
+! 	  if (h->root.type == bfd_link_hash_defined
+! 	      || h->root.type == bfd_link_hash_defweak)
+  	    {
+! 	      asection *sec;
+! 
+  	      sec = h->root.u.def.section;
+  	      val = (h->root.u.def.value
+  		     + sec->output_section->vma
+  		     + sec->output_offset);
+! 	      }
+  
+! 	  else if (h->root.type == bfd_link_hash_undefweak)
+! 	    val = 0;
+  
+! 	  else if (! info->relocateable)
+  	    {
+! 	      if (! ((*info->callbacks->undefined_symbol)
+! 		     (info, h->root.root.string, input_bfd, input_section,
+! 		      rel->r_vaddr - input_section->vma, true)))
+! 		return false;
+  	    }
+  	}
+  
+        if (info->base_file)
+  	{
+! 	  /* Emit a reloc if the backend thinks it needs it.  */
+  	  if (sym && pe_data (output_bfd)->in_reloc_p (output_bfd, howto))
+  	    {
+  	      /* Relocation to a symbol in a section which isn't
+--- 2969,3052 ----
+  	  else
+  	    {
+  	      sec = sections[symndx];
+! 	      val = (sec->output_section->vma
+  		     + sec->output_offset
+! 		     + sym->n_value
+! 		     - sec->vma);
+  	    }
+  	}
+        else
+  	{
+! 	  switch (h->root.type)
+  	    {
+! 	    case bfd_link_hash_defined:
+! 	    case bfd_link_hash_defweak:
+  	      sec = h->root.u.def.section;
+  	      val = (h->root.u.def.value
+  		     + sec->output_section->vma
+  		     + sec->output_offset);
+! 	      break;
+!   
+! 	    case bfd_link_hash_undefweak:
+! 	      sec = NULL;
+! 	      val = 0;
+! 	      break;
+  
+! 	    case bfd_link_hash_undefined:
+! 	    case bfd_link_hash_new:
+! 	    case bfd_link_hash_common:
+! 	    case bfd_link_hash_indirect:
+! 	    case bfd_link_hash_warning:
+  
+! 	      /* The symbol is undefined (in some way)... some of the above
+! 		 probably should never be able to happen. */
+! 
+! 	      valIsValid = false;
+! 	      sec = NULL;
+! 	      break;
+! 
+! 	    default:
+! 	      abort ();
+! 	    }
+! 	}
+! 
+!       /* For non-PE, this may end up either true or false, but it doesn't
+! 	 matter because imagebase will always be zero. */
+!       need_imagebase = !howto->pc_relative
+! 	&& sec != NULL
+! 	&& !bfd_is_abs_section(sec->output_section);
+!   
+!       if (!valIsValid)
+! 	{
+! 	  if (h->root.type == bfd_link_hash_undefined)
+  	    {
+! 	      if (!info->relocateable)
+! 		{
+! 		  if (!((*info->callbacks->undefined_symbol)
+! 			(info, h->root.root.string, input_bfd, input_section,
+! 			 rel->r_vaddr - input_section->vma, true)))
+! 		    return false;
+! 		}
+! 	    }
+! 	  else
+! 	    {
+! 	      (*_bfd_error_handler)
+! 		(_("%s: warning: unresolvable relocation against symbol `%s' from %s section"),
+! 		 bfd_get_filename (input_bfd), h->root.root.string,
+! 		 bfd_get_section_name (input_bfd, input_section));
+  	    }
++ 
++ 	  val = 0;
+  	}
+  
++       if (need_imagebase)
++ 	addend += imagebase;
++ 
+        if (info->base_file)
+  	{
+! 	  /* Emit a reloc if the backend thinks it needs it. */
+! 	  /* Look for other instances of info->base_file in comments
+! 	     where other relocations may be needed */
+  	  if (sym && pe_data (output_bfd)->in_reloc_p (output_bfd, howto))
+  	    {
+  	      /* Relocation to a symbol in a section which isn't
+*************** _bfd_coff_generic_relocate_section (outp
+*** 2990,2997 ****
+  			   - input_section->vma
+  			   + input_section->output_offset
+  			   + input_section->output_section->vma);
+- 	      if (coff_data (output_bfd)->pe)
+- 		addr -= pe_data(output_bfd)->pe_opthdr.ImageBase;
+  	      if (fwrite (&addr, 1, sizeof (long), (FILE *) info->base_file)
+  		  != sizeof (long))
+  		{
+--- 3059,3064 ----
+Index: src/bfd/peXXigen.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/peXXigen.c,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 peXXigen.c
+*** src/bfd/peXXigen.c	2001/12/23 00:34:37	1.1.1.1
+--- src/bfd/peXXigen.c	2001/12/23 03:00:04
+*************** _bfd_XXi_swap_aouthdr_in (abfd, aouthdr_
+*** 496,531 ****
+        }
+    }
+  
+-   if (aouthdr_int->entry)
+-     {
+-       aouthdr_int->entry += a->ImageBase;
+- #ifndef COFF_WITH_pep
+-       aouthdr_int->entry &= 0xffffffff;
+- #endif
+-     }
+- 
+-   if (aouthdr_int->tsize)
+-     {
+-       aouthdr_int->text_start += a->ImageBase;
+- #ifndef COFF_WITH_pep
+-       aouthdr_int->text_start &= 0xffffffff;
+- #endif
+-     }
+- 
+- #ifndef COFF_WITH_pep
+-   /* PE32+ does not have data_start member! */
+-   if (aouthdr_int->dsize)
+-     {
+-       aouthdr_int->data_start += a->ImageBase;
+-       aouthdr_int->data_start &= 0xffffffff;
+-     }
+- #endif
+- 
+  #ifdef POWERPC_LE_PE
+    /* These three fields are normally set up by ppc_relocate_section.
+       In the case of reading a file in, we can pick them up from the
+!      DataDirectory.  */
+!   first_thunk_address = a->DataDirectory[12].VirtualAddress;
+    thunk_size = a->DataDirectory[12].Size;
+    import_table_size = a->DataDirectory[1].Size;
+  #endif
+--- 496,510 ----
+        }
+    }
+  
+  #ifdef POWERPC_LE_PE
+    /* These three fields are normally set up by ppc_relocate_section.
+       In the case of reading a file in, we can pick them up from the
+!      DataDirectory. 
+! 
+!      The other NT versions use these same values, but don't use the globals
+!      to get to them.  [12] is the IAT, [1] is the import table. */
+! 
+!   first_thunk_address = a->DataDirectory[12].VirtualAddress ;
+    thunk_size = a->DataDirectory[12].Size;
+    import_table_size = a->DataDirectory[1].Size;
+  #endif
+*************** add_data_entry (abfd, aout, idx, name, b
+*** 539,545 ****
+       struct internal_extra_pe_aouthdr *aout;
+       int idx;
+       char *name;
+!      bfd_vma base;
+  {
+    asection *sec = bfd_get_section_by_name (abfd, name);
+  
+--- 518,524 ----
+       struct internal_extra_pe_aouthdr *aout;
+       int idx;
+       char *name;
+!      bfd_vma base ATTRIBUTE_UNUSED;
+  {
+    asection *sec = bfd_get_section_by_name (abfd, name);
+  
+*************** add_data_entry (abfd, aout, idx, name, b
+*** 555,561 ****
+        if (size)
+  	{
+  	  aout->DataDirectory[idx].VirtualAddress =
+! 	    (sec->vma - base) & 0xffffffff;
+  	  sec->flags |= SEC_DATA;
+  	}
+      }
+--- 534,540 ----
+        if (size)
+  	{
+  	  aout->DataDirectory[idx].VirtualAddress =
+! 	    sec->vma & 0xffffffff;
+  	  sec->flags |= SEC_DATA;
+  	}
+      }
+*************** _bfd_XXi_swap_aouthdr_out (abfd, in, out
+*** 571,577 ****
+    pe_data_type *pe = pe_data (abfd);
+    struct internal_extra_pe_aouthdr *extra = &pe->pe_opthdr;
+    PEAOUTHDR *aouthdr_out = (PEAOUTHDR *) out;
+!   bfd_vma sa, fa, ib;
+  
+    if (pe->force_minimum_alignment)
+      {
+--- 550,556 ----
+    pe_data_type *pe = pe_data (abfd);
+    struct internal_extra_pe_aouthdr *extra = &pe->pe_opthdr;
+    PEAOUTHDR *aouthdr_out = (PEAOUTHDR *) out;
+!   bfd_vma sa, fa;
+  
+    if (pe->force_minimum_alignment)
+      {
+*************** _bfd_XXi_swap_aouthdr_out (abfd, in, out
+*** 586,617 ****
+  
+    sa = extra->SectionAlignment;
+    fa = extra->FileAlignment;
+-   ib = extra->ImageBase;
+  
+-   if (aouthdr_in->tsize)
+-     {
+-       aouthdr_in->text_start -= ib;
+- #ifndef COFF_WITH_pep
+-       aouthdr_in->text_start &= 0xffffffff;
+- #endif
+-     }
+- 
+-   if (aouthdr_in->dsize)
+-     {
+-       aouthdr_in->data_start -= ib;
+- #ifndef COFF_WITH_pep
+-       aouthdr_in->data_start &= 0xffffffff;
+- #endif
+-     }
+- 
+-   if (aouthdr_in->entry)
+-     {
+-       aouthdr_in->entry -= ib;
+- #ifndef COFF_WITH_pep
+-       aouthdr_in->entry &= 0xffffffff;
+- #endif
+-     }
+- 
+  #define FA(x) (((x) + fa -1 ) & (- fa))
+  #define SA(x) (((x) + sa -1 ) & (- sa))
+  
+--- 565,571 ----
+*************** _bfd_XXi_swap_aouthdr_out (abfd, in, out
+*** 624,630 ****
+    /* first null out all data directory entries ..  */
+    memset (extra->DataDirectory, sizeof (extra->DataDirectory), 0);
+  
+!   add_data_entry (abfd, extra, 0, ".edata", ib);
+  
+    /* Don't call add_data_entry for .idata$2 or .idata$5.  It's done in
+       bfd_coff_final_link where all the required information is
+--- 578,584 ----
+    /* first null out all data directory entries ..  */
+    memset (extra->DataDirectory, sizeof (extra->DataDirectory), 0);
+  
+!   add_data_entry (abfd, extra, 0, ".edata", 0);
+  
+    /* Don't call add_data_entry for .idata$2 or .idata$5.  It's done in
+       bfd_coff_final_link where all the required information is
+*************** _bfd_XXi_swap_aouthdr_out (abfd, in, out
+*** 634,642 ****
+       entry for .idata is needed for backwards compatability.  FIXME.  */
+    add_data_entry (abfd, extra, 1, ".idata", ib);
+  
+!   add_data_entry (abfd, extra, 2, ".rsrc", ib);
+  
+!   add_data_entry (abfd, extra, 3, ".pdata", ib);
+  
+    /* For some reason, the virtual size (which is what's set by
+       add_data_entry) for .reloc is not the same as the size recorded
+--- 588,596 ----
+       entry for .idata is needed for backwards compatability.  FIXME.  */
+    add_data_entry (abfd, extra, 1, ".idata", ib);
+  
+!   add_data_entry (abfd, extra, 2, ".rsrc", 0);
+  
+!   add_data_entry (abfd, extra, 3, ".pdata", 0);
+  
+    /* For some reason, the virtual size (which is what's set by
+       add_data_entry) for .reloc is not the same as the size recorded
+*************** _bfd_XXi_swap_aouthdr_out (abfd, in, out
+*** 644,650 ****
+       but since it's the best we've got, use it.  It does do the right
+       thing for .pdata.  */
+    if (pe->has_reloc_section)
+!     add_data_entry (abfd, extra, 5, ".reloc", ib);
+  
+    {
+      asection *sec;
+--- 598,604 ----
+       but since it's the best we've got, use it.  It does do the right
+       thing for .pdata.  */
+    if (pe->has_reloc_section)
+!     add_data_entry (abfd, extra, 5, ".reloc", 0);
+  
+    {
+      asection *sec;
+*************** _bfd_XXi_swap_scnhdr_out (abfd, in, out)
+*** 887,895 ****
+    memcpy (scnhdr_ext->s_name, scnhdr_int->s_name, sizeof (scnhdr_int->s_name));
+  
+    PUT_SCNHDR_VADDR (abfd,
+! 		    ((scnhdr_int->s_vaddr
+! 		      - pe_data (abfd)->pe_opthdr.ImageBase)
+! 		     & 0xffffffff),
+  		    scnhdr_ext->s_vaddr);
+  
+    /* NT wants the size data to be rounded up to the next
+--- 841,847 ----
+    memcpy (scnhdr_ext->s_name, scnhdr_int->s_name, sizeof (scnhdr_int->s_name));
+  
+    PUT_SCNHDR_VADDR (abfd,
+! 		    (scnhdr_int->s_vaddr),
+  		    scnhdr_ext->s_vaddr);
+  
+    /* NT wants the size data to be rounded up to the next
+*************** pe_print_idata (abfd, vfile)
+*** 1059,1065 ****
+      }
+    else
+      {
+-       addr += extra->ImageBase;
+        for (section = abfd->sections; section != NULL; section = section->next)
+  	{
+  	  datasize = bfd_section_size (abfd, section);
+--- 1011,1016 ----
+*************** pe_print_idata (abfd, vfile)
+*** 1142,1148 ****
+    if (! bfd_get_section_contents (abfd, section, (PTR) data, (bfd_vma) 0, amt))
+      return false;
+  
+!   adj = section->vma - extra->ImageBase;
+  
+    for (i = 0; i < datasize; i += onaline)
+      {
+--- 1093,1099 ----
+    if (! bfd_get_section_contents (abfd, section, (PTR) data, (bfd_vma) 0, amt))
+      return false;
+  
+!   adj = section->vma;
+  
+    for (i = 0; i < datasize; i += onaline)
+      {
+*************** pe_print_edata (abfd, vfile)
+*** 1329,1336 ****
+      }
+    else
+      {
+-       addr += extra->ImageBase;
+- 
+        for (section = abfd->sections; section != NULL; section = section->next)
+  	{
+  	  datasize = bfd_section_size (abfd, section);
+--- 1280,1285 ----
+*************** pe_print_edata (abfd, vfile)
+*** 1374,1380 ****
+    edt.npt_addr       = bfd_get_32 (abfd, data + 32);
+    edt.ot_addr        = bfd_get_32 (abfd, data + 36);
+  
+!   adj = section->vma - extra->ImageBase + dataoff;
+  
+    /* Dump the EDT first.  */
+    fprintf (file,
+--- 1323,1329 ----
+    edt.npt_addr       = bfd_get_32 (abfd, data + 32);
+    edt.ot_addr        = bfd_get_32 (abfd, data + 36);
+  
+!   adj = section->vma + dataoff;
+  
+    /* Dump the EDT first.  */
+    fprintf (file,
+Index: src/bfd/peicode.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/peicode.h,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 peicode.h
+*** src/bfd/peicode.h	2001/12/23 00:34:37	1.1.1.1
+--- src/bfd/peicode.h	2001/12/23 02:40:37
+*************** coff_swap_scnhdr_in (abfd, ext, in)
+*** 252,263 ****
+    scnhdr_int->s_nlnno = H_GET_16 (abfd, scnhdr_ext->s_nlnno);
+  #endif
+  
+-   if (scnhdr_int->s_vaddr != 0)
+-     {
+-       scnhdr_int->s_vaddr += pe_data (abfd)->pe_opthdr.ImageBase;
+-       scnhdr_int->s_vaddr &= 0xffffffff;
+-     }
+- 
+  #ifndef COFF_NO_HACK_SCNHDR_SIZE
+    /* If this section holds uninitialized data, use the virtual size
+       (stored in s_paddr) instead of the physical size.  */
+--- 252,257 ----

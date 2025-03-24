@@ -1,0 +1,19 @@
+Test Run By donnte on Sat Feb  2 17:47:30 2002
+Native configuration is cc: Cannot find compiler 'CL.EXE' in PATH
+cc: Either set the C89_COMPILER environment variable or add the
+     directory that contains the CL.EXE program to PATH
+child process exited abnormally
+
+		===  tests ===
+
+Schedule of variations:
+    unix
+
+Running target unix
+Using /usr/local/share/dejagnu/baseboards/unix.exp as board description file for target.
+Using /usr/local/share/dejagnu/config/unix.exp as generic interface file for target.
+WARNING: Couldn't find tool config file for unix, using default.
+
+		===  Summary ===
+
+runtest completed at Sat Feb  2 17:47:30 2002

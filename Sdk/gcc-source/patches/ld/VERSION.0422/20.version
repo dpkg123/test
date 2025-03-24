@@ -1,0 +1,18 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/emulparams/i386pei.sh //D/home/donn.intel/gnu.intel/ld/emulparams/i386pei.sh
+--- //Q/Gnusrc/cygwin.0325/ld/emulparams/i386pei.sh	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/gnu.intel/ld/emulparams/i386pei.sh	Mon Mar 29 11:22:54 1999
+@@ -170,11 +177,11 @@ static definfo init[] =
+   D(FileAlignment,"__file_alignment__", PE_DEF_FILE_ALIGNMENT),
+   D(MajorOperatingSystemVersion,"__major_os_version__", 4),
+   D(MinorOperatingSystemVersion,"__minor_os_version__", 0),
+-  D(MajorImageVersion,"__major_image_version__", 1),
++  D(MajorImageVersion,"__major_image_version__", 0),
+   D(MinorImageVersion,"__minor_image_version__", 0),
+-  D(MajorSubsystemVersion,"__major_subsystem_version__", 4),
+-  D(MinorSubsystemVersion,"__minor_subsystem_version__", 0),
++  D(MajorSubsystemVersion,"__major_subsystem_version__", 19),
++  D(MinorSubsystemVersion,"__minor_subsystem_version__", 90),
+   D(Subsystem,"__subsystem__", SUBSYSTEM),
+   D(SizeOfStackReserve,"__size_of_stack_reserve__", 0x2000000),
+   D(SizeOfStackCommit,"__size_of_stack_commit__", 0x1000),
+   D(SizeOfHeapReserve,"__size_of_heap_reserve__", 0x100000),

@@ -1,0 +1,15 @@
+--- /C/CVS/egcs.baseline/gcc/gcc/config/i386/i386-interix.h	Sun Dec 16 07:43:40 2001
++++ gcc/config/i386/i386-interix.h	Fri Feb  8 12:58:09 2002
+@@ -52,9 +54,9 @@ Boston, MA 02111-1307, USA.  */
+ #define WCHAR_TYPE_SIZE 16
+ #define WCHAR_TYPE "short unsigned int"
+ 
+-/* WinNT (and thus Interix) use unsigned int */
+-#define SIZE_TYPE "unsigned int"
+-
++/* Use unsigned long */
++#define SIZE_TYPE "long unsigned int"
++
+ #define ASM_LOAD_ADDR(loc, reg)   "     leal " #loc "," #reg "\n"
+ 
+ /* cpp handles __STDC__ */

@@ -1,0 +1,25 @@
+I am applying this one, but I expect sooner or later this will happen
+whether I do it or not, because it has a very large performance impact.
+Note that MSVC can generate odd-sized sections (e.g. size % 8 != 0) and
+Gnu doesn't realign to 8 bytes, so all subsequent sections stay "off",
+with significant performance impacts.
+
+
+Index: src/bfd/coff-i386.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/coff-i386.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 coff-i386.c
+--- src/bfd/coff-i386.c	2001/12/23 03:05:58	1.2
++++ src/bfd/coff-i386.c	2001/12/24 03:23:56
+@@ -47,7 +47,9 @@ static reloc_howto_type *coff_i386_rtype
+ static reloc_howto_type *coff_i386_reloc_type_lookup
+   PARAMS ((bfd *, bfd_reloc_code_real_type));
+ 
+-#define COFF_DEFAULT_SECTION_ALIGNMENT_POWER (2)
++/* This limits the alignment of common to this power; 8 byte alignment is
++   what's "good" on Pentiums, etc. */
++#define COFF_DEFAULT_SECTION_ALIGNMENT_POWER (3)
+ /* The page size is a guess based on ELF.  */
+ 
+ #define COFF_PAGE_SIZE 0x1000

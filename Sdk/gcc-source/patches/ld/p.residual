@@ -1,0 +1,1521 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ld.h //D/home/donn.intel/gnu.intel/ld/ld.h
+--- //Q/Gnusrc/cygwin.18/ld/ld.h	Mon Mar 15 18:19:53 1999
++++ //D/home/donn.intel/gnu.intel/ld/ld.h	Sun May 23 00:32:42 1999
+@@ -152,6 +152,7 @@ typedef enum
+ {
+   lang_first_phase_enum,
+   lang_allocating_phase_enum,
++  lang_relaxing_phase_enum,
+   lang_final_phase_enum
+ } lang_phase_type;
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldcref.c //D/home/donn.intel/gnu.intel/ld/ldcref.c
+--- //Q/Gnusrc/cygwin.18/ld/ldcref.c	Mon Mar 15 18:19:54 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldcref.c	Sun May 23 00:32:43 1999
+@@ -285,15 +285,23 @@ output_one_cref (fp, h)
+     {
+       /* If this symbol is defined in a dynamic object but never
+ 	 referenced by a normal object, then don't print it.  */
+-      if (hl->type == bfd_link_hash_defined)
++      if (hl->type == bfd_link_hash_defined  
++       || hl->type == bfd_link_hash_defined_ext
++       || hl->type == bfd_link_hash_section)
+ 	{
+-	  if (hl->u.def.section->output_section == NULL)
++	  asection *sec;
++          if (hl->type == bfd_link_hash_defined_ext)
++	     sec = hl->u.defext.perm->section->output_section;
++	  else
++	     sec = hl->u.def.section->output_section;
++
++	  if (sec == NULL)
+ 	    return;
+-	  if (hl->u.def.section->owner != NULL
+-	      && (hl->u.def.section->owner->flags & DYNAMIC) != 0)
++	  if (sec->owner != NULL
++	      && (sec->owner->file_flags & DYNAMIC) != 0)
+ 	    {
+ 	      for (r = h->refs; r != NULL; r = r->next)
+-		if ((r->abfd->flags & DYNAMIC) == 0)
++		if ((r->abfd->file_flags & DYNAMIC) == 0)
+ 		  break;
+ 	      if (r == NULL)
+ 		return;
+@@ -370,10 +378,18 @@ check_nocrossref (h, ignore)
+     }
+ 
+   if (hl->type != bfd_link_hash_defined
++      && hl->type != bfd_link_hash_defined_ext
++      && hl->type != bfd_link_hash_defweak_ext
++      && hl->type != bfd_link_hash_section
+       && hl->type != bfd_link_hash_defweak)
+     return true;
+ 
+-  defsec = hl->u.def.section->output_section;
++  
++  if (hl->type == bfd_link_hash_defined_ext
++      || hl->type == bfd_link_hash_defweak_ext)
++    defsec = hl->u.defext.perm->section->output_section;
++  else
++    defsec = hl->u.def.section->output_section;
+   if (defsec == NULL)
+     return true;
+   defsecname = bfd_get_section_name (defsec->owner, defsec);
+@@ -449,10 +465,13 @@ check_refs (h, hl, ncrs)
+ 	}
+ 
+       info.h = h;
+-      info.defsec = hl->u.def.section;
++      if (hl->type == bfd_link_hash_defined_ext)
++	 info.defsec = hl->u.defext.perm->section;
++      else
++	 info.defsec = hl->u.def.section;
+       info.ncrs = ncrs;
+       info.asymbols = asymbols;
+-      if (ref->abfd == hl->u.def.section->owner)
++      if (ref->abfd == info.defsec->owner)
+ 	info.same = true;
+       else
+ 	info.same = false;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldctor.c //D/home/donn.intel/gnu.intel/ld/ldctor.c
+--- //Q/Gnusrc/cygwin.18/ld/ldctor.c	Mon Mar 15 18:19:54 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldctor.c	Sun May 23 00:32:43 1999
+@@ -145,6 +145,9 @@ ldctor_build_sets ()
+ 	 collect, and the sets may already have been built, so we do
+ 	 not do anything.  */
+       if (p->h->type == bfd_link_hash_defined
++	  || p->h->type == bfd_link_hash_defined_ext
++	  || p->h->type == bfd_link_hash_section
++	  || p->h->type == bfd_link_hash_defweak_ext
+ 	  || p->h->type == bfd_link_hash_defweak)
+ 	continue;
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldexp.c //D/home/donn.intel/gnu.intel/ld/ldexp.c
+--- //Q/Gnusrc/cygwin.18/ld/ldexp.c	Mon Mar 15 18:19:54 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldexp.c	Sun May 23 00:32:43 1999
+@@ -362,7 +362,10 @@ fold_name (tree, current_section, alloca
+ 					      false, false, true);
+ 	    result.value = (h != (struct bfd_link_hash_entry *) NULL
+ 			    && (h->type == bfd_link_hash_defined
++				|| h->type == bfd_link_hash_defined_ext
+ 				|| h->type == bfd_link_hash_defweak
++				|| h->type == bfd_link_hash_defweak_ext
++				|| h->type == bfd_link_hash_section
+ 				|| h->type == bfd_link_hash_common));
+ 	    result.section = 0;
+ 	    result.valid = true;
+@@ -386,22 +389,39 @@ fold_name (tree, current_section, alloca
+ 					      false, false, true);
+ 	    if (h != NULL
+ 		&& (h->type == bfd_link_hash_defined
++		    || h->type == bfd_link_hash_defined_ext
++		    || h->type == bfd_link_hash_section
++		    || h->type == bfd_link_hash_defweak_ext
+ 		    || h->type == bfd_link_hash_defweak))
+ 	      {
+-		if (bfd_is_abs_section (h->u.def.section))
+-		  result = new_abs (h->u.def.value);
++		asection *sec;
++		bfd_vma valu;
++		if (h->type == bfd_link_hash_defined_ext
++		    || h->type == bfd_link_hash_defweak_ext)
++		  {
++		    sec = h->u.defext.perm->section;
++		    valu = h->u.defext.perm->value;
++		  }
++		else
++		  {
++		    sec = h->u.def.section;
++		    valu = h->u.def.value;
++		  }
++
++		if (bfd_is_abs_section (sec))
++		  result = new_abs (valu);
+ 		else if (allocation_done == lang_final_phase_enum
++			 || allocation_done == lang_relaxing_phase_enum
+ 			 || allocation_done == lang_allocating_phase_enum)
+ 		  {
+ 		    lang_output_section_statement_type *os;
+ 		
+ 		    os = (lang_output_section_statement_lookup
+-			  (h->u.def.section->output_section->name));
++			  (sec->output_section->name));
+ 
+ 		    /* FIXME: Is this correct if this section is being
+ 		       linked with -R?  */
+-		    result = new_rel ((h->u.def.value
+-				       + h->u.def.section->output_offset),
++		    result = new_rel ((valu + sec->output_offset),
+ 				      os);
+ 		  }
+ 	      }
+@@ -537,7 +557,8 @@ exp_fold_tree (tree, current_section, al
+ 
+ 	    case NEXT:
+ 	      /* Return next place aligned to value.  */
+-	      if (allocation_done == lang_allocating_phase_enum)
++	      if (allocation_done == lang_allocating_phase_enum
++	         || allocation_done == lang_relaxing_phase_enum)
+ 		{
+ 		  make_abs (&result);
+ 		  result.value = ALIGN_N (dot, result.value);
+@@ -640,10 +661,31 @@ exp_fold_tree (tree, current_section, al
+ 	      else
+ 		{
+ 		  /* FIXME: Should we worry if the symbol is already
+-		     defined?  */
++		     defined?  Yes... so we know it bit us.  */
++
++		  /* In early phases, it should be new or something
++		     "undefined" ; in later phases we already defined 
++		     it here, so don't complain */
++		  if (  h->type != bfd_link_hash_new 
++		     && h->type != bfd_link_hash_undefined
++		     && h->type != bfd_link_hash_undefweak
++		     && h->type != bfd_link_hash_common
++		     && allocation_done != lang_final_phase_enum
++		     && allocation_done != lang_relaxing_phase_enum)
++		      einfo ("%S linker script overrode input symbol %s\n",
++		      tree->assign.dst);
++		  /* this won't be a bfd_link_hash_defined_ext at any point,
++		     presumably */
++		  ASSERT(h->type != bfd_link_hash_defined_ext);
+ 		  h->type = bfd_link_hash_defined;
+ 		  h->u.def.value = result.value;
+ 		  h->u.def.section = result.section->bfd_section;
++
++		  /* A last little kluge... Once we've decided whether
++		     or not to create the symbol, we ALWAYS want to recompute
++		     the value.  Convert 'provide' to 'assign' so recomputation
++		     for relaxing will happen */
++	          tree->type.node_class = etree_assign;
+ 		}
+ 	    }
+ 	}
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldfile.c //D/home/donn.intel/gnu.intel/ld/ldfile.c
+--- //Q/Gnusrc/cygwin.18/ld/ldfile.c	Mon Mar 15 18:19:54 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldfile.c	Sun May 23 00:32:44 1999
+@@ -82,6 +82,15 @@ ldfile_add_library_path (name, cmdline)
+   search_dirs_type *new;
+ 
+   new = (search_dirs_type *) xmalloc (sizeof (search_dirs_type));
++  if (!cmdline && name[0] == '/') 
++    {
++       char *new, *p;
++       /* assume INTERIX_ROOT relative names */
++       new = _prefixInstallPath(name, NULL, 0);
++       p = xmalloc(strlen(new)+1);
++       strcpy(p, new);
++       name = p;
++    }
+   new->next = NULL;
+   new->name = name;
+   new->cmdline = cmdline;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldlang.c //D/home/donn.intel/gnu.intel/ld/ldlang.c
+--- //Q/Gnusrc/cygwin.18/ld/ldlang.c	Mon Mar 15 18:19:56 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldlang.c	Sun May 23 00:32:44 1999
+@@ -109,6 +109,7 @@ static void print_data_statement PARAMS 
+ static void print_address_statement PARAMS ((lang_address_statement_type *));
+ static void print_reloc_statement PARAMS ((lang_reloc_statement_type *reloc));
+ static void print_padding_statement PARAMS ((lang_padding_statement_type *s));
++static void print_stub_statement PARAMS ((lang_stub_statement_type *s));
+ static void print_wild_statement
+   PARAMS ((lang_wild_statement_type *w,
+ 	   lang_output_section_statement_type *os));
+@@ -119,6 +120,20 @@ static void print_statement PARAMS ((lan
+ static void print_statement_list PARAMS ((lang_statement_union_type *s,
+ 					  lang_output_section_statement_type *os));
+ static void print_statements PARAMS ((void));
++
++static bfd_vma stub_emit_stubs PARAMS((bfd_vma, bfd_vma, 
++                                    lang_output_section_statement_type *,
++				    bfd_vma, fill_type fill));
++
++static bfd_vma stub_statement_list PARAMS ((lang_statement_union_type *s,
++				       lang_statement_union_type **p,
++				       lang_output_section_statement_type *os,
++				       bfd_vma, fill_type fill));
++static bfd_vma stub_input_statement PARAMS((lang_statement_union_type *,
++     lang_output_section_statement_type *, bfd_vma, fill_type fill));
++
++static void ldlang_insert_stubs PARAMS ((void));
++
+ static bfd_vma insert_pad PARAMS ((lang_statement_union_type **this_ptr,
+ 				   fill_type fill, unsigned int power,
+ 				   asection *output_section_statement,
+@@ -215,6 +230,7 @@ lang_for_each_statement_worker (func, s)
+ 	case lang_input_statement_enum:
+ 	case lang_assignment_statement_enum:
+ 	case lang_padding_statement_enum:
++	case lang_stub_statement_enum:
+ 	case lang_address_statement_enum:
+ 	case lang_fill_statement_enum:
+ 	  break;
+@@ -1200,17 +1225,19 @@ ldlang_open_output (statement)
+       output_bfd = open_output (statement->output_statement.name);
+       ldemul_set_output_arch ();
+       if (config.magic_demand_paged && !link_info.relocateable)
+	output_bfd->flags |= D_PAGED;
+       else
+	output_bfd->flags &= ~D_PAGED;
+       if (config.text_read_only)
+	output_bfd->flags |= WP_TEXT;
+       else
+	output_bfd->flags &= ~WP_TEXT;
+       if (link_info.traditional_format)
+	output_bfd->flags |= BFD_TRADITIONAL_FORMAT;
+       else
+	output_bfd->flags &= ~BFD_TRADITIONAL_FORMAT;
++      if (link_info.jump_span == 0)
++	link_info.jump_span = bfd_get_jump_span(output_bfd);
+       break;
+ 
+     case lang_target_statement_enum:
+@@ -1422,6 +1449,7 @@ map_input_to_output_sections (s, target,
+ 	case lang_data_statement_enum:
+ 	case lang_reloc_statement_enum:
+ 	case lang_padding_statement_enum:
++	case lang_stub_statement_enum:
+ 	case lang_input_statement_enum:
+ 	  if (output_section_statement != NULL
+ 	      && output_section_statement->bfd_section == NULL)
+@@ -1550,19 +1578,33 @@ print_one_symbol (hash_entry, ptr)
+      PTR ptr;
+ {
+   asection *sec = (asection *) ptr;
++  asection *hsec=(asection *)-1;
++  bfd_vma valu;
+ 
+-  if ((hash_entry->type == bfd_link_hash_defined
++  if (hash_entry->type == bfd_link_hash_defined
++       || hash_entry->type == bfd_link_hash_section
+        || hash_entry->type == bfd_link_hash_defweak)
+-      && sec == hash_entry->u.def.section)
++    {
++      hsec = hash_entry->u.def.section;
++      valu = hash_entry->u.def.value;
++    }
++  else if (hash_entry->type == bfd_link_hash_defined_ext
++       || hash_entry->type == bfd_link_hash_defweak_ext)
++    {
++      hsec = hash_entry->u.defext.perm->section;
++      valu = hash_entry->u.defext.perm->value;
++    }
++
++  if (sec == hsec)
+     {
+       int i;
+ 
+       for (i = 0; i < SECTION_NAME_MAP_LENGTH; i++)
+ 	print_space ();
+       minfo ("0x%V   ",
+-	     (hash_entry->u.def.value
+-	      + hash_entry->u.def.section->output_offset
+-	      + hash_entry->u.def.section->output_section->vma));
++	     (valu
++	      + hsec->output_offset
++	      + hsec->output_section->vma));
+ 
+       minfo ("             %T\n", hash_entry->root.string);
+     }
+@@ -1766,6 +1808,43 @@ print_padding_statement (s)
+ }
+ 
+ static void
++print_stub_statement (s)
++     lang_stub_statement_type *s;
++{
++  int len;
++  bfd_vma addr;
++  int i,j;
++
++  minfo (" *branch stubs*");
++
++  len = sizeof " *branch stubs*" - 1;
++  while (len < SECTION_NAME_MAP_LENGTH)
++    {
++      print_space ();
++      ++len;
++    }
++
++  addr = s->output_offset;
++  if (s->output_section != NULL)
++    addr += s->output_section->vma;
++  minfo ("0x%V %W", addr, s->size);
++
++  print_nl ();
++
++  for (i = 0; i < s->l.entries_count; i++)
++    {
++      for (j = 0; j < SECTION_NAME_MAP_LENGTH; j++)
++	  print_space();
++
++      minfo ("             %T\n", s->l.stublist[i]->root.string);
++    }
++
++  print_nl ();
++
++  print_dot = addr + s->size;
++}
++
++static void
+ print_wild_statement (w, os)
+      lang_wild_statement_type * w;
+      lang_output_section_statement_type * os;
+@@ -1859,6 +1938,9 @@ print_statement (s, os)
+     case lang_padding_statement_enum:
+       print_padding_statement (&s->padding_statement);
+       break;
++    case lang_stub_statement_enum:
++      print_stub_statement (&s->stub_statement);
++      break;
+     case lang_output_section_statement_enum:
+       print_output_section_statement (&s->output_section_statement);
+       break;
+@@ -1920,6 +2002,9 @@ dprint_statement (s, n)
+   config.map_file = map_save;
+ }
+ 
++/* a cache of deleted pads to be used later */
++lang_statement_union_type *unused_pads = NULL;
++
+ static bfd_vma
+ insert_pad (this_ptr, fill, power, output_section_statement, dot)
+      lang_statement_union_type ** this_ptr;
+@@ -1940,9 +2025,18 @@ insert_pad (this_ptr, fill, power, outpu
+ 
+   if (alignment_needed != 0)
+     {
+-      lang_statement_union_type *new =
+-	((lang_statement_union_type *)
+-	 stat_alloc (sizeof (lang_padding_statement_type)));
++      lang_statement_union_type *new;
++
++      if (unused_pads != NULL)
++	{
++	   new = unused_pads;
++	   unused_pads = new->next;
++	}
++      else
++	{
++	   new = ((lang_statement_union_type *)
++	     stat_alloc (sizeof (lang_padding_statement_type)));
++	}
+ 
+       /* Link into existing chain */
+       new->header.next = *this_ptr;
+@@ -2096,7 +2203,8 @@ lang_size_sections (s, output_section_st
+ 
+ 	   r = exp_fold_tree (os->addr_tree,
+ 			      abs_output_section,
+-			      lang_allocating_phase_enum,
++			      relax ? lang_relaxing_phase_enum
++				    : lang_allocating_phase_enum,
+ 			      dot, &dot);
+ 	   if (r.valid == false)
+ 	   {
+@@ -2277,7 +2384,8 @@ lang_size_sections (s, output_section_st
+ 
+        exp_fold_tree (s->assignment_statement.exp,
+ 		      output_section_statement,
+-		      lang_allocating_phase_enum,
++		      relax ? lang_relaxing_phase_enum
++			    : lang_allocating_phase_enum,
+ 		      dot,
+ 		      &newdot);
+ 
+@@ -2315,7 +2423,7 @@ lang_size_sections (s, output_section_st
+      }
+      break;
+ 
+-   case lang_padding_statement_enum:
++     case lang_padding_statement_enum:
+      /* If we are relaxing, and this is not the first pass, some
+ 	padding statements may have been inserted during previous
+ 	passes.  We may have to move the padding statement to a new
+@@ -2328,6 +2436,18 @@ lang_size_sections (s, output_section_st
+        s->padding_statement.size;
+      break;
+ 
++     case lang_stub_statement_enum:
++       if (s->stub_statement.output_offset !=
++		dot - output_section_statement->bfd_section->vma)
++         {
++	   einfo("%X%P: Jump stubs at %v were moved\n", 
++	       s->stub_statement.output_offset);
++         }
++       dot += s->stub_statement.size;
++       output_section_statement->bfd_section->_raw_size +=
++	 s->stub_statement.size;
++       break;
++
+      case lang_group_statement_enum:
+        dot = lang_size_sections (s->group_statement.children.head,
+ 				 output_section_statement,
+@@ -2479,6 +2599,10 @@ lang_do_assignments (s, output_section_s
+ 	  dot += s->padding_statement.size;
+ 	  break;
+ 
++	case lang_stub_statement_enum:
++	  dot += s->stub_statement.size;
++	  break;
++
+ 	case lang_group_statement_enum:
+ 	  dot = lang_do_assignments (s->group_statement.children.head,
+ 				     output_section_statement,
+@@ -2546,11 +2670,511 @@ lang_set_startof ()
+     }
+ }
+ 
++/* Stub Branch management: emit a stub long branch where needed if the
++   ordinary branch can't reach all of memory.  This code is portable to
++   all implementations that wish to insert branch stubs in-line.
++   Those that can put them on a special page (or can reach all of memory
++   with a simple branch) won't need this.  
++
++   There are two implementation-dependent subroutines: one to parse the 
++   relocations and turn them into the information this code uses, and the
++   other to actually emit the stub branch instructions.  Adaptation of the
++   existing (Alpha NT) version to other architectures should be 
++   prove trivial.
++
++   General outline of the algorithm: thread the symbol table with a link
++   to the first occurrence of a reference to a given symbol that is known
++   to be, or suspected to be (because it's a forward branch), out of
++   range.  The thread is in referencing address order.  At the beginning
++   of each new contribution to a code section, check whether the reference
++   will go out of range at the end of that section.  If so, emit the
++   required stubs.  Then emit the section.   If a request for a stub
++   is found to have been satisfied since the request was made (and thus
++   it's in range) skip emiting the branch.
++
++   The code that tests to see if a branch might be initially out of range
++   has access to any actually emitted stubs, and it first checks to see if
++   any of those will serve.  If not, it then inserts a request, which will
++   be emitted at the highest reachable address, allowing for keeping 
++   single contributions contiguous.  All subsequent branches between the
++   initial request and the stub will (by definition) reach, and thus
++   relocations using that symbol can be ignored.  Backwards branches
++   will be able to reach that same stub via the list of already emitted
++   stubs.
++
++   At the point where we emit the stubs, we also continue emitting them
++   to fill the current page (or until we run out), to minimize paging.
++
++   */
++
++static bfd_vma current_stub_offset;  /* used to check that the linked list
++                                        really is in address order; else we
++					die */
++static bfd_vma current_section_offset;  /* ditto */
++
++static bfd_vma stub_change;  /* The current CHANGE in virtual dot
++                                (at the output section level, only).
++				Used to get relative offsets between
++				multiple code sections right */
++
++/* This really should be private to these functions, but you can't say
++   that in C, and a ***sprev argument would be a bit excessive */
++lang_statement_union_type **sprev;
++
++/* Here's where the real work is:
++1) Emit stub branches (if any) that will go out of range when
++   this section is inserted.  Insert pads as needed.
++2) Grub thru the relocations for this section, and find all
++   short branch addresses and their targets.
++
++    + For symbols with computed address below where we are,
++      that address is correct (we must recompute it from the
++      section offset and the symbol within section offset, as
++      we may have changed the section offset earlier in this
++      loop).  
++      If the branch is in range, we are done.  (The next pass
++	 will actually apply the relocation to the output).
++      If the branch is out of range:
++      - If there's an existing stub branch in range, use it.
++      - If not, queue emitting a stub branch (at the highest
++	possible address that's still in range).
++      (The objective is to get near as many other branches
++      that will need the same stub.)
++
++    + For symbols past where we are, queue emitting a stub
++      branch (which may be cancelled later) at the highest
++      address that is in reach. */
++
++static
++bfd_vma stub_emit_stubs(last_available, old_current_pos, os, stubdot, fill)
++     bfd_vma last_available;
++     bfd_vma old_current_pos;
++     lang_output_section_statement_type *os;
++     bfd_vma stubdot;
++     fill_type fill;
++{
++   struct extended_def_vol *stubs_needed = NULL;
++   struct extended_def_vol **stubs_head = &stubs_needed;
++   int stubs_count = 0;
++   bfd_vma olddot;
++   bfd_vma currdotend;   /* end of next stub to be emitted */
++
++   olddot = stubdot / bfd_get_stub_pagesize(output_bfd); /* page we're on */
++   currdotend = align_power (stubdot, bfd_get_stub_align(output_bfd))
++		+ bfd_get_stub_length(output_bfd) - 1;
++   /* Look thru the requests until we run out of ones that
++      won't make it past the section we're about to add. */
++   while (true)
++     {
++	asection *sec;
++	struct bfd_link_hash_entry *sh;
++	struct extended_def_vol *sv;
++
++	/* The loop termination test is messy, so do it here */
++
++	/* Nothing more, of course bail out */
++        if (link_info.stub_list_head == NULL) 
++	    break;
++
++	sv=link_info.stub_list_head;
++	/* if there's more that will go out of range, emit it. */
++        if (sv->referencing_address >= last_available)
++	  {
++	    /* If we've emitted all we have to, we now want to emit enough
++	       more to fill up the current page, just to minimize paging;
++	       test that the end of the next stub will be on the same page
++	       we started on.  We must have emitted at least ONE stub
++	       so this doesn't start up unneccessarily.  If the 
++	       stub_page_size is zero, we don't continue flushing stubs. */
++	    if (bfd_get_stub_pagesize(output_bfd) == 0
++	         || stubs_count == 0 
++		 || olddot != currdotend / bfd_get_stub_pagesize(output_bfd))
++	        break;
++	    /* It'd be silly to emit a stub right next to the call that
++	       triggered the stub, because we'd not be able to reuse it as much,
++	       and it MIGHT be wasted if it turned out to be in range.
++	       To a first approximation, if the branch is closer than half
++	       the jump span, guess that the real entry point might prove
++	       to be in range and don't emit it yet.  This will cause
++	       a few more clumps of branches, but fewer total.  There's
++	       a lot of research to be done on the optimal algorithm;
++	       given that we DO have access to rough guesses as to the location
++	       of the function, we could be smart and skip some and emit
++	       others, but for now... */
++	    if (sv->referencing_address 
++		>= last_available + bfd_get_jump_span(output_bfd)/2)
++		break;
++	  }
++
++	/* Heuristic here: if it's "likely" to be reachable, don't emit */
++
++	sh = sv->hash_entry;
++	sec = sh->u.defext.perm->section;
++
++	/* Remove it from the list */
++	link_info.stub_list_head = sv->ref_chain;
++
++	/* Two ways for it to be a real stub... not yet defined
++	   (thus out of range as a forward branch)
++	   or before the referencing address (thus already
++	   known as an out of range backwards branch).
++	   Because we've actually seen the section before,
++	   the comparison of output_offset is used to determine
++	   if it's before or after the current stubdot; we have
++	   to use OLD values for both because the stub insertion
++	   may have moved things up enough to create a lie.  */
++
++	if (sec->output_offset >= old_current_pos
++	    || sec->output_offset < sv->referencing_address)
++	  {
++	     /* This call can't reach past this section; we need 
++		a stub branch. */
++	     /* For the moment, link it to a local list of required
++		stubs.  Once we know how many there are, we'll
++		use and discard that list, and the entries will
++		be fully unthreaded. */
++	     /* There's a potential optimization for symbols that are
++		defined in the upcoming section, should that ever be
++		an issue. */
++	     sv->ref_chain = *stubs_head;
++	     *stubs_head = sv;
++	     stubs_head = &sv->ref_chain;
++	     stubs_count++;
++	     currdotend += bfd_get_stub_length(output_bfd);
++
++	     /* The insertion of stubs may have caused another
++		queued entry to have to be emitted. */
++	     last_available += bfd_get_stub_length(output_bfd);
++	  }
++	else
++	  {
++	     /* It already reaches; just discard */
++	     sv->ref_chain = link_info.stub_vol_cache;
++	     sh->u.defext.vol = NULL;
++	     link_info.stub_vol_cache = sv;
++	  }
++    }
++
++    /* There's a possible pathological condition where a sequence of
++       (parameterless) functions is called directly in a row, and enough
++       different ones are called that the branch stubs outgrow the available
++       headroom.  We'll detect that and advise the user to set the jump
++       threshold down a bit. */
++
++    /* Were there any stubs required? */
++    if (stubs_count != 0)
++      {
++	 lang_statement_union_type *stubstat;
++	 /* Pad to required stub alignment */
++	 /* Note... this is inserted before the current
++	    s, so is safe from subsequent deletion */
++	 olddot = stubdot;
++	 stubdot = insert_pad (sprev, fill, 
++		     bfd_get_stub_align(output_bfd),
++		     os->bfd_section, stubdot);
++
++	 /* insert_pad may have done nothing, so we can only
++	    advance the pointer if it did something. */
++	 if (olddot != stubdot)
++	   {
++	     sprev = &(*sprev)->next;
++	   }
++
++	 /* Now allocate a stubs-branches section */
++
++	 stubstat = ((lang_statement_union_type *)
++	    stat_alloc (sizeof (lang_stub_statement_type)
++	       + (stubs_count-1)*sizeof(struct bfd_link_hash_entry *)));
++
++	 /* Link into existing chain */
++	 stubstat->header.next = *sprev;
++	 *sprev = stubstat;
++	 stubstat->header.type = lang_stub_statement_enum;
++	 stubstat->stub_statement.l.entries_count = stubs_count;
++	 stubstat->stub_statement.output_offset = stubdot
++	     - os->bfd_section->vma;
++	 stubstat->stub_statement.size = 
++	     stubs_count*bfd_get_stub_length(output_bfd);
++	 stubstat->stub_statement.output_section = os->bfd_section;
++	 sprev = &stubstat->next;
++
++	 /* examine all of them:
++	    - add to stub-branches section
++	    - add record of stub location to extras
++	    - finish discarding */
++	 stubs_count = 0;
++	 while (stubs_needed != NULL)
++	   {
++	      struct extra_addresses *ea;
++	      struct extended_def_vol *sv = stubs_needed;
++	      struct bfd_link_hash_entry *sh=sv->hash_entry;
++
++	      /* strip it from the chain */
++	      stubs_needed = stubs_needed->ref_chain;
++	      sv->ref_chain = link_info.stub_vol_cache;
++	      link_info.stub_vol_cache = sv;
++	      sh->u.defext.vol=NULL;
++
++	      if (sv->referencing_address + link_info.jump_span
++		  < stubdot)
++		{
++		   einfo("%X%P: Long jump stub range exceeded at %v\n"
++		   "suggest using --jump-span %v (round down), "
++		   "reordering input,\n"
++		   "or breaking up a long string of procedure calls in\n%C.\n",
++		   stubdot,
++		   link_info.jump_span - stubstat->stub_statement.size
++	     	     + stubs_count*bfd_get_stub_length(output_bfd),
++		   sh->u.defext.perm->section->owner,
++		   sh->u.defext.perm->section,
++		   sv->referencing_address);
++		}
++
++	      /* Put the stub branches in the new statement */
++	      stubstat->stub_statement.l.stublist[stubs_count++] = sh;
++
++	      /* Emit the next element in the stub chain for
++		 that symbol.  Order doesn't matter. */
++	      ea = stat_alloc(sizeof(struct extra_addresses));
++	      ea->addr = stubdot;
++	      ea->next = sh->u.defext.perm->extras;
++	      sh->u.defext.perm->extras = ea;
++
++	      stubdot += bfd_get_stub_length(output_bfd);
++	   }
++      }
++      return stubdot;
++}
++
++
++static bfd_vma
++stub_input_statement (s, os, stubdot, fill)
++     lang_statement_union_type *s;
++     lang_output_section_statement_type *os;
++     bfd_vma stubdot;
++     fill_type fill;
++{
++  asection *this_sec = s->input_section.section;
++
++  if (this_sec->_cooked_size > link_info.jump_span)
++    {
++       /* If this is the case, we can't save it!
++	  (There's no way to insert a jump INSIDE a single chunk this big) */
++       einfo("%X%P: %B code section too big for jump spans;\n"
++	     "suggest breaking up source file.\n", this_sec->owner);
++    }
++  /* Sanity check; if we're out of order, fail */
++  if (current_stub_offset 
++    > current_section_offset + this_sec->output_offset)
++    {
++      einfo("%F%P: %B out of link order at %W\n", this_sec,
++	  current_stub_offset);
++      FAIL();
++    }
++  current_stub_offset = 
++     current_section_offset + this_sec->output_offset;
++
++  /* If there are queued requests for a stub in the symbol table... */
++  if (link_info.stub_list_head != NULL)
++    {
++       bfd_vma last_available;
++
++       /* Figure the lowest address that can reach to the other side
++	  of the section we're about to insert; allow for
++	  alignment of both this stub section and the next one,
++	  and alignment of the code (worst case).  Since the actual alignment
++	  pad will always be < the requested alignment, we've allowed
++	  3 * the minimum possible alignment extra pad, which helps with
++	  off-by-one errors */
++       if (link_info.jump_span
++	   < stubdot + this_sec->_cooked_size)
++	   last_available = stubdot + this_sec->_cooked_size 
++	      + (1<<this_sec->alignment_power)
++	      + 2*(1<<bfd_get_stub_align(output_bfd))
++	      - link_info.jump_span;
++       else
++	   last_available = 0;
++
++       stubdot = stub_emit_stubs(last_available, this_sec->output_offset, 
++		 os, stubdot, fill);
++    }
++
++  stubdot = insert_pad (sprev, fill, this_sec->alignment_power,
++		    os->bfd_section, stubdot);
++  /* insert_pad may have done nothing, so we can only
++     advance the pointer if it did something. */
++  if (*sprev != s) 
++    {
++      sprev = &(*sprev)->next;
++    }
++
++  /* Say were we ended up */
++  this_sec->output_offset = stubdot - os->bfd_section->vma;
++
++  /* Walk relocations; this is architecture dependent to decode
++     them, but the result is not */
++
++  bfd_find_stubs(output_bfd, &link_info, this_sec);
++
++  /* Adjust the location of the section */
++  stubdot += this_sec->_cooked_size;
++  return stubdot;
++}
++
++/* Handle lists of statements for stubs */
++static bfd_vma
++stub_statement_list (s, prev, os, stubdot, fill)
++     lang_statement_union_type *s;
++     lang_statement_union_type **prev;
++     lang_output_section_statement_type *os;
++     bfd_vma stubdot;
++     fill_type fill;
++{
++  lang_statement_union_type **osprev = sprev;
++  sprev = prev;
++
++  while (s != NULL)
++    {
++      switch (s->header.type)
++	{
++	case lang_constructors_statement_enum:
++	  if (constructor_list.head != NULL)
++	    {
++	      stubdot = stub_statement_list 
++		  (constructor_list.head, &constructor_list.head, 
++		   os, stubdot, fill);
++	    }
++	  break;
++
++	case lang_wild_statement_enum:
++	  stubdot = stub_statement_list 
++	      (s->wild_statement.children.head, 
++	       &s->wild_statement.children.head, 
++	       os, stubdot, fill);
++	  break;
++
++	case lang_input_section_enum:
++	      stubdot = stub_input_statement(s,os,stubdot, fill);
++	  break;
++
++	case lang_padding_statement_enum:
++	  {
++  	      lang_statement_union_type *olds;
++	      
++	      /* We need to delete them (for now), as everything changes */
++	      olds = s;
++	      s = *sprev = s->next;
++	      /* no change to sprev */
++
++	      /* put the pad in the pad cache; we'll need it, so why
++		 pay to allocate it? */
++	      olds->next = unused_pads;
++	      unused_pads = olds;
++	  } 
++	  continue; /* don't do loop tail */;
++
++	case lang_output_section_statement_enum:
++	    {
++	      lang_output_section_statement_type *os = 
++		 &s->output_section_statement;
++	      asection *section = os->bfd_section;
++	      bfd_vma olddot;
++	      bfd_vma old_secsize;
++
++	      if (section && (section->flags & SEC_CODE))
++		{
++		  /* We cheat slightly here... the section offset we use
++		     is that computed from the first pass of lang_size_sections.
++		     That's fine for checking order of contributions, and
++		     since the computation of whether or not we need a branch
++		     stub is relative, if this is wrong, it doesn't matter
++		     now.  When lang_size_sections is run again after
++		     stub generation, it corrects the section offset.
++		     (This only really comes into play if there is more
++		     than one code section.)  Because we want to have
++		     stub branches work between sections, we need to 
++		     determine cumulative section displacements (allowing
++		     for section rounding).  That is reflected in stubdot */
++
++		  current_section_offset = section->vma;
++		  old_secsize = section->_raw_size; /* this is changed
++						       along the way */
++
++		  stubdot = current_section_offset + stub_change;
++		  stubdot = align_power (stubdot, section->alignment_power);
++		  olddot = stubdot;
++
++		  stubdot = stub_statement_list 
++		      (s->output_section_statement.children.head, 
++		       &s->output_section_statement.children.head, 
++		       os, stubdot, os->fill);
++
++		  stubdot = ALIGN_N (stubdot,
++				   /* coercion here important, see ld.h.*/
++				   (bfd_vma) os->block_value);
++		  stub_change += (stubdot-olddot) - old_secsize;
++		}
++	    }
++	  break;
++
++	case lang_group_statement_enum:
++	  stubdot = stub_statement_list 
++	      (s->group_statement.children.head,
++	       &s->group_statement.children.head,
++	       os, stubdot, fill);
++	  break;
++
++	case lang_address_statement_enum:
++	  /* If we ever do -Ttext... */
++	  FAIL();
++	  break;
++
++	case lang_object_symbols_statement_enum:
++	case lang_fill_statement_enum:
++	case lang_data_statement_enum:
++	case lang_reloc_statement_enum:
++	case lang_assignment_statement_enum:
++	case lang_target_statement_enum:
++	case lang_output_statement_enum:
++	case lang_input_statement_enum:
++	  break;
++
++	case lang_afile_asection_pair_statement_enum:
++	case lang_stub_statement_enum:
++	default:
++	  einfo("%F%P: Stub insertion fail with %d\n", s->header.type);
++	  FAIL ();
++	  break;
++	}
++      sprev = &s->next;
++      s = s->next;
++    }
++    /* and if there were any leftovers */
++    if (link_info.stub_list_head != NULL)
++      stubdot = stub_emit_stubs(0xfffffff, 0xfffffff, os, stubdot, fill);
++    sprev = osprev;
++    return stubdot;
++}
++
++
++static void
++ldlang_insert_stubs ()
++{
++  current_stub_offset = 0;
++  current_section_offset = 0;
++  stub_change = 0;
++  (void) stub_statement_list (statement_list.head, &statement_list.head, 
++			abs_output_section, 0, 0);
++}
++
+ static void
+ lang_finish ()
+ {
+   struct bfd_link_hash_entry *h;
+   boolean warn;
++  asection *hsec=NULL;
++  bfd_vma valu;
++
+ 
+   if (link_info.relocateable || link_info.shared)
+     warn = false;
+@@ -2566,17 +3190,33 @@ lang_finish ()
+     }
+ 
+   h = bfd_link_hash_lookup (link_info.hash, entry_symbol, false, false, true);
+-  if (h != (struct bfd_link_hash_entry *) NULL
+-      && (h->type == bfd_link_hash_defined
+-	  || h->type == bfd_link_hash_defweak)
+-      && h->u.def.section->output_section != NULL)
++
++  if (h != NULL) 
++    {
++      if (h->type == bfd_link_hash_defined
++	   || h->type == bfd_link_hash_section
++	   || h->type == bfd_link_hash_defweak)
++	{
++	  hsec = h->u.def.section;
++	  valu = h->u.def.value;
++	}
++      else if (h->type == bfd_link_hash_defined_ext
++	   || h->type == bfd_link_hash_defweak_ext)
++	{
++	  hsec = h->u.defext.perm->section;
++	  valu = h->u.defext.perm->value;
++	}
++    }
++
++  if (hsec != NULL
++      && hsec->output_section != NULL)
+     {
+       bfd_vma val;
+ 
+-      val = (h->u.def.value
++      val = (valu
+ 	     + bfd_get_section_vma (output_bfd,
+-				    h->u.def.section->output_section)
+-	     + h->u.def.section->output_offset);
++				    hsec->output_section)
++	     + hsec->output_offset);
+       if (! bfd_set_start_address (output_bfd, val))
+ 	einfo ("%P%F:%s: can't set start address\n", entry_symbol);
+     }
+@@ -3073,6 +3713,8 @@ reset_memory_regions ()
+ void
+ lang_process ()
+ {
++  bfd_vma dot;
++
+   lang_reasonable_defaults ();
+   current_target = default_target;
+ 
+@@ -3143,7 +3785,7 @@ lang_process ()
+ 
+ 	  /* Perform another relax pass - this time we know where the
+ 	     globals are, so can make better guess.  */
+-	  lang_size_sections (statement_list.head,
++	  dot = lang_size_sections (statement_list.head,
+ 			      abs_output_section,
+ 			      &(statement_list.head), 0, (bfd_vma) 0, true);
+ 	}
+@@ -3152,11 +3794,43 @@ lang_process ()
+   else
+     {
+       /* Size up the sections.  */
+-      lang_size_sections (statement_list.head,
++      dot = lang_size_sections (statement_list.head,
+ 			  abs_output_section,
+ 			  &(statement_list.head), 0, (bfd_vma) 0, false);
+     }
+ 
++  /* Insert branch stubs for out of range branches, if needed.  (If the
++     image is smaller than the jump span, we definitely won't.)
++     Presumably machines which can relax don't need this. */
++  if (link_info.jump_span>0 && dot>link_info.jump_span)
++    {
++      if (link_info.relocateable)
++	{
++	   /* Yeah, it might be possible to insert stubs into the middle
++	      of a ld -r, but until proven necessary... */
++	   einfo("%F%PRelocateable link too large for jump span.\n");
++	}
++      else
++	{
++	  ldlang_insert_stubs();
++
++	  reset_memory_regions ();
++
++	  /* Do all the assignments with our current guesses as to
++	     section sizes.  */
++	  lang_do_assignments (statement_list.head,
++			       abs_output_section,
++			       (fill_type) 0, (bfd_vma) 0);
++
++	  /* We have to resize to get the non-code sections adjusted as needed
++	     Presumably code sections won't change.  Pretend we're relaxing
++	     so redefinition of script-generated symbols won't yield a gripe */
++	  dot = lang_size_sections (statement_list.head,
++			      abs_output_section,
++			      &(statement_list.head), 0, (bfd_vma) 0, true);
++	}
++    }
++
+   /* See if anything special should be done now we know how big
+      everything is.  */
+   ldemul_after_allocation ();
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldlang.h //D/home/donn.intel/gnu.intel/ld/ldlang.h
+--- //Q/Gnusrc/cygwin.18/ld/ldlang.h	Mon Mar 15 18:19:54 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldlang.h	Sun May 23 00:32:44 1999
+@@ -70,6 +70,7 @@ typedef struct lang_statement_header_str
+       lang_output_statement_enum,
+       lang_padding_statement_enum,
+       lang_group_statement_enum,
++      lang_stub_statement_enum,
+ 
+       lang_afile_asection_pair_statement_enum,
+       lang_constructors_statement_enum
+@@ -297,6 +303,15 @@ typedef struct
+   fill_type fill;
+ } lang_padding_statement_type;
+ 
++typedef struct
++{
++  lang_statement_header_type header;
++  bfd_vma output_offset;
++  size_t size;
++  asection *output_section;
++} lang_stub_statement_type;
++
++
+ /* A group statement collects a set of libraries together.  The
+    libraries are searched multiple times, until no new undefined
+    symbols are found.  The effect is to search a group of libraries as
+@@ -327,6 +343,7 @@ typedef union lang_statement_union 
+   lang_object_symbols_statement_type object_symbols_statement;
+   lang_fill_statement_type fill_statement;
+   lang_padding_statement_type padding_statement;
++  lang_stub_statement_type stub_statement;
+   lang_group_statement_type group_statement;
+ } lang_statement_union_type;
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldmain.c //D/home/donn.intel/gnu.intel/ld/ldmain.c
+--- //Q/Gnusrc/cygwin.18/ld/ldmain.c	Mon Mar 15 18:19:55 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldmain.c	Sun May 23 00:32:44 1999
+@@ -208,6 +208,9 @@ main (argc, argv)
+   link_info.notice_all = false;
+   link_info.notice_hash = NULL;
+   link_info.wrap_hash = NULL;
++  link_info.stub_list_head = NULL;
++  link_info.stub_vol_cache = NULL;
++  link_info.jump_span = 0;
+   
+   ldfile_add_arch ("");
+ 
+@@ -310,6 +313,8 @@ main (argc, argv)
+     }
+ 
+ 
++  /* This is the point where bfd_link_hash_defined_ext is created;
++     before here, it can't happen. */
+   lang_process ();
+ 
+   /* Print error messages for any missing symbols, for any warning
+@@ -721,9 +733,15 @@ add_archive_element (info, abfd, name)
+ 
+ 	    case bfd_link_hash_defined:
+ 	    case bfd_link_hash_defweak:
++	    case bfd_link_hash_section:
+ 	      from = h->u.def.section->owner;
+ 	      break;
+ 
++	    case bfd_link_hash_defined_ext:
++	    case bfd_link_hash_defweak_ext:
++	      from = h->u.defext.perm->section->owner;
++	      break;
++
+ 	    case bfd_link_hash_undefined:
+ 	    case bfd_link_hash_undefweak:
+ 	      from = h->u.undef.abfd;
+@@ -840,7 +892,10 @@ multiple_common (info, name, obfd, otype
+     return true;
+ 
+   if (ntype == bfd_link_hash_defined
++      || ntype == bfd_link_hash_defined_ext
+       || ntype == bfd_link_hash_defweak
++      || ntype == bfd_link_hash_defweak_ext
++      || ntype == bfd_link_hash_section
+       || ntype == bfd_link_hash_indirect)
+     {
+       ASSERT (otype == bfd_link_hash_common);
+@@ -850,7 +905,10 @@ multiple_common (info, name, obfd, otype
+ 	einfo ("%B: warning: common is here\n", obfd);
+     }
+   else if (otype == bfd_link_hash_defined
++	   || otype == bfd_link_hash_defined_ext
+ 	   || otype == bfd_link_hash_defweak
++	   || otype == bfd_link_hash_defweak_ext
++	   || otype == bfd_link_hash_section
+ 	   || otype == bfd_link_hash_indirect)
+     {
+       ASSERT (ntype == bfd_link_hash_common);
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/ldwrite.c //D/home/donn.intel/gnu.intel/ld/ldwrite.c
+--- //Q/Gnusrc/cygwin.18/ld/ldwrite.c	Mon Mar 15 18:19:55 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldwrite.c	Sun May 23 00:32:45 1999
+@@ -281,6 +281,26 @@ build_link_order (statement)
+       }
+       break;
+ 
++    case lang_stub_statement_enum:
++      /* Make a new link_order with the right filler */
++      {
++	asection *output_section;
++	struct bfd_link_order *link_order;
++
++	output_section = statement->stub_statement.output_section;
++	ASSERT (statement->stub_statement.output_section->owner
++		== output_bfd);
++	if ((output_section->flags & SEC_HAS_CONTENTS) != 0)
++	  {
++	    link_order = bfd_new_link_order (output_bfd, output_section);
++	    link_order->type = bfd_stub_link_order;
++	    link_order->size = statement->stub_statement.size;
++	    link_order->offset = statement->stub_statement.output_offset;
++	    link_order->u.stubs.s = &statement->stub_statement.l;
++	  }
++      }
++      break;
++
+     default:
+       /* All the other ones fall through */
+       break;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/lexsup.c //D/home/donn.intel/gnu.intel/ld/lexsup.c
+--- //Q/Gnusrc/cygwin.18/ld/lexsup.c	Mon Mar 15 18:19:55 1999
++++ //D/home/donn.intel/gnu.intel/ld/lexsup.c	Sun May 23 00:32:45 1999
+@@ -99,6 +99,7 @@ int parsing_defsym = 0;
+ #define OPTION_WHOLE_ARCHIVE		(OPTION_SPLIT_BY_FILE + 1)
+ #define OPTION_WRAP			(OPTION_WHOLE_ARCHIVE + 1)
+ #define OPTION_FORCE_EXE_SUFFIX		(OPTION_WRAP + 1)
++#define OPTION_JUMP_SPAN       		(OPTION_FORCE_EXE_SUFFIX + 1)
+ 
+ /* The long options.  This structure is used for both the option
+    parsing and the help text.  */
+@@ -242,6 +247,8 @@ static const struct ld_option ld_options
+       '\0', NULL, "Force generation of file with .exe suffix", TWO_DASHES},
+   { {"help", no_argument, NULL, OPTION_HELP},
+       '\0', NULL, "Print option help", TWO_DASHES },
++  { {"jump-span", required_argument, NULL, OPTION_JUMP_SPAN},
++      '\0', "SPAN", "Set max short jump span to SPAN", TWO_DASHES },
+   { {"Map", required_argument, NULL, OPTION_MAP},
+       '\0', "FILE", "Write a map file", ONE_DASH },
+   { {"no-keep-memory", no_argument, NULL, OPTION_NO_KEEP_MEMORY},
+@@ -776,7 +787,10 @@ the GNU General Public License.  This pr
+              ignored.  Someday we should handle it correctly.  FIXME.  */
+ 	  break;
+ 	case OPTION_SPLIT_BY_RELOC:
+	  config.split_by_reloc = strtoul (optarg, NULL, 0);
++	  break; 
++	case OPTION_JUMP_SPAN:
++	  link_info.jump_span = strtoul (optarg, NULL, 0);
+ 	  break; 
+ 	case OPTION_SPLIT_BY_FILE:
+ 	  config.split_by_file = true;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/mpw-eppcmac.c //D/home/donn.intel/gnu.intel/ld/mpw-eppcmac.c
+--- //Q/Gnusrc/cygwin.18/ld/mpw-eppcmac.c	Mon Mar 15 18:19:55 1999
++++ //D/home/donn.intel/gnu.intel/ld/mpw-eppcmac.c	Sun May 23 00:32:46 1999
+@@ -464,6 +464,9 @@ gldppcmacos_after_open ()
+ 	 collect, and the sets may already have been built, so we do
+ 	 not do anything.  */
+       if (p->h->type == bfd_link_hash_defined
++          || p->h->type == bfd_link_hash_section 
++          || p->h->type == bfd_link_hash_defined_ext 
++          || p->h->type == bfd_link_hash_defweak_ext 
+ 	  || p->h->type == bfd_link_hash_defweak)
+ 	continue;
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/testsuite/ld-bootstrap/bootstrap.exp //D/home/donn.intel/gnu.intel/ld/testsuite/ld-bootstrap/bootstrap.exp
+--- //Q/Gnusrc/cygwin.18/ld/testsuite/ld-bootstrap/bootstrap.exp	Mon Mar 15 18:19:41 1999
++++ //D/home/donn.intel/gnu.intel/ld/testsuite/ld-bootstrap/bootstrap.exp	Sun May 23 00:32:58 1999
+@@ -41,11 +41,13 @@ foreach flags {"" "--static" "--traditio
+     # This test can only be run if we have the ld build directory,
+     # since we need the object files.
+     if {$ld != "$objdir/ld.new"} {
++	send_log "Untested: $ld != $objdir/ld.new"
+ 	untested $testname
+ 	continue
+     }
+ 
+     if ![ld_relocate $ld tmpdir/ld-partial.o "$flags $OFILES"] {
++	send_log "ld_relocate test failed"
+ 	fail $testname
+ 	continue
+     }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/testsuite/ld-cdtest/cdtest-foo.h //D/home/donn.intel/gnu.intel/ld/testsuite/ld-cdtest/cdtest-foo.h
+--- //Q/Gnusrc/cygwin.18/ld/testsuite/ld-cdtest/cdtest-foo.h	Mon Mar 15 18:19:41 1999
++++ //D/home/donn.intel/gnu.intel/ld/testsuite/ld-cdtest/cdtest-foo.h	Sun May 23 00:32:59 1999
+@@ -11,7 +11,7 @@
+ class Foo {
+     static int foos;
+     int i;
+-    const len = FOO_MSG_LEN;
++    static const int len = FOO_MSG_LEN;
+     char message[len];
+ public: 
+     static void init_foo ();
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/testsuite/ld-scripts/crossref.exp //D/home/donn.intel/gnu.intel/ld/testsuite/ld-scripts/crossref.exp
+--- //Q/Gnusrc/cygwin.18/ld/testsuite/ld-scripts/crossref.exp	Mon Mar 15 18:19:45 1999
++++ //D/home/donn.intel/gnu.intel/ld/testsuite/ld-scripts/crossref.exp	Sun May 23 00:33:03 1999
+@@ -28,7 +28,7 @@ if [istarget a29k*-*-*] {
+ 
+ # hppa-elf needs a definition for $global$.
+ if [istarget hppa*-*-*] {
+-    set flags "$flags --defsym '\$global\$'=0
++    set flags "$flags --defsym '\$global\$'=0"
+ }
+ 
+ verbose -log "$ld $flags -o tmpdir/cross1 -T $srcdir/$subdir/cross1.t tmpdir/cross1.o tmpdir/cross2.o"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/testsuite/ld-srec/sr3.cc //D/home/donn.intel/gnu.intel/ld/testsuite/ld-srec/sr3.cc
+--- //Q/Gnusrc/cygwin.18/ld/testsuite/ld-srec/sr3.cc	Mon Mar 15 18:19:41 1999
++++ //D/home/donn.intel/gnu.intel/ld/testsuite/ld-srec/sr3.cc	Sun May 23 00:33:04 1999
+@@ -5,7 +5,7 @@
+ class Foo {
+     static int foos;
+     int i;
+-    const len = FOO_MSG_LEN;
++    static const int len = FOO_MSG_LEN;
+     char message[len];
+ public:
+     static void init_foo ();
+###
+### Included for constructors stuff!!!!!!!!!!!!!!
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.18/ld/scripttempl/pe.sc //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc
+--- //Q/Gnusrc/cygwin.18/ld/scripttempl/pe.sc	Mon Mar 15 18:19:48 1999
++++ //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc	Sun May 23 00:32:57 1999
+@@ -1,21 +1,47 @@
+ # Linker script for PE.
++if [ "x${RELOCATING}" = x ]
++then
++   OUTPUT_FORMAT=${LINK_FORMAT} :
++fi
++
++LINKERSECTS="${RELOCATING-0} ${RELOCATXXX+\(NOLOAD\)} ${RELOCATING+ BLOCK(__section_alignment__) }"
+ 
+ cat <<EOF
+ OUTPUT_FORMAT(${OUTPUT_FORMAT})
+ ${LIB_SEARCH_DIRS}
+ 
+-ENTRY(_mainCRTStartup)
++ENTRY(${ENTRY})
++
++/* if DYNAMIC_LINKING [ */
++/* Not sure yet */
++${RELOCATING+/* Do we need any of these for elf?
++   __DYNAMIC = 0; ${STACKZERO+${STACKZERO}} ${SHLIB_PATH+${SHLIB_PATH}}  */}
++${RELOCATING+${EXECUTABLE_SYMBOLS}}
++/* end DYNAMIC_LINKING ] */
+ 
+ SECTIONS
+ {
+-  .text ${RELOCATING+ __image_base__ + __section_alignment__ } : 
++  .text ${RELOCATING+ __section_alignment__ } : 
+   {
+     ${RELOCATING+ *(.init)}
+     *(.text)
+-    ${CONSTRUCTING+ ___CTOR_LIST__ = .; __CTOR_LIST__ = . ; 
+-			LONG (-1); *(.ctors); *(.ctor); LONG (0); }
+-    ${CONSTRUCTING+ ___DTOR_LIST__ = .; __DTOR_LIST__ = . ; 
+-			LONG (-1); *(.dtors); *(.dtor);  LONG (0); }
++    ${RELOCATING+. = ALIGN(4);}
++
++    /* collect constructors only for final links */
++    ${RELOCATING+ 
++	*(.ctor_head);
++	*(.ctors);
++	*(.ctor);
++	LONG (0);
++
++	*(.dtor_head);
++	*(.dtors);
++	*(.dtor);
++	LONG (0);
++    }
++
++    /* .gnu.warning sections are handled specially by elf32.em.  */
++    *(.gnu.warning)
+     ${RELOCATING+ *(.fini)}
+     /* ??? Why is .gcc_exc here?  */
+     ${RELOCATING+ *(.gcc_exc)}
+@@ -26,46 +52,44 @@ SECTIONS
+     *(.gcc_except_table)
+   }
+ 
+-  .bss BLOCK(__section_alignment__)  :
+-  {
+-    __bss_start__ = . ;
+-    *(.bss)
+-    *(COMMON)
+-    __bss_end__ = . ;
+-  }
+-  .data BLOCK(__section_alignment__) : 
++  .plt $LINKERSECTS : { *(.plt)	}
++
++  .data ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+-    __data_start__ = . ; 
++    ${RELOCATING+ __data_start__ = . }; 
+     *(.data)
+     *(.data2)
+-    __data_end__ = . ; 
++    ${RELOCATING+ __data_end__ = . }; 
+     /* Grouped section support currently must be explicitly provided for
+ 	in the linker script.  */
+     *(.data\$)
+   }
+ 
+-  .rdata BLOCK(__section_alignment__) :
++  .rdata ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+     *(.rdata)
+     /* Grouped section support currently must be explicitly provided for
+ 	in the linker script.  */
+     *(.rdata\$)
++    /* DYNAMIC_LINKING [ */
++    *(.hash)
++    *(.interp)
++    /* ] */
+   }
+ 
+-  .edata BLOCK(__section_alignment__) :
++  .pdata ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+-    *(.edata)
++    *(.pdata)
++    ;
+   }
+ 
+-  /DISCARD/ BLOCK(__section_alignment__) :
+-  {
+-    *(.debug\$S)
+-    *(.debug\$T)
+-    *(.debug\$F)
+-    *(.drectve)
+-  }
++/* if DYNAMIC_LINKING [ */
++  .got         ${RELOCATING-0} ${RELOCATING+ BLOCK(__section_alignment__) } : { *(.got.plt) *(.got) }
++/* end DYNAMIC_LINKING ] */
+ 
+-  .idata BLOCK(__section_alignment__) :
++/* .idata must precede bss so file and code offsets remain the same for .sos */
++/* (At least for now... using Ldr* routines may fix.) */
++  .idata ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+     /* This cannot currently be handled with grouped sections.
+ 	See pe.em:sort_sections.  */
+@@ -76,37 +100,83 @@ SECTIONS
+     *(.idata\$6)
+     *(.idata\$7)
+   }
+-  .CRT BLOCK(__section_alignment__) :
++
++  .bss ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    ${RELOCATING+ __bss_start__ = . };
++/* DYNAMIC_LINKING */
++    *(.dynbss)
++/* end DYNAMIC_LINKING */
++    *(.bss)
++    *(COMMON)
++    ${RELOCATING+ __bss_end__ = . };
++  }
++
++  .edata ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    *(.edata)
++  }
++
++  /DISCARD/ ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    *(.debug\$S)
++    *(.debug\$T)
++    *(.debug\$F)
++    *(.drectve)
++  }
++
++  .CRT ${RELOCATING+ BLOCK(__section_alignment__) } :
+   { 					
+     /* Grouped sections are used to handle .CRT\$foo.  */
+     *(.CRT\$)
+   }
+-  .rsrc BLOCK(__section_alignment__) :
++  .rsrc ${RELOCATING+ BLOCK(__section_alignment__) } :
+   { 					
+     /* Grouped sections are used to handle .rsrc\$0[12].  */
+     *(.rsrc\$)
+   }
+ 
+-  .endjunk BLOCK(__section_alignment__) :
++  .endjunk ${RELOCATING+ BLOCK(__section_alignment__) } :
+   {
+     /* end is deprecated, don't use it */
+     ${RELOCATING+ end = .;}
+     ${RELOCATING+ __end__ = .;}
+   }
+ 
+-  .stab BLOCK(__section_alignment__)  ${RELOCATING+(NOLOAD)} : 
++/* DYNAMIC_LINKING [ */
++  .dynamic     ${RELOCATING-0} ${RELOCATXXX+"(NOLOAD)"} : { *(.dynamic) }
++
++  .dynsym $LINKERSECTS : { *(.dynsym)	}
++  .dynstr $LINKERSECTS : { *(.dynstr)	}
++  .gnu.version $LINKERSECTS : { *(.gnu.version)	}
++  .gnu.version_d $LINKERSECTS : { *(.gnu.version_d)	}
++  .gnu.version_r $LINKERSECTS : { *(.gnu.version_r)	}
++
++  .rel.dyn    $LINKERSECTS :
++  { 
++    *(.rel.internal)
++    *(.rel.got)
++    *(.rel.plt)
++  }
++  .rela.dynamic   $LINKERSECTS :
++    { *(.rela.*) }
++  .init        $LINKERSECTS : { *(.init)	} =${NOP-0}
++/* end DYNAMIC_LINKING ] */
++
++  .reloc ${RELOCATING+ BLOCK(__section_alignment__) } :
++  { 					
++    *(.reloc)
++  }
++
++  .stab ${RELOCATING+ BLOCK(__section_alignment__) } ${RELOCATING+"(NOLOAD)"} : 
+   {
+     [ .stab ]
+   }
+ 
+-  .stabstr BLOCK(__section_alignment__) ${RELOCATING+(NOLOAD)} :
++  .stabstr ${RELOCATING+ BLOCK(__section_alignment__) } ${RELOCATING+"(NOLOAD)"} : 
+   {
+     [ .stabstr ]
+   }
+ 
+-  .reloc BLOCK(__section_alignment__) :
+-  { 					
+-    *(.reloc)
+-  }
+ }
+ EOF

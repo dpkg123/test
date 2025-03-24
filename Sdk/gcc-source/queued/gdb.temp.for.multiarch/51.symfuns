@@ -1,0 +1,13 @@
+Adapt to possibly haveing an image base (particularly for corefiles).
+
+--- exec.c.bak	Thu Oct 24 15:55:15 2002
++++ exec.c	Thu Oct 24 15:55:19 2002
+@@ -377,7 +377,7 @@ add_to_section_table (bfd *abfd, sec_ptr
+     return;
+   (*table_pp)->bfd = abfd;
+   (*table_pp)->the_bfd_section = asect;
+-  (*table_pp)->addr = bfd_section_vma (abfd, asect);
++  (*table_pp)->addr = bfd_section_vma (abfd, asect) + NONZERO_LINK_BASE(abfd);
+   (*table_pp)->endaddr = (*table_pp)->addr + bfd_section_size (abfd, asect);
+   (*table_pp)++;
+ }

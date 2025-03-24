@@ -1,0 +1,9 @@
+# Host: Alpha running Interix
+XDEPFILES= 
+NATDEPFILES= corelow.o fork-child.o procfs.o alphainterix-nat.o
+XM_FILE= xm-interix.h
+NAT_FILE= nm-interix.h
+
+# The below may be temporary; mmalloc relies on sbrk() at the moment
+MMALLOC=
+MMALLOC_CFLAGS=-DNO_MMALLOC

@@ -1,0 +1,131 @@
+Currently being applied.
+
+When linking the linker itself (for the bootstrap tests), the .data
+section is combined into a single section.  That requires that 
+relocations occur on data addresses (because they are represented as
+section-relative in many cases, particularly for constants). (It's
+not just .data, but it's the obvious case).  (This is patched in 01.base.)
+
+The linker also assumes that its input sections are all 0-relative, which
+doesn't happen by accident in the PE environment (because of ImageBase,
+at least.)
+
+This patch assures that the start address of each section in a relocatable
+link is zero.  Without this patch, the bootstrap tests all fail, with
+it, they all succeed.
+
+I don't understand why this code hasn't always been this way, so
+I may be missing something.  (The actual change is quite small,
+just the addition of an if/else and some brackets, but because it
+changes indentation it looks large.)
+
+ChangeLog:
+	* ldlang.c (lang_size_sections): relocateable link: section start
+	addresees -> 0.
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/ldlang.c //D/home/donn.intel/gnu.intel/ld/ldlang.c
+--- //Q/Gnusrc/cygwin.0325/ld/ldlang.c	Thu Mar 25 02:15:05 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldlang.c	Mon Mar 29 11:37:32 1999
+@@ -2845,46 +2846,58 @@ lang_size_sections (s, output_section_st
+ 	      {
+ 		if (os->addr_tree == (etree_type *) NULL)
+ 		  {
+-		    /* No address specified for this section, get one
+-		       from the region specification.  */
+-		    if (os->region == (lang_memory_region_type *) NULL
+-			|| (((bfd_get_section_flags (output_bfd, os->bfd_section)
+-			      & (SEC_ALLOC | SEC_LOAD)) != 0)
+-			    && os->region->name[0] == '*'
+-			    && strcmp (os->region->name, "*default*") == 0))
+-		      {
+-			os->region = lang_memory_default (os->bfd_section);
+-		      }
+-
+-		    /* If a loadable section is using the default memory
+-		       region, and some non default memory regions were
+-		       defined, issue a warning.  */
+-		    if ((bfd_get_section_flags (output_bfd, os->bfd_section)
+-			 & (SEC_ALLOC | SEC_LOAD)) != 0
+-			&& (bfd_get_section_flags (output_bfd, os->bfd_section)
+-			    & SEC_NEVER_LOAD) == 0
+-			&& ! link_info.relocateable
+-			&& strcmp (os->region->name, "*default*") == 0
+-			&& lang_memory_region_list != NULL
+-			&& (strcmp (lang_memory_region_list->name,
+-				    "*default*") != 0
+-			    || lang_memory_region_list->next != NULL))
+-		      einfo (_("%P: warning: no memory region specified for section `%s'\n"),
+-			     bfd_get_section_name (output_bfd,
+-						   os->bfd_section));
+-
+-		    dot = os->region->current;
+-
+-		    if (os->section_alignment == -1)
+-		      {
+-			bfd_vma olddot;
+-
+-			olddot = dot;
+-			dot = align_power (dot,
+-					   os->bfd_section->alignment_power);
+-
+-			if (dot != olddot && config.warn_section_align)
+-			  einfo (_("%P: warning: changing start of section %s by %u bytes\n"),
+-				 os->name, (unsigned int) (dot - olddot));
+-		      }
++		     if (link_info.relocateable)
++		       {
++			 /* relocateable links start each section at zero; this
++			    could be done in the script, but that requires that
++			    we know, a-priori, the names of all the sections.
++			    This works regardless of section names.  However, if
++			    the link script wants to specify something, we need to
++			    let it */
++			 dot = 0;
++		       }
++		     else 
++		       {
++			   /* No address specified for this section, get one
++			      from the region specification */
++			   if (os->region == (lang_memory_region_type *) NULL
++			       || (((bfd_get_section_flags (output_bfd, os->bfd_section)
++				    & (SEC_ALLOC | SEC_LOAD)) != 0)
++				   && os->region->name[0] == '*'
++				   && strcmp (os->region->name, "*default*") == 0))
++			     {
++			       os->region = lang_memory_default (os->bfd_section);
++			     }
++
++			   /* If a loadable section is using the default memory
++			      region, and some non default memory regions were
++			      defined, issue a warning.  */
++			   if ((bfd_get_section_flags (output_bfd, os->bfd_section)
++				& (SEC_ALLOC | SEC_LOAD)) != 0
++			       && (bfd_get_section_flags (output_bfd, os->bfd_section)
++				   & SEC_NEVER_LOAD) == 0
++			       && ! link_info.relocateable
++			       && strcmp (os->region->name, "*default*") == 0
++			       && lang_memory_region_list != NULL
++			       && (strcmp (lang_memory_region_list->name, 
++					   "*default*") != 0
++				   || lang_memory_region_list->next != NULL))
++			     einfo (_("%P: warning: no memory region specified for section `%s'\n"),
++				    bfd_get_section_name (output_bfd, 
++							  os->bfd_section));
++
++			   dot = os->region->current;
++
++			   if (os->section_alignment == -1)
++			     {
++			       bfd_vma olddot;
++
++			       olddot = dot;
++			       dot = align_power (dot, 
++						  os->bfd_section->alignment_power);
++			       if (dot != olddot && config.warn_section_align)
++				 einfo (_("%P: warning: changing start of section %s by %u bytes\n"),
++					os->name, (unsigned int) (dot - olddot));
++			    }
++		       }
+ 		  }
+ 		else
+ 		  {

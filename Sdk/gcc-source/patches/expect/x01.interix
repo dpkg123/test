@@ -1,0 +1,227 @@
+diff -drup dejagnu-19981026/expect/configure.in dejagnu/expect/configure.in
+--- dejagnu-19981026/expect/configure.in	Thu Oct  8 20:58:59 1998
++++ dejagnu/expect/exp_command.c	Sun May 23 15:39:44 1999
+@@ -213,6 +213,7 @@ case "${host}" in
+   *-*-ultrix4.4)	stty_reads_stdout=0 ;;
+   *-*-dgux*)		stty_reads_stdout=0 ;;
+   *-*-cygwin*)		stty_reads_stdout=0 ;;
++  *-*-interix)		stty_reads_stdout=0 ;;
+ esac
+ 
+ if test $mach -eq 1 ; then
+diff -drup dejagnu-19981026/expect/exp_command.c dejagnu/expect/exp_command.c
+--- dejagnu-19981026/expect/exp_command.c	Thu Oct  8 20:58:59 1998
++++ dejagnu/expect/exp_command.c	Sun May 23 15:39:44 1999
+@@ -74,6 +74,11 @@ would appreciate credit if this program 
+ # include <unistd.h>
+ #endif
+ 
++#ifdef __INTERIX
++/* No... it's not really there */
++#undef TIOCSCTTY
++#endif
++
+ #include <math.h>		/* for log/pow computation in send -h */
+ #include <ctype.h>		/* all this for ispunct! */
+ 
+diff -drup dejagnu-19981026/expect/exp_poll.c dejagnu/expect/exp_poll.c
+--- dejagnu-19981026/expect/exp_poll.c	Mon Aug 24 17:29:22 1998
++++ dejagnu/expect/exp_poll.c	Sun May 23 15:39:44 1999
+@@ -93,12 +93,12 @@ typedef struct FileHandlerEvent {
+ static struct {
+     FileHandler *firstFileHandlerPtr;
+ 				/* Pointer to head of file handler list. */
+-    fd_mask checkMasks[3*MASK_SIZE];
++    fd_set checkMasks[3];
+ 				/* This array is used to build up the masks
+ 				 * to be used in the next call to select.
+ 				 * Bits are set in response to calls to
+ 				 * Tcl_CreateFileHandler. */
+-    fd_mask readyMasks[3*MASK_SIZE];
++    fd_set readyMasks[3];
+ 				/* This array reflects the readable/writable
+ 				 * conditions that were found to exist by the
+ 				 * last call to select. */
+@@ -251,7 +251,7 @@ Tcl_CreateFileHandler(fd, mask, proc, cl
+     }
+     filePtr->proc = proc;
+     filePtr->clientData = clientData;
+-#if NOTUSED
++#if NOTUSED // NOT FIXED FOR PROPER MASK MANIPULATION
+     /* remaining junk is left over from select implementation - DEL */
+ 
+     filePtr->mask = mask;
+diff -drup dejagnu-19981026/expect/exp_simple.c dejagnu/expect/exp_simple.c
+--- dejagnu-19981026/expect/exp_simple.c	Thu Aug  1 18:31:16 1996
++++ dejagnu/expect/exp_simple.c	Sun May 23 15:39:44 1999
+@@ -22,12 +22,12 @@ static char sccsid[] = "@(#) tclUnixNoti
+  * exception masks to select during calls to Tcl_DoOneEvent.
+  */
+ 
+-static fd_mask checkMasks[3*MASK_SIZE];
++static fd_set checkMasks[3];
+ 				/* This array is used to build up the masks
+ 				 * to be used in the next call to select.
+ 				 * Bits are set in response to calls to
+ 				 * Tcl_WatchFile. */
+-static fd_mask readyMasks[3*MASK_SIZE];
++static fd_set readyMasks[3];
+ 				/* This array reflects the readable/writable
+ 				 * conditions that were found to exist by the
+ 				 * last call to select. */
+@@ -68,8 +68,7 @@ Tcl_WatchFile(file, mask)
+ 				 * indicates conditions to wait for
+ 				 * in select. */
+ {
+-    int fd, type, index;
+-    fd_mask bit;
++    int fd, type;
+ 
+     fd = (int) Tcl_GetFileInfo(file, &type);
+ 
+@@ -81,16 +80,14 @@ Tcl_WatchFile(file, mask)
+ 	panic("Tcl_WatchFile can't handle file id %d", fd);
+     }
+ 
+-    index = fd/(NBBY*sizeof(fd_mask));
+-    bit = 1 << (fd%(NBBY*sizeof(fd_mask)));
+     if (mask & TCL_READABLE) {
+-	checkMasks[index] |= bit;
++	FD_SET(fd, &checkMasks[0]);
+     }
+     if (mask & TCL_WRITABLE) {
+-	(checkMasks+MASK_SIZE)[index] |= bit;
++	FD_SET(fd, &checkMasks[1]);
+     }
+     if (mask & TCL_EXCEPTION) {
+-	(checkMasks+2*(MASK_SIZE))[index] |= bit;
++	FD_SET(fd, &checkMasks[2]);
+     }
+     if (numFdBits <= fd) {
+ 	numFdBits = fd+1;
+@@ -126,24 +123,21 @@ Tcl_FileReady(file, mask)
+ 				 * TCL_WRITABLE, and TCL_EXCEPTION:
+ 				 * indicates conditions caller cares about. */
+ {
+-    int index, result, type, fd;
+-    fd_mask bit;
++    int result, type, fd;
+ 
+     fd = (int) Tcl_GetFileInfo(file, &type);
+     if (type != TCL_UNIX_FD) {
+ 	panic("Tcl_FileReady: unexpected file type");
+     }
+ 
+-    index = fd/(NBBY*sizeof(fd_mask));
+-    bit = 1 << (fd%(NBBY*sizeof(fd_mask)));
+     result = 0;
+-    if ((mask & TCL_READABLE) && (readyMasks[index] & bit)) {
++    if ((mask & TCL_READABLE) && FD_ISSET(fd, &readyMasks[0])) {
+ 	result |= TCL_READABLE;
+     }
+-    if ((mask & TCL_WRITABLE) && ((readyMasks+MASK_SIZE)[index] & bit)) {
++    if ((mask & TCL_WRITABLE) && FD_ISSET(fd, &readyMasks[1])) {
+ 	result |= TCL_WRITABLE;
+     }
+-    if ((mask & TCL_EXCEPTION) && ((readyMasks+(2*MASK_SIZE))[index] & bit)) {
++    if ((mask & TCL_EXCEPTION) && FD_ISSET(fd, &readyMasks[2])) {
+ 	result |= TCL_EXCEPTION;
+     }
+     return result;
+@@ -182,7 +176,7 @@ Tcl_WaitForEvent(timePtr)
+     int numFound;
+ 
+     memcpy((VOID *) readyMasks, (VOID *) checkMasks,
+-	    3*MASK_SIZE*sizeof(fd_mask));
++	    sizeof(readyMasks));
+     if (timePtr == NULL) {
+ 	timeoutPtr = NULL;
+     } else {
+@@ -191,8 +185,8 @@ Tcl_WaitForEvent(timePtr)
+ 	timeout.tv_usec = timePtr->usec;
+     }
+     numFound = select(numFdBits, (SELECT_MASK *) &readyMasks[0],
+-	    (SELECT_MASK *) &readyMasks[MASK_SIZE],
+-	    (SELECT_MASK *) &readyMasks[2*MASK_SIZE], timeoutPtr);
++	    (SELECT_MASK *) &readyMasks[1],
++	    (SELECT_MASK *) &readyMasks[2], timeoutPtr);
+ 
+     /*
+      * Some systems don't clear the masks after an error, so
+@@ -200,7 +194,7 @@ Tcl_WaitForEvent(timePtr)
+      */
+ 
+     if (numFound == -1) {
+-	memset((VOID *) readyMasks, 0, 3*MASK_SIZE*sizeof(fd_mask));
++	memset((VOID *) readyMasks, 0, sizeof(readyMasks));
+     }
+ 
+     /*
+@@ -209,7 +203,7 @@ Tcl_WaitForEvent(timePtr)
+      */
+ 
+     numFdBits = 0;
+-    memset((VOID *) checkMasks, 0, 3*MASK_SIZE*sizeof(fd_mask));
++    memset((VOID *) checkMasks, 0, sizeor(checkMasks));
+ }
+ 
+ /*
+diff -drup dejagnu-19981026/expect/exp_tty.c dejagnu/expect/exp_tty.c
+--- dejagnu-19981026/expect/exp_tty.c	Mon Aug 24 17:29:23 1998
++++ dejagnu/expect/exp_tty.c	Sun May 23 15:39:44 1999
+@@ -297,7 +297,7 @@ int *len;	/* current and new length of s
+ 
+ /* this stupidity because Tcl needs commands in writable space */
+ static char exec_cmd[] = "exec";
+-static char stty_cmd[] = "/bin/stty";
++static char stty_cmd[] = "stty";
+ 
+ static int		/* returns TCL_whatever */
+ exec_stty(interp,argc,argv,devtty)
+diff -drup dejagnu-19981026/expect/pty_sgttyb.c dejagnu/expect/pty_sgttyb.c
+--- dejagnu-19981026/expect/pty_sgttyb.c	Thu Aug  1 18:31:32 1996
++++ dejagnu/expect/pty_sgttyb.c	Sun May 23 15:39:44 1999
+@@ -54,9 +54,9 @@ char *name;		/* name of pty */
+ 	RETSIGTYPE (*old)();	/* save old sigalarm handler */
+ 
+ #ifdef STTY_READS_STDOUT
+-	sprintf(buf,"/bin/stty %s > %s",s,name);
++	sprintf(buf,"stty %s > %s",s,name);
+ #else
+-	sprintf(buf,"/bin/stty %s < %s",s,name);
++	sprintf(buf,"stty %s < %s",s,name);
+ #endif
+ 	old = signal(SIGCHLD, SIG_DFL);
+ 	system(buf);
+diff -drup dejagnu-19981026/expect/pty_termios.c dejagnu/expect/pty_termios.c
+--- pty_termios.c.orig	Thu Dec 20 15:03:51 2001
++++ pty_termios.c	Thu Dec 20 20:17:58 2001
+@@ -623,7 +623,7 @@
+ 			debuglog("ioctl(%s,I_PUSH,\"ldterm\") = %s\n",Tcl_ErrnoMsg(errno));
+ 	}
+ #else
+-#if defined(HAVE_PTMX) && !defined(__CYGWIN__)
++#if defined(HAVE_PTMX) && !defined(__CYGWIN__) && !defined(__INTERIX)
+ 	if (ioctl(slave, I_PUSH, "ptem")) {
+ 		debuglog("ioctl(%s,I_PUSH,\"ptem\") = %s\n",Tcl_ErrnoMsg(errno));
+ 	}
+diff -drup dejagnu-19981026/expect/testsuite/config/default.exp dejagnu/expect/testsuite/config/default.exp
+--- dejagnu-19981026/expect/testsuite/config/default.exp	Wed Oct 15 12:10:47 1997
++++ dejagnu/expect/testsuite/config/default.exp	Sun May 23 15:39:44 1999
+@@ -77,7 +77,7 @@ proc expect_start { } {
+     verbose "Sourcing $defs..."
+     exp_send "source $defs\r"
+     expect {
+-        -re ".*source $defs.*$" {
++        -re ".*source $defs.*$eprompt" {
+             verbose "Sourced $defs"
+         }
+         "Error: couldn't read file*" {
+@@ -93,7 +93,6 @@ proc expect_start { } {
+         }
+     }
+     
+-    sleep 2
+     exp_send "set VERBOSE 1\r"
+     expect {
+         -re "set VERBOSE 1\[\r\n\]*1\[\r\n\]*$eprompt" {

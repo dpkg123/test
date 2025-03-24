@@ -1,0 +1,91 @@
+The first two changes are needed as of 8/02.  (But they are simpler than
+historically, and easier to explain as a PUSHMI compensation.)
+
+Dynamic linking junk (for the most part).  This should be a no-op
+unless TE_PE_DYN is turned on.
+
+	* config/tc-i386.c (md_apply_fix3): Add tests for dynamic linking,
+	for PE, more relocation types need special cases.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -3314,6 +3314,11 @@ output_disp (insn_start_frag, insn_start
+ 		  if (flag_code == CODE_64BIT)
+ 		    abort ();
+ 		  reloc_type = BFD_RELOC_386_GOTPC;
++#ifndef PUSHMI_PULLU
++                  /* Changing reloc type; compensate offsets.
++		     See long comment on GOTPC relocations below. */
++		  add += 4;
++#endif
+ 		  i.op[n].disps->X_add_number += add;
+ 		}
+ #endif
+@@ -3450,6 +3455,11 @@ output_imm (insn_start_frag, insn_start_
+ 		  if (flag_code == CODE_64BIT)
+ 		    abort ();
+ 		  reloc_type = BFD_RELOC_386_GOTPC;
++#ifndef PUSHMI_PULLU
++                  /* Changing reloc type; compensate offsets.
++		     See long comment on GOTPC relocations below. */
++		  add += 4;
++#endif
+ 		  i.op[n].imms->X_add_number += add;
+ 		}
+ #endif
+@@ -4843,18 +4843,43 @@ md_apply_fix3 (fixP, valP, seg)
+ 
+   /* Fix a few things - the dynamic linker expects certain values here,
+      and we must not dissappoint it.  */
++#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) || defined (TE_PE_DYN) /* [ */
++  if (fixP->fx_addsy
+ #if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
++     && OUTPUT_FLAVOR == bfd_target_elf_flavour
++#endif
+-  if (OUTPUT_FLAVOR == bfd_target_elf_flavour
+-       && fixP->fx_addsy)
++       )
+     switch (fixP->fx_r_type)
+       {
+       case BFD_RELOC_386_PLT32:
+       case BFD_RELOC_X86_64_PLT32:
++#ifdef TE_PE_DYN
++        /* On PE, to get the right value in the .o file, we need to fake out 
++	   _bfd_install_relocaction, see above.  */
++        value += fixP->fx_where + fixP->fx_frag->fr_address;
++#else
+ 	/* Make the jump instruction point to the address of the operand.  At
+ 	   runtime we merely add the offset to the actual PLT entry.  */
+ 	value = -4;
++#endif
+ 	break;
+ 
++#ifdef TE_PE_DYN
++      case BFD_RELOC_32:
++	/* On PE, to get the right value in the .o file, we need to fake out 
++	   _bfd_install_relocaction, see above.
++	   In this case, we're looking to see if this might be transformed
++	   into a GOTPC, later*/
++	if (GOT_symbol == NULL || fixP->fx_addsy != GOT_symbol)
++	    break;
++	/* drop thru */
++      case BFD_RELOC_386_GOTPC:   /* Can this ever happen? */
++	/* On PE, to get the right value in the .o file, we need to fake out
++	   _bfd_install_relocaction, see above.  */
++	value += fixP->fx_where + fixP->fx_frag->fr_address;
++	break;
++#endif
++
+       case BFD_RELOC_386_GOT32:
+       case BFD_RELOC_386_TLS_GD:
+       case BFD_RELOC_386_TLS_LDM:
+@@ -4874,7 +4900,7 @@ md_apply_fix3 (fixP, valP, seg)
+       default:
+ 	break;
+       }
+-#endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)  */
++#endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) ] */
+   *valP = value;
+ #endif /* defined (BFD_ASSEMBLER) && !defined (TE_Mach)  */
+ 

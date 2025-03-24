@@ -1,0 +1,296 @@
+This directory contains the patch files necessary to rebuild the
+current gcc toolchain including gcc proper, binutils (gas, bfd,
+gdb) and several other tools that are required to build and regress
+the complete toolchain.
+
+This is for Interix/SFU 3.0, and gcc "leading edge" from the
+Anonymous CVS trees for gcc and binutils.
+
+The patches apply correctly to the gcc CVS sources as of approximiately
+9:55AM June 7, 2002.  The binutils sources were updated as of
+10:02AM June 7, 2002.  This can only be considered a snapshot of
+a work in progress.   Occasionally this directory may be updated
+with files corresponding to a more recent date, but there is no
+specific schedule or plan to do so, and no commitment to do so is made.
+
+It cannot be stressed enough that the CVS sources are a moving
+target, and that the patches are unlikely to apply without at least
+some attention to a few of them (it is impossible to say which of
+them) if the CVS tree being updated is not synchronized to that
+timestamp.  In fact, because of issues of clock resolution, there
+is a very slight chance that is is not be possible to create a tree
+sufficiently similar to the one used during testing.
+
+If you are using newer CVS trees, it is quite likely that some of
+the patches have either been applied or have been overcome by
+events.  The fact that a patch no longer seems necessary should be
+taken as a pleasant surprise (if true).
+
+Reminder: all the code herein, and the sources that these apply
+to, are subject to the GPL.  You should understand the obligations
+it creates for you.  The patches herein have had the appropriate
+releases signed and accepted by the FSF for them, and could be
+included in the official gcc trees over time.  It is our hope that
+that does happen.  Of course, consistent with the GPL, no warranty
+of any form is expressed or implied.  Microsoft provides no support
+for these instructions, the patches, or the binaries and is not
+responsible for errors or omissions in them.
+
+Ada Core Technologies (www.gnatpro.com) has assisted Microsoft in
+the development of the Interix version of GCC and in proposing the
+patches for inclusion into the FSF GCC source tree.
+
+More information about interacting with the gcc community is on
+the gcc web pages.  (http://gcc.gnu.org/ and
+http://sources.redhat.com/binutils/).  You may find it useful to
+search the mailing lists described on these pages for recent mentions
+of Interix or, if there are none, to ask if there are others working
+on it.
+
+
+The structure of this directory:
+
+1) This README.
+
+2) gcc.jun7.tgz: a tarball of the built tools as of the dates above.
+   This is intended to be installed at /, and will install the
+   compiler in /opt.  Add /opt/gcc3.2/bin to your path to use.
+
+3) gcc.jun7.src.tgz: the sources (and tool scripts) corresponding to it.
+   This contains:
+
+   a) A number of directories, each containing the applicable
+   patches as of when it was created, and "applyem" script, and
+   possibly a few scripts that should be executed as part of the
+   process of applying the patches.  (More on that below.)
+
+   b) A tools directory, containing a number of specialized tools
+   that are used to build the complete tree.
+
+   c) libexec.src, which contains the source for the shared library
+   implementation for Interix.  (The same source works for both
+   Interix 2.2 and 3.0.)  (Except in this tree, this directory
+   should be known as libexec.)
+
+   d) othertests: a small directory of additional tests.
+
+   e) This README.
+
+The attached build process is for a particular environment; it will
+have to be adapted to your build environment. It should be taken
+as a given that some modification is necessary.   No extensive
+testing of the portability of this process to other environments
+has been done, so there will be details that have to be adapted.
+You must be generally familiar with building gcc from the Anonymous
+CVS sources, or be willing to learn.  (The FSF's gcc and binutils
+web pages are good sources to learn that, as well as the processes
+and protocols of dealing with the gcc community.)
+
+
+Step 1: Tools.
+    You will need (in approximately this order) to get from the
+    web, build, and install the following open source tools:
+
+	gmake
+	m4 (gm4, not the one that comes with Interix)
+	autoconf
+	automake
+	bison
+	flex
+	cvs
+
+    You will also need an installed version of MSVC (specifically you
+    need the pieces necessary to make the cc/c89 script that comes with
+    Interix work: cl.exe, link.exe, and supporting pieces.)
+
+    OR
+
+    You will need to use the gcc2.7.2 compiler that comes with Interix 3.0.
+    The latter option has NOT been tested, and will require changing more than
+    just the compiler name.  (Specifically, look at the configure setups
+    for the cc-based builds.)
+
+Step 2: CVS.  
+    You will need to register to get CVS access for both gcc and
+    binutils (or get a "weekly drop" and pretend you have CVS
+    access, changing the build script to reflect that).  The script
+    is set up to update (on request) the CVS trees, and expects to
+    find them in /C/CVS/egcs.baseline and /C/CVS/binutils.baseline.
+    This is further discussed on the websites mentioned above.
+
+Step 3: "Other stuff".  
+    You may want to put the content of tools and the other stuff
+    you care about in a revision control tree.  (Consider "sd sync
+    -f" as equivalent to RCS's co command (nonlocking) or SCCS's
+    get command.) (Ellipsis in the sd command indicates "and
+    everything below".)
+
+    You will want to get a copy of the open source 'asa' command
+    and put it into the tree.  (Or simply skip building asa; it's
+    not required.)
+
+    You will want to get a copy of the NIST FCVS (Fortran Compiler
+    Validation Suite) and put it in the tree.  (Or simply skip
+    running the FCVS.)
+
+    The directory othertests contains a small number of "interaction"
+    tests that one part of the standard regressions covers.
+
+    Set things up so that libexec, othertests, the tools, and
+    (optionally) asa and FCVS can be installed into the tree.  (See
+    the refresh* lines in the build script.)
+
+Step 4: Patches
+    The patch files and the q-patch script work together.  q-patch
+    is a convenience wrapper around the patch command, and it knows
+    how to apply a patch from fairly minimal information about it.
+    The applyem scripts associated with each directory of patches
+    uses q-patch to apply the actual changes.  (The changes are
+    bundled in bite-size chunks that should be easier for the FSF
+    to accept over time.)  q-patch also knows to look for a shell
+    script in case a patch requires special treatment.  (Usually,
+    running autoconf or automake, although e.makeit also does that.)
+
+    You will need to put the command q-patch in a path where it
+    can be found, and put the directory of patches where both the
+    build script and q-patch can find it.  For example, you can
+    put q-patch in ~/bin (and include ~/bin in your path) and the
+    patches in ~/queued.
+
+Step 4: Building.  
+    The script e.makeit imbeds all the knowledge of how to build
+    this version of gcc.  The above steps are simply to get the
+    environment set up to do it the first time.  You may modify
+    e.makeit as needed to adapt to the decisions you made above.
+
+    On a fairly fast (by today's standards) machine, it takes about
+    8 hours for e.makeit to run to completion.  The bulk of the
+    time is spent running the compiler regressions, but a lot of
+    other things happen as well.
+
+    Note that the script uses a convention that you may find handy.
+    It contains a line of the form "fi #####" (with lots of #s).
+    That line can be moved to any (reasonable) point in the script
+    below it, and have the script skip some of its work and pick
+    up at that point.  (The if statement of which this is a part
+    is the earliest point in the script where skipping can safely
+    start; it only takes a couple seconds to get to that point.)
+
+    The script also assumes it will be run asynchronously, with
+    output redirected to a file (which I strongly recommend).  If
+    something goes wrong in the first few seconds, it will complain
+    to /dev/tty so the error will be obvious.  (You might find it
+    handy to run tail -f on the log file just to see where it is.)
+
+    Normally, you can type: "sh e.makeit off >log 2>&1 &".  The
+    resulting file log is a summary log.  Detailed logs are kept
+    in the logs* directories.  (logs (no suffix) contains the most
+    recent log information. logs_? are earlier (similarly named)
+    steps.)  Only e.makeit need be checked out (if you are using
+    a revision control system) to do this; it checks out all the
+    pieces it needs.
+
+    What the script does, roughly:
+
+    a) Sanity checks the environment, and deals with some revision number
+       information.  It also checks that the build is occurring in the
+       right directory; you may want to change that.
+
+    a) Checks out any sources it needs from revision control.  If the 
+       (only) parameter to the script is "on", it calls cvs update on the
+       CVS trees.  It then copies the CVS trees locally.
+
+    b) Apply the patch files.  See above for setup.
+
+    d) Run configure to support the next step.
+
+    e) Build a minimal tool set with cc (or gcc possibly 2.7.2 as mentioned 
+       above) from the patched CVS sources.  This is the first step of an 
+       extended 3-stage bootstrap of the whole compiler chain.
+
+    f) Switch (by rerunning configure with different parameters) to building
+       with the just built gcc (which is kept in local_bin).  Use that
+       to build the tools again in the style of a 3-stage bootstrap.
+       (The standard gcc 3-stage bootstrap assumes that the assembler and
+       linker are constants; this does not.  In principle there should be
+       even more steps to catch problems earlier, but that takes a lot of
+       time and it has never occurred that it was necessary.)
+
+    g) Finish up the 3 stage bootstrap with a clean build of everything
+       doing static linking.
+
+    h) Rebuild everything again (as needed) to build a dynamically linked
+       verion of the tool chain.  (This includes building libexec at this
+       point.)
+
+    i) Use the resulting dynamic compiler to rebuild everything, not just
+       the basic toolchain.  (That is, gdb and it's support tools get built,
+       etc.)  (This includes reconfiguring dejagnu so it can configure
+       correctly with a g++ compiler.)
+
+    j) Build a drop image.  (This occurs when the script is about 1/3 done
+       (in time)).
+
+    k) Run each of the tools regression suites, and report the summary result
+       to the log.  e.makeit prints what the expected results should be
+       for each regression.  Assuredly the results will be different, as gcc
+       alone adds several regression tests every day.  e.makeit also contains
+       comments summarizing the observed failures.
+
+
+On failures:  The ChangeLog file in each target command's source
+directory is your friend, particularly if you have been doing builds
+regularly, in that it may give you a clue as to what changed.
+
+On regression failures: there are quite a number of expected
+failures.  Some are due to features that are not implemented for
+Interix that are of little or no known value to Interix customers.
+Most, however, are failures that occur on at least some other gcc
+implementations; some are "permanent", and others are transient.
+It is reasonable to expect that if a failure appears for a given
+build that it will go away on a later one.  Of course, that isn't
+always the case, in that there are failures that are unique to
+Interix that will need to be addressed.  However, on average, if
+Interix shows a failure, other systems do so as well, and either
+the problem is fixed quickly, or it's deemed (by the gcc community)
+unimportant on those systems as well.
+
+On patch failures.  If a patch fails to apply, there's nothing to
+do but investigate the failure.  The most likely scenario is that
+code near the patch has been changed in a way that the patch command
+cannot adapt to.  You will need to apply the patch by hand and
+regenerate the diff (assuming you ever want to resync with the CVS
+sources again, which you probably will).  Edit the diff back into
+the patch file.  If you are feeling very brave, it is possible to
+edit the patch file, but it is very tricky to get it all right
+except for the most trivial of changes.  (Single, intra-line,
+changes are reasonably easy; if you add and delete lines, there
+are line counting issues that must be considered that make it
+tricky.)
+
+On build failures: if the build fails while compiling:
+
+1) If cc fails with a syntax error: either a patch applied incorrectly, or
+   it changed the syntax.  There are also a few (rare) constructs that have
+   been used in gcc sources that MSVC cannot handle (very long strings, 
+   specifically).  You will have to find and fix these problems.
+
+2) If gcc fails with a syntax error, its probably similar to the above,
+   although it is possible (highly unlikely) that gcc itself has a bug.
+
+3) If gcc fails with an internal compiler error (ICE) or other crash, it's
+   very likely that other people are seeing the same thing (because it's
+   a gcc bug).  You can report it (if someone else hasn't) and wait for
+   it to be fixed.  Or you can try to fix it yourself, but in general
+   that will be a lot of work.  The odds are very good that it will be
+   fixed (if nothing else, by reverting to the old code) within a day or
+   two even if you don't report it.
+
+   The same sort of reasoning generally applies to ld and gas, but it's
+   likely that the actual change causing the problem is in the bfd library,
+   and that it's a sensitivity to PE format that was not addressed when
+   a change was made for general COFF format.  (It may also be that 
+   "gcc" PE and "Microsoft" PE have an incompatability.  They should be
+   the same, but there are differences.  The Interix patches in part
+   consist of changes so that "Microsoft" PE is used for Interix, if
+   not for the other PE users.)

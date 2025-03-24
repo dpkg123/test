@@ -1,0 +1,93 @@
+The following g++ regressions all fail in the linker due to not having the
+fix below:
+
+   mangle11.C
+   mangle3.C
+   deduct5.C
+
+Using deduct5 as the concrete example.
+
+(Background: PE format COMDATs require that symbols pair up to get both
+the section name and the symbol name for a COMDAT.  Gas and MSVC do this
+differently, but the gas case applies here.  The symbol it is looking for
+matches the section name, after stripping text$ (or data$) from the name,
+AND stripping the "extra" underscore from the symbol name on machines
+that do the "extra underscore" stuff, such as PE.
+
+The source causing the problem is:
+    template <typename T> int Foo (T const *ptr)
+    {
+      static int count = 0;
+
+      printf ("%s\n", __PRETTY_FUNCTION__);
+      count++;
+
+      return count;
+    }
+
+And the corresponding incorrect assembly language.
+
+	    .string "int Foo(const T*) [with T = int]"
+    .globl _ZZ3FooIiEiPKT_E5count
+	    .section        .data$_ZZ3FooIiEiPKT_E5count,"w"
+	    .linkonce same_size
+	    .balign 4
+    _ZZ3FooIiEiPKT_E5count:
+	    .long   0
+
+Note that the .section name has the string (_ZZ3FooIiEiPKT_E5count) with a
+single underscore.  Note also that the symbol (in the .globl) is generated
+with a single leading underscore.   This is wrong on two counts:
+
+1) It introduces the mangled name ZZ3FooIiEiPKT_E5count into the program's
+   global namespace (because of the magic underscore rules.)  (That is,
+   a C function could say extern int ZZ3FooIiEiPKT_E5count, and expect to
+   access this variable.  (Not that any reasonable program would :-) ).
+
+2) The name imbedded in the .section symbol does not match the name 
+   of the corresponding symbol, once a leading underscore has been stripped
+   from the (.globl) symbol.
+
+The fix below is needed because DECL_ASSEMBLER_NAME has side-effects:
+the assmebler name is created if it doesn't already exist.  (See
+the macro definition.)  The comments about the if statement being
+modified say that it is asking if the assembler name has been
+defined (by a user-provided attribute statement) but since the
+assembler name is ALWAYS defined by the time the macro completes,
+that's a bit of nonsense.  Recasting the test to determine first
+if the assembler name has actually been defined (and thus not having
+the side-effect occur) before testing the string for a match both
+makes more sense in this context, and avoids the side-effect of
+causing the bad code generated above.  (Another way to look at this
+is that asmspec gets set when the user did not provide an assembler
+name, and at this point in its life, the symbol is created without
+an extra underscore, causing the assembler name emitted to be wrong.)
+
+Note: this is the minimal fix: a wiser fix (one that would avoid a
+recurrence of this problem) would be to change DECL_ASSEMBLER_NAME 
+so it doesn't have that side-effect, but that would require more
+pervasive changes, best done by a maintainer who can make them and
+get them into the code base quickly.
+
+--- gcc/c-semantics.c.saved	Mon Feb 25 18:48:58 2002
++++ gcc/c-semantics.c	Mon Feb 25 18:54:04 2002
+@@ -248,9 +248,16 @@ make_rtl_for_local_static (decl)
+      rest_of_decl_compilation ignores the ASMSPEC parameter, so we
+      may as well not pass it in.  If there isn't RTL, then we didn't
+      already create RTL, which means that the modification to
+-     DECL_ASSEMBLER_NAME came only via the explicit extension.  */
+-  if (DECL_ASSEMBLER_NAME (decl) != DECL_NAME (decl)
+-      && !DECL_RTL_SET_P (decl))
++     DECL_ASSEMBLER_NAME came only via the explicit extension.
++
++     Be careful here... DECL_ASSEMBLER_NAME() has the side-effect
++     of setting the assembler name, which is the LAST thing we want
++     to have happen here unintentionally! (Actually, for many machines,
++     things will appear to work, but "leading underscore" machines are
++     broken by this.) */
++  if (    !DECL_RTL_SET_P (decl)
++       &&  DECL_ASSEMBLER_NAME_SET_P (decl)
++       &&  DECL_ASSEMBLER_NAME (decl) != DECL_NAME (decl))
+     asmspec = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
+ 
+   rest_of_decl_compilation (decl, asmspec, /*top_level=*/0, /*at_end=*/0);

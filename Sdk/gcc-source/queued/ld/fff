@@ -1,0 +1,110 @@
+1,3c1,3
+< diff -drupP be.build.reference/ld/emulparams/i386pe_posix.sh be.build/ld/emulparams/i386pe_posix.sh
+< --- be.build.reference/ld/emulparams/i386pe_posix.sh	Wed May 26 16:06:57 1999
+< +++ be.build/ld/emulparams/i386pe_posix.sh	Fri May 28 13:48:52 1999
+---
+> diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/emulparams/i386pe_posix.sh ld/emulparams/i386pe_posix.sh
+> --- ld.19-25/emulparams/i386pe_posix.sh	Wed Jul  7 14:27:22 1999
+> +++ ld/emulparams/i386pe_posix.sh	Wed Jul  7 18:28:20 1999
+9,12c9,12
+< diff -drupP be.build.reference/ld/emultempl/pe.em be.build/ld/emultempl/pe.em
+< --- be.build.reference/ld/emultempl/pe.em	Wed May 26 16:06:57 1999
+< +++ be.build/ld/emultempl/pe.em	Fri May 28 13:48:52 1999
+< @@ -60,10 +60,19 @@ static void gld_${EMULATION_NAME}_after_
+---
+> diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/emultempl/pe.em ld/emultempl/pe.em
+> --- ld.19-25/emultempl/pe.em	Wed Jul  7 14:27:20 1999
+> +++ ld/emultempl/pe.em	Wed Jul  7 18:36:32 1999
+> @@ -77,11 +77,20 @@ static void gld_${EMULATION_NAME}_after_
+20a21
+>  static void gld_${EMULATION_NAME}_finish PARAMS ((void));
+33,34c34,35
+< @@ -97,5 +97,9 @@ gld_${EMULATION_NAME}_before_parse()
+<  #ifdef TARGET_IS_i386pe
+---
+> @@ -107,6 +116,10 @@ gld_${EMULATION_NAME}_before_parse()
+>  #ifdef DLL_SUPPORT
+43c44,45
+< @@ -352,12 +362,22 @@ gld_${EMULATION_NAME}_parse_args(argc, a
+---
+>  /* PE format extra command line options.  */
+> @@ -374,12 +387,22 @@ gld_${EMULATION_NAME}_parse_args(argc, a
+67c69
+< @@ -446,6 +466,158 @@ gld_${EMULATION_NAME}_parse_args(argc, a
+---
+> @@ -471,6 +494,158 @@ gld_${EMULATION_NAME}_parse_args(argc, a
+226c228
+< @@ -613,9 +785,18 @@ pe_fixup_stdcalls ()
+---
+> @@ -638,9 +813,18 @@ pe_fixup_stdcalls ()
+245c247
+< @@ -631,7 +812,7 @@ gld_${EMULATION_NAME}_after_open ()
+---
+> @@ -656,7 +840,7 @@ gld_${EMULATION_NAME}_after_open ()
+254c256,257
+< @@ -645,11 +826,312 @@ gld_${EMULATION_NAME}_after_open ()
+---
+> @@ -743,11 +927,311 @@ gld_${EMULATION_NAME}_after_open ()
+>  	  }
+257d259
+<  #endif
+563d564
+< +
+567c568
+< @@ -690,6 +1172,72 @@ gld_${EMULATION_NAME}_before_allocation(
+---
+> @@ -788,6 +1272,72 @@ gld_${EMULATION_NAME}_before_allocation(
+569c570
+<    bfd_arm_allocate_interworking_sections (& link_info);
+---
+>    bfd_arm_pe_allocate_interworking_sections (& link_info);
+640c641
+< @@ -870,7 +1418,7 @@ gld_${EMULATION_NAME}_place_orphan (file
+---
+> @@ -1012,7 +1562,7 @@ gld_${EMULATION_NAME}_place_orphan (file
+649c650
+< @@ -1031,7 +1579,7 @@ gld_${EMULATION_NAME}_place_orphan (file
+---
+> @@ -1173,7 +1723,7 @@ gld_${EMULATION_NAME}_place_orphan (file
+658c659
+< @@ -1079,6 +1627,8 @@ echo '  ; else if (!config.text_read_onl
+---
+> @@ -1221,6 +1771,8 @@ echo '  ; else if (!config.text_read_onl
+667c668
+< @@ -1102,7 +1652,7 @@ struct ld_emulation_xfer_struct ld_${EMU
+---
+> @@ -1244,7 +1796,7 @@ struct ld_emulation_xfer_struct ld_${EMU
+676,679c677,680
+< diff -drupP be.build.reference/ld/lexsup.c be.build/ld/lexsup.c
+< --- be.build.reference/ld/lexsup.c	Wed May 26 16:07:03 1999
+< +++ be.build/ld/lexsup.c	Fri May 28 12:37:20 1999
+< @@ -241,14 +241,18 @@ static const struct ld_option ld_options
+---
+> diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/lexsup.c ld/lexsup.c
+> --- ld.19-25/lexsup.c	Wed Jul  7 14:27:24 1999
+> +++ ld/lexsup.c	Wed Jul  7 18:28:20 1999
+> @@ -243,14 +243,18 @@ static const struct ld_option ld_options
+698,700c699,701
+< diff -drupP be.build.reference/ld/scripttempl/pe.sc be.build/ld/scripttempl/pe.sc
+< --- be.build.reference/ld/scripttempl/pe.sc	Wed May 26 16:07:00 1999
+< +++ be.build/ld/scripttempl/pe.sc	Thu Jun  3 16:38:20 1999
+---
+> diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/scripttempl/pe.sc ld/scripttempl/pe.sc
+> --- ld.19-25/scripttempl/pe.sc	Wed Jul  7 14:27:23 1999
+> +++ ld/scripttempl/pe.sc	Wed Jul  7 18:28:20 1999
+713c714
+< @@ -43,6 +48,13 @@ ${LIB_SEARCH_DIRS}
+---
+> @@ -44,6 +49,13 @@ ${LIB_SEARCH_DIRS}
+727c728
+< @@ -95,11 +107,35 @@ SECTIONS
+---
+> @@ -96,11 +108,35 @@ SECTIONS
+763c764
+< @@ -118,12 +154,6 @@ SECTIONS
+---
+> @@ -119,12 +155,6 @@ SECTIONS
+776c777
+< @@ -136,6 +166,50 @@ SECTIONS
+---
+> @@ -137,6 +167,50 @@ SECTIONS

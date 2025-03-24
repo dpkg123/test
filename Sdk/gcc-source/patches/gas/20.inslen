@@ -1,0 +1,81 @@
+This is highly suspicious.  The bit about using 3 rather than insn_size
+tickles a memory that in fact 3 was sometimes wrong, but I can't remember
+the details (as of 01/02).  Disabling this change for now, but we may
+need to do something.  (CVS change 1.96 removed all use of insn_size,
+because it wasn't needed at the time, but we may still need it for
+this???)  (On the other hand, nobody else seems to notice.)
+
+
+	* config/tc-i386.c (md_assemble): use actual insn length, not 
+	hard-coded constant; clarify with (no-op) assignment.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -1410,6 +1410,7 @@ coff_frob_file_after_relocs ()
+                                                  'x' for text
+   						 'r' for read-only data
+   						 's' for shared data (PE)
++						 'y' for nonreadable data
+    But if the argument is not a quoted string, treat it as a
+    subsegment number.
+ 
+@@ -1427,7 +1428,9 @@ obj_coff_section (ignore)
+   unsigned int exp;
+   flagword flags, oldflags;
+   asection *sec;
+-
++  boolean set_flags[sec_flag_last];
++  enum section_sec_flags flagval;
++
+   if (flag_mri)
+     {
+       char type;
+@@ -1449,6 +1452,8 @@ obj_coff_section (ignore)
+   exp = 0;
+   flags = SEC_NO_FLAGS;
+ 
++  memset(set_flags, 0, sizeof(set_flags));
++
+   if (*input_line_pointer == ',')
+     {
+       ++input_line_pointer;
+@@ -1470,6 +1475,7 @@ obj_coff_section (ignore)
+ 		case 'a': break; /* For compatability with ELF.  */
+ 		case 'x': flags |= SEC_CODE | SEC_LOAD; break;
+ 		case 'r': flags |= SEC_READONLY; break;
++		case 'y': set_flags[sec_flag_NOREAD] = true;
+ 		case 's': flags |= SEC_SHARED; break;
+ 
+ 		case 'i': /* STYP_INFO */
+@@ -1513,6 +1519,14 @@ obj_coff_section (ignore)
+ 	as_warn (_("error setting flags for \"%s\": %s"),
+ 		 bfd_section_name (stdoutput, sec),
+ 		 bfd_errmsg (bfd_get_error ()));
++
++      for (flagval=0; flagval < sec_flag_last; flagval++) 
++	{
++	  if (set_flags[flagval]) 
++	    {
++	      bfd_set_section_flag_value(bfd, sec, flagval);
++	    }
++        }
+     }
+   else if (flags != SEC_NO_FLAGS)
+     {
+@@ -1522,6 +1536,15 @@ obj_coff_section (ignore)
+ 			     | SEC_DATA | SEC_SHARED | SEC_NEVER_LOAD);
+       if ((flags ^ oldflags) & matchflags)
+ 	as_warn (_("Ignoring changed section attributes for %s"), name);
++
++      for (flagval=0; flagval < sec_flag_last; flagval++) 
++	{
++	  if (flagval == sec_flag_NOREAD   /* add more here */
++	  && set_flags[flagval] != bfd_section_flag_value(abfd, sec, flagval))
++	    {
++	      as_warn (_("Ignoring changed section attributes for %s"), name);
++	    }
++        }
+     }
+ 
+   demand_empty_rest_of_line ();

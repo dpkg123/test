@@ -1,0 +1,18 @@
+Since strtoul is in libiberty, use it, and make life easier.  (This
+is the last command line atoi I could find, thus allowing all 3 bases
+anywhere.)
+
+	* lexsup.c (parse_args): Allow multiple bases for OPTION_SPLIT_BY_RELOC
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/lexsup.c ld/lexsup.c
+--- ld.nil/lexsup.c	Wed Jul  7 14:17:26 1999
++++ ld/lexsup.c	Wed Jul  7 14:17:45 1999
+@@ -945,7 +949,7 @@ the GNU General Public License.  This pr
+              ignored.  Someday we should handle it correctly.  FIXME.  */
+ 	  break;
+ 	case OPTION_SPLIT_BY_RELOC:
+-	  config.split_by_reloc = atoi (optarg);
++	  config.split_by_reloc = strtoul (optarg, NULL, 0);
+ 	  break; 
+ 	case OPTION_SPLIT_BY_FILE:
+ 	  config.split_by_file = true;

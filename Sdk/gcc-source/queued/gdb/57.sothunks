@@ -1,0 +1,51 @@
+When inferring where file breaks occur, don't consider .so thunk symbols.
+
+This should be merged with the base shared lib stuff at some point.
+
+The bulk of this change is an indentation change.  New lines are just an
+if and its {}.
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.saved/coffread.c gdb/coffread.c
+--- gdb.saved/coffread.c	Tue Mar  5 14:56:12 2002
++++ gdb/coffread.c	Wed Mar  6 11:46:19 2002
+@@ -952,21 +952,25 @@ coff_symtab_read (long symtab_offset, un
+ 	  fcn_sym_saved = main_sym;
+ 	  fcn_aux_saved = main_aux;
+  
+- 	  /* If first_function_last file is nonzero, we had gotten a sizeless
+- 	     function earlier;  we keep going until we DO get a size, and 
+- 	     presume that everthing in the range up to the current function
+- 	     is a single file. */
+- 	  if (most_recent_function_end != 0)
+- 	    {
+- 	      if (first_function_last_file != 0)
+- 		 range_symtab(first_function_last_file, tmpaddr-1);
+- 	      first_function_last_file = 0;
+- 	    }
+- 	  else
+- 	    {
+- 	      if (first_function_last_file == 0)
+- 		 first_function_last_file = tmpaddr;
+- 	    }
++	  /* Shared lib symbols need not apply. */
++	  if (cs->c_secnum != 0)
++	    {
++	      /* If first_function_last_file != zero, we had gotten a sizeless
++		 function earlier;  we keep going until we DO get a size, and 
++		 presume that everthing in the range up to the current function
++		 is a single file. */
++	      if (most_recent_function_end != 0)
++		{
++		  if (first_function_last_file != 0)
++		     range_symtab(first_function_last_file, tmpaddr-1);
++		  first_function_last_file = 0;
++		}
++	      else
++		{
++		  if (first_function_last_file == 0)
++		     first_function_last_file = tmpaddr;
++		}
++	    }
+  
+ 	  continue;
+ 	}

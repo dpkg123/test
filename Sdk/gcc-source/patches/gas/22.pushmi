@@ -1,0 +1,34 @@
+Mark locations where things are strange in terms of relocations.
+
+Yeah, Ian, I know, you don't want these patches, but for the record,
+here it is anyway.  Arguably, some of the _INTERIX lines in 18 are also
+PUSHMI_PULLU as well, and there's some hope that as those get fixed
+the number of these goes down.
+
+DJ/Mumit: you've probably noticed that the relocations often add and
+then subtract the same thing.  In my copies of things, I'm flagging
+those with ifdefs to make them easy to find.  Ian feels that ifdefs
+are the wrong way to go, so we're at an impass.  Since it's documentation,
+it's not a big deal.
+
+	* config/tc-1836.c (md_apply_fix3): PUSHMI_PULLU flags.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -4770,6 +4770,7 @@ md_apply_fix3 (fixP, valP, seg)
+ 	  || fixP->fx_r_type == BFD_RELOC_8_PCREL)
+       && !use_rela_relocations)
+     {
++#ifndef PUSHMI_PULLU /* [ */
+       /* This is a hack.  There should be a better way to handle this.
+ 	 This covers for the fact that bfd_install_relocation will
+ 	 subtract the current location (for partial_inplace, PC relative
+@@ -4839,6 +4840,7 @@ md_apply_fix3 (fixP, valP, seg)
+       value -= 2 * S_GET_VALUE (fixP->fx_addsy);
+     }
+ #endif
++#endif /* ] */
+ #endif /* ] */
+ 
+   /* Fix a few things - the dynamic linker expects certain values here,

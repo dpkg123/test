@@ -1,0 +1,19 @@
+Size was fixed so that .reloc is included in .text, which is also OK.
+
+So we get the "same" values everyone else gets...
+
+	* size.c (berkeley_sum): don't count debugging (and reloc) section
+	in size.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/size.c binutils/size.c
+--- binutils.nil/size.c	Wed Jul  7 16:58:54 1999
++++ binutils/size.c	Wed Jul  7 16:59:22 1999
+@@ -374,7 +374,7 @@ berkeley_sum (abfd, sec, ignore)
+   bfd_size_type size;
+ 
+   flags = bfd_get_section_flags (abfd, sec);
+-  if ((flags & SEC_ALLOC) == 0)
++  if ((flags & SEC_ALLOC) == 0 || (flags & SEC_DEBUGGING) != 0)
+     return;
+ 
+   size = bfd_get_section_size_before_reloc (sec);

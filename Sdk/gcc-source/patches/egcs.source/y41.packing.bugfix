@@ -1,0 +1,375 @@
+The recent (Feb '02) application of the original patch to handle
+MS bitfield layout did not handle alignment of whole structures to
+match the MSVC rules (when bitfields are involved).  (The original
+submittal of several years ago did handle that correctly.) This
+modifies the recent applicaiton slightly to make it conform to
+reality.  (The statements about this in the documentation are in
+fact correct and do not need to be modified.)
+
+The change to ADJUST_FIELD_ALIGN is required because Cygwin uses
+64 bit alignment as the default, which works in general, but not
+in structures when maintaining MS compatability.  Adding the extra
+argument to the macro is in anticipation of a future change that
+will use it.
+
+The patch from Danny Smith that adds command line options for
+Cygwin and Mingw contains a testcase that covers the older parts
+of this.  I have included a patch to that testcase that covers a bit
+more; since that hasn't been checked into the tree yet, I left it
+as a "location unknown" patch.
+
+Note: libobjc/encoding.c makes a call to ADJUST_FIELD_ALIGN, but
+doesn't have anything vaguely like the proper information to provide
+as the new first argument.  Users of the new first argument will
+have to tolerate a NULL there, and do the best they can.  (It is
+not obvious to me that the code in encoding.c replicates all of the
+logic in stor-layout.c anyway, and the special cases that the
+new ADJUST_FIELD_ALIGN will address are just a small part of a
+much larger problem.  This makes things no worse, and the documentation
+changes below at least help flag the problem.
+
+(Yes, I considered a new macro... there are two equally good arguments
+to parsimony here: fewer macros or changes in fewer places.  Both seem
+about equal so it's a coin toss.  I chose based on what seemed most
+likely to minimize future subtle bugs.)
+
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/stor-layout.c gcc/stor-layout.c
+--- gcc.bak/stor-layout.c	Thu Apr  4 09:33:13 2002
++++ gcc/stor-layout.c	Wed Apr  3 21:14:47 2002
+@@ -672,7 +672,7 @@ place_union_field (rli, field)
+ #endif
+ 
+ #ifdef ADJUST_FIELD_ALIGN
+-  desired_align = ADJUST_FIELD_ALIGN (field, desired_align);
++  desired_align = ADJUST_FIELD_ALIGN (rli, field, desired_align);
+ #endif
+ 
+   TYPE_USER_ALIGN (rli->t) |= DECL_USER_ALIGN (field);
+@@ -787,7 +787,7 @@ place_field (rli, field)
+ #endif
+ 
+ #ifdef ADJUST_FIELD_ALIGN
+-  desired_align = ADJUST_FIELD_ALIGN (field, desired_align);
++  desired_align = ADJUST_FIELD_ALIGN (rli, field, desired_align);
+ #endif
+ 
+   /* Record must have at least as much alignment as any field.
+@@ -794,14 +796,20 @@ place_field (rli, field)
+   if ((* targetm.ms_bitfield_layout_p) (rli->t)
+       && type != error_mark_node
+       && DECL_BIT_FIELD_TYPE (field)
+-      && ! integer_zerop (TYPE_SIZE (type))
+-      && integer_zerop (DECL_SIZE (field)))
++      && ! integer_zerop (TYPE_SIZE (type)))
+     {
+-      if (rli->prev_field
+-	  && DECL_BIT_FIELD_TYPE (rli->prev_field)
+-	  && ! integer_zerop (DECL_SIZE (rli->prev_field)))
++      /* Here, the alignment of the underlying type of a bitfield can
++	 affect the alignment of a record; even a zero-sized field
++	 can do this.  The alignment should be to the alignment of
++	 the type, except that for zero-size bitfields this only
++	 applies if there was an immediately prior, non-zero-size
++	 bitfield.  (That's the way it is, experimentally.) */
++      if (! integer_zerop (DECL_SIZE (field))
++	  || (rli->prev_field
++	      && DECL_BIT_FIELD_TYPE (rli->prev_field)
++	      && ! integer_zerop (DECL_SIZE (rli->prev_field))))
+ 	{
+-	  rli->record_align = MAX (rli->record_align, desired_align);
++	  rli->record_align = MAX (rli->record_align, TYPE_ALIGN(type));
+ 	  rli->unpacked_align = MAX (rli->unpacked_align, TYPE_ALIGN (type));
+ 	}
+       else
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/rs6000/aix.h gcc/config/rs6000/aix.h
+--- gcc.back/config/rs6000/aix.h	Thu Apr  4 09:40:08 2002
++++ gcc/config/rs6000/aix.h	Thu Apr  4 10:45:48 2002
+@@ -104,7 +104,7 @@ Boston, MA 02111-1307, USA.  */
+ %{p:-L/lib/profiled -L/usr/lib/profiled} %{!shared:%{g*:-lg}} -lc"
+ 
+ /* AIX word-aligns FP doubles but doubleword-aligns 64-bit ints.  */
+-#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) \
++#define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED) \
+   (TYPE_MODE (TREE_CODE (TREE_TYPE (FIELD)) == ARRAY_TYPE \
+ 	      ? get_inner_array_type (FIELD) \
+ 	      : TREE_TYPE (FIELD)) == DFmode \
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/rs6000/darwin.h gcc/config/rs6000/darwin.h
+--- gcc.back/config/rs6000/darwin.h	Thu Apr  4 09:40:08 2002
++++ gcc/config/rs6000/darwin.h	Thu Apr  4 10:45:56 2002
+@@ -206,7 +206,7 @@ Boston, MA 02111-1307, USA.  */
+ #define ALWAYS_PUSH_CONSTS_USING_REGS_P		1
+ 
+ /* Darwin word-aligns FP doubles but doubleword-aligns 64-bit ints.  */
+-#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) \
++#define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED) \
+   (TYPE_MODE (TREE_CODE (TREE_TYPE (FIELD)) == ARRAY_TYPE \
+ 	      ? get_inner_array_type (FIELD) \
+ 	      : TREE_TYPE (FIELD)) == DFmode \
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/rs6000/linux64.h gcc/config/rs6000/linux64.h
+--- gcc.back/config/rs6000/linux64.h	Thu Apr  4 09:40:08 2002
++++ gcc/config/rs6000/linux64.h	Thu Apr  4 10:46:02 2002
+@@ -65,7 +65,7 @@ Boston, MA 02111-1307, USA.  */
+ #define USER_LABEL_PREFIX  ""
+ 
+ /* AIX word-aligns FP doubles but doubleword-aligns 64-bit ints.  */
+-#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) \
++#define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED) \
+   (TYPE_MODE (TREE_CODE (TREE_TYPE (FIELD)) == ARRAY_TYPE \
+ 	      ? get_inner_array_type (FIELD) \
+ 	      : TREE_TYPE (FIELD)) == DFmode \
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/rs6000/sysv4.h gcc/config/rs6000/sysv4.h
+--- gcc.back/config/rs6000/sysv4.h	Thu Apr  4 09:40:08 2002
++++ gcc/config/rs6000/sysv4.h	Thu Apr  4 10:46:31 2002
+@@ -385,7 +385,7 @@ do {									\
+ 
+ /* An expression for the alignment of a structure field FIELD if the
+    alignment computed in the usual way is COMPUTED.  */
+-#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED)				      \
++#define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED)			      \
+ 	((TARGET_ALTIVEC && TREE_CODE (TREE_TYPE (FIELD)) == VECTOR_TYPE)     \
+ 	 ? 128 : COMPUTED)
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/doc/tm.texi gcc/doc/tm.texi
+--- gcc.back/doc/tm.texi	Thu Apr  4 09:38:39 2002
++++ gcc/doc/tm.texi	Thu Apr  4 10:45:35 2002
+@@ -1066,11 +1066,14 @@ structure and union fields only, unless 
+ by the @code{__attribute__ ((aligned (@var{n})))} construct.
+ 
+ @findex ADJUST_FIELD_ALIGN
+-@item ADJUST_FIELD_ALIGN (@var{field}, @var{computed})
+-An expression for the alignment of a structure field @var{field} if the
++@item ADJUST_FIELD_ALIGN (@var{rls}, @var{field}, @var{computed})
++An expression for the alignment of a structure field @var{field} with
++structure context in @var{rli} if the
+ alignment computed in the usual way is @var{computed}.  GCC uses
+ this value instead of the value in @code{BIGGEST_ALIGNMENT} or
+ @code{BIGGEST_FIELD_ALIGNMENT}, if defined.
++@emph(Note): libobjc/encoding.c calls this macro with a NULL for @var(rls);
++it is thus limited in terms of the functions it can call.
+ 
+ @findex MAX_OFILE_ALIGNMENT
+ @item MAX_OFILE_ALIGNMENT
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files libobjc/encoding.c libobjc/encoding.c
+--- libobjc/encoding.c.save	Fri Apr  5 09:07:24 2002
++++ libobjc/encoding.c	Fri Apr  5 09:07:42 2002
+@@ -48,7 +48,9 @@ Boston, MA 02111-1307, USA.  */
+ 
+ #define TREE_CODE(TYPE) *(TYPE)
+ #define TREE_TYPE(TREE) (TREE)
+-
++#define TYPE_NATIVE(TREE) 0   /* Used by some ADJUST_FIELD_ALIGN variants */
++#define DECL_USER_ALIGN(TREE) 0   /* Ditto.*/
++
+ #define RECORD_TYPE     _C_STRUCT_B
+ #define UNION_TYPE      _C_UNION_B
+ #define QUAL_UNION_TYPE _C_UNION_B
+@@ -807,7 +807,12 @@ objc_layout_structure_next_member (struc
+   desired_align = MIN (desired_align, BIGGEST_FIELD_ALIGNMENT);
+ #endif
+ #ifdef ADJUST_FIELD_ALIGN
+-  desired_align = ADJUST_FIELD_ALIGN (type, desired_align);
++  /* There's no analog here for the first argument for this compiler-internal
++     macro, so provide a NULL; the macro will have to deal with that and
++     do the best it can.  This code is not a perfect (semantic) replica
++     of the code in stor-layout.c, anyway, and the information that
++     the first argument provides appears not to be needed. */
++  desired_align = ADJUST_FIELD_ALIGN (NULL, type, desired_align);
+ #endif
+ 
+   /* Record must have at least as much alignment as any field.
+==================NOT SURE OF LOCATION-----------------------------------
+Leftshift 4 to avoid recognition as patch by patch program
+    --- bf-ms-layout.c.orig	Thu Apr  4 11:28:45 2002
+    +++ bf-ms-layout.c	Thu Apr  4 14:18:49 2002
+    @@ -67,36 +67,74 @@ struct seven {
+       char c;
+     };
+     
+    -struct eight { /* ms size 4? */
+    +struct eight { /* ms size 4 */
+       short b:3;  
+       char  c;
+     };
+     
+    +#ifdef _MSC_VER
+    +#define LONGLONG __int64
+    +#else
+    +#define LONGLONG long long
+    +#endif
+    +
+    +union nine {   /* ms size 8 */
+    +   LONGLONG a:3;
+    +   char  c;
+    +};
+    +
+    +struct ten {   /* ms size 16 */
+    +   LONGLONG a:3;
+    +   LONGLONG b:3;
+    +   char  c;
+    +};
+     
+     #define val(s,f) (s.f)
+     
+     #define check_struct(_X) \
+     { \
+       if (sizeof (struct _X) != exp_sizeof_##_X )	\
+	 abort();				\
+       memcpy(&test_##_X, filler, sizeof(test_##_X));\
+       if (val(test_##_X,c) != exp_##_X##_c) 	\
+    -    abort(); 					\
+    -}
+    -
+    -#define check_size(_X) \
+    +    fprintf(stderr, "content of " #_X " %d != %d\n", val(test_##_X,c), exp_##_X##_c); \
+    +}
+    +
+    +#define check_union(_X) \
+    +{ \
+    +  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    +    abort();                                    \
+    +  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+    +  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    +    abort();                                    \
+    +}
+    +
+    +#define check_struct_size(_X) \
+     { \
+       if (sizeof (struct _X) != exp_sizeof_##_X )	\
+    -    abort(); 					\
+    -}
+    -
+    -#define check_off(_X) \
+    +    abort();                                    \
+    +}
+    +
+    +#define check_struct_off(_X) \
+     { \
+       memcpy(&test_##_X, filler, sizeof(test_##_X));\
+       if (val(test_##_X,c) != exp_##_X##_c) 	\
+    -    abort(); 					\
+    -}
+    -
+    +    abort();                                    \
+    +}
+    +
+    +#define check_union_size(_X) \
+    +{ \
+    +  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    +    abort();                                    \
+    +}
+    +
+    +#define check_union_off(_X) \
+    +{ \
+    +  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+    +  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    +    abort();                                    \
+    +}
+    +
+     int main(){
+     
+       unsigned char filler[16];
+    @@ -108,17 +146,21 @@ int main(){
+       struct six test_six;
+       struct seven test_seven;
+       struct eight test_eight;
+    -
+    +  union nine test_nine;
+    +  struct ten test_ten;
+    +
+     #if defined (_TEST_MS_LAYOUT) || defined (_MSC_VER)
+       size_t exp_sizeof_one = 12;
+       size_t exp_sizeof_two = 16;
+       size_t exp_sizeof_three =6;
+    -  size_t exp_sizeof_four = 8;	/* error: gcc with ms_bitfields = 5 */
+    +  size_t exp_sizeof_four = 8;
+       size_t exp_sizeof_five = 3;
+    -  size_t exp_sizeof_six = 8;	/* error: gcc with ms_bitfields = 6 */
+    +  size_t exp_sizeof_six = 8;
+       size_t exp_sizeof_seven = 3;
+    -  size_t exp_sizeof_eight = 4;	/* error: gcc with ms_bitfields = 3 */
+    - 
+    +  size_t exp_sizeof_eight = 4;
+    +  size_t exp_sizeof_nine = 8;
+    +  size_t exp_sizeof_ten = 16;
+    + 
+       unsigned char exp_one_c = 8;
+       unsigned char exp_two_c  = 12;
+       unsigned char exp_three_c = 4;
+    @@ -127,7 +169,9 @@ int main(){
+       char exp_six_c = 5;
+       char exp_seven_c = 2;
+       char exp_eight_c = 2;
+    -
+    +  char exp_nine_c = 0;
+    +  char exp_ten_c = 8;
+    +
+     #else /* testing -mno-ms-bitfields */
+     
+       size_t exp_sizeof_one = 8;
+    @@ -138,7 +182,9 @@ int main(){
+       size_t exp_sizeof_six = 6;
+       size_t exp_sizeof_seven = 6;
+       size_t exp_sizeof_eight = 2;
+    -
+    +  size_t exp_sizeof_nine = 8;
+    +  size_t exp_sizeof_ten = 8;
+    +
+       unsigned short exp_one_c = 6;
+       unsigned int exp_two_c  = 6;
+       unsigned char exp_three_c = 64;
+    @@ -147,30 +193,36 @@ int main(){
+       char exp_six_c = 5;
+       char exp_seven_c = 5;
+       char exp_eight_c = 1;
+    -
+    +  char exp_nine_c = 0;
+    +  char exp_ten_c = 1;
+    +
+     #endif
+     
+       unsigned char i; 
+       for ( i = 0; i < 16; i++ )
+	 filler[i] = i;
+     
+    -  check_off (one);
+    -  check_off (two);  
+    -  check_off (three);
+    -  check_off (four);
+    -  check_off (five);
+    -  check_off (six);
+    -  check_off (seven);
+    -  check_off (eight);
+    -
+    -  check_size (one);
+    -  check_size (two);  
+    -  check_size (three);
+    -  check_size (four);
+    -  check_size (five);
+    -  check_size (six);
+    -  check_size (seven);
+    -  check_size (eight);
+    +  check_struct_off (one);
+    +  check_struct_off (two);  
+    +  check_struct_off (three);
+    +  check_struct_off (four);
+    +  check_struct_off (five);
+    +  check_struct_off (six);
+    +  check_struct_off (seven);
+    +  check_struct_off (eight);
+    +  check_union_off (nine);
+    +  check_struct_off (ten);
+    +
+    +  check_struct_size (one);
+    +  check_struct_size (two);  
+    +  check_struct_size (three);
+    +  check_struct_size (four);
+    +  check_struct_size (five);
+    +  check_struct_size (six);
+    +  check_struct_size (seven);
+    +  check_struct_size (eight);
+    +  check_union_size (nine);
+    +  check_struct_size (ten);
+     
+       return 0;
+     };

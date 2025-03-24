@@ -1,0 +1,311 @@
+MSVC generates symbols with @ in them; to be able to access them from 
+gas, the parser should not trip over the special assembler notations for
+such as @GOT if LEX_AT is turned on.
+
+It turns out that this is easy: if LEX_AT is turned on (by itself),
+a lot of code is turned off.  If that code is turned back on, it
+so happens that it does exactly the right thing.  LEX_AT still causes
+the right thing anyway.
+
+   * Test and use RECOGNIZE_AT_GOT_ANYWAY.
+
+   * Add @IMAGEBASE as an additional relocation type to be recognized,
+     to allow the generation of the RVA relocation.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Tue May 28 15:26:03 2002
++++ gas/config/tc-i386.c	Tue May 28 15:34:04 2002
+@@ -3458,9 +3458,48 @@ output_imm (insn_start_frag, insn_start_
+     }
+ }
+ 
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+ static char *lex_got PARAMS ((RELOC_ENUM *, int *));
+-
++static const struct {
++  const char *str;
++  const int   len;
++  const boolean need_got;
++  const RELOC_ENUM rel[NUM_FLAG_CODE];
++} gotrel[] = {
++  { "PLT",      sizeof("PLT")-1,        true,
++		{ BFD_RELOC_386_PLT32,      0, BFD_RELOC_X86_64_PLT32    } },
++  { "GOTOFF",   sizeof("GOTOFF")-1,     true,
++		{ BFD_RELOC_386_GOTOFF,     0, 0                         } },
++  { "GOTPCREL", sizeof("GOTPCREL")-1,   true,
++		{ 0,                        0, BFD_RELOC_X86_64_GOTPCREL } },
++  { "TLSGD",    sizeof("TLSGD")-1,      true,
++		{ BFD_RELOC_386_TLS_GD,     0, BFD_RELOC_X86_64_TLSGD    } },
++  { "TLSLDM",   sizeof("TLSLDM")-1,     true,
++		{ BFD_RELOC_386_TLS_LDM,    0, 0                         } },
++  { "TLSLD",    sizeof("TLSLD")-1,      true,
++		{ 0,                        0, BFD_RELOC_X86_64_TLSLD    } },
++  { "GOTTPOFF", sizeof("GOTTPOFF")-1,   true,
++		{ BFD_RELOC_386_TLS_IE_32,  0, BFD_RELOC_X86_64_GOTTPOFF } },
++  { "TPOFF",    sizeof("TPOFF")-1,      true,
++		{ BFD_RELOC_386_TLS_LE_32,  0, BFD_RELOC_X86_64_TPOFF32  } },
++  { "NTPOFF",   sizeof("NTPOFF")-1,     true,
++		{ BFD_RELOC_386_TLS_LE,     0, 0                         } },
++  { "DTPOFF",   sizeof("DTOPFF")-1,     true,
++		{ BFD_RELOC_386_TLS_LDO_32, 0, BFD_RELOC_X86_64_DTPOFF32 } },
++  { "GOTNTPOFF",sizeof("GOTNTPOFF")-1,  true,
++		{ BFD_RELOC_386_TLS_GOTIE,  0, 0                         } },
++  { "INDNTPOFF",sizeof("INDNTPOFF")-1,  true,
++		{ BFD_RELOC_386_TLS_IE,     0, 0                         } },
++  { "GOT",      sizeof("GOT")-1,        true,
++		{ BFD_RELOC_386_GOT32,      0, BFD_RELOC_X86_64_GOT32    } },
++#ifdef TE_PE_DYN
++  { "IMAGEBASE",sizeof("IMAGE_BASE")-1, false,
++		{ BFD_RELOC_RVA,            0, 0 /* add when needed */   } },
++#endif
++};
++
++static const char * const mode_name[NUM_FLAG_CODE] = { "32", "16", "64" };
++
+ /* Parse operands of the form
+    <symbol>@GOTOFF+<nnn>
+    and similar .plt or .got references.
+@@ -3535,38 +3537,32 @@ lex_got (reloc, adjust)
+      RELOC_ENUM *reloc;
+      int *adjust;
+ {
+-  static const char * const mode_name[NUM_FLAG_CODE] = { "32", "16", "64" };
+-  static const struct {
+-    const char *str;
+-    const RELOC_ENUM rel[NUM_FLAG_CODE];
+-  } gotrel[] = {
+-    { "PLT",      { BFD_RELOC_386_PLT32,      0, BFD_RELOC_X86_64_PLT32    } },
+-    { "GOTOFF",   { BFD_RELOC_386_GOTOFF,     0, 0                         } },
+-    { "GOTPCREL", { 0,                        0, BFD_RELOC_X86_64_GOTPCREL } },
+-    { "TLSGD",    { BFD_RELOC_386_TLS_GD,     0, BFD_RELOC_X86_64_TLSGD    } },
+-    { "TLSLDM",   { BFD_RELOC_386_TLS_LDM,    0, 0                         } },
+-    { "TLSLD",    { 0,                        0, BFD_RELOC_X86_64_TLSLD    } },
+-    { "GOTTPOFF", { BFD_RELOC_386_TLS_IE_32,  0, BFD_RELOC_X86_64_GOTTPOFF } },
+-    { "TPOFF",    { BFD_RELOC_386_TLS_LE_32,  0, BFD_RELOC_X86_64_TPOFF32  } },
+-    { "NTPOFF",   { BFD_RELOC_386_TLS_LE,     0, 0                         } },
+-    { "DTPOFF",   { BFD_RELOC_386_TLS_LDO_32, 0, BFD_RELOC_X86_64_DTPOFF32 } },
+-    { "GOTNTPOFF",{ BFD_RELOC_386_TLS_GOTIE,  0, 0                         } },
+-    { "INDNTPOFF",{ BFD_RELOC_386_TLS_IE,     0, 0                         } },
+-    { "GOT",      { BFD_RELOC_386_GOT32,      0, BFD_RELOC_X86_64_GOT32    } }
+-  };
+-  char *cp;
++  char *cp, *cp2;
+   unsigned int j;
+ 
+-  for (cp = input_line_pointer; *cp != '@'; cp++)
+-    if (is_end_of_line[(unsigned char) *cp])
+-      return NULL;
+-
++  cp = NULL;
++
++   /* Find the last @ in this identifier; if LEX_AT is on, we can
++      get things like foo@8@PLT (for _cdecl foo(int,int), e.g.). */
++  for (cp2 = input_line_pointer; ;cp2++)
++    {
++      if (*cp2 == '@') 
++	{
++	  cp = cp2;
++	}
++      if (!is_part_of_name((unsigned char) *cp2))
++	{
++	  if (cp == NULL)
++	     return NULL;
++	  else
++	     break;
++	 }
++    }
++
+   for (j = 0; j < sizeof (gotrel) / sizeof (gotrel[0]); j++)
+     {
+-      int len;
+-
+-      len = strlen (gotrel[j].str);
+-      if (strncasecmp (cp + 1, gotrel[j].str, len) == 0)
++ 
++      if (strncasecmp (cp + 1, gotrel[j].str, gotrel[j].len) == 0)
+ 	{
+ 	  if (gotrel[j].rel[(unsigned int) flag_code] != 0)
+ 	    {
+@@ -3514,9 +3546,9 @@ lex_got (reloc, adjust)
+ 
+ 	      *reloc = gotrel[j].rel[(unsigned int) flag_code];
+ 	      if (adjust)
+-		*adjust = len;
+-
+-	      if (GOT_symbol == NULL)
++		*adjust = gotrel[j].len;
++
++	      if (GOT_symbol == NULL && gotrel[j].need_got)
+ 		GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+ 
+ 	      /* Replace the relocation token with ' ', so that
+@@ -3528,7 +3560,7 @@ lex_got (reloc, adjust)
+ 	      /* The second part goes from after the reloc token until
+ 		 (and including) an end_of_line char.  Don't use strlen
+ 		 here as the end_of_line char may not be a NUL.  */
+-	      past_reloc = cp + 1 + len;
++	      past_reloc = cp + 1 + gotrel[j].len;
+ 	      for (cp = past_reloc; !is_end_of_line[(unsigned char) *cp++]; )
+ 		;
+ 	      second = cp - past_reloc;
+@@ -3553,6 +3585,68 @@ lex_got (reloc, adjust)
+   return NULL;
+ }
+ 
++#ifdef RECOGNIZE_AT_GOT_ANYWAY
++/* If we're overloading the @ as both an ordinary character and a 
++   separator for modifiers, we have to recheck identifiers in expressions
++   to get the parse to stop in the right place. (This is md_parse_name.) */
++
++int
++i386_parse_name (name, exprP, nextcharP)
++     char *name;
++     expressionS *exprP ATTRIBUTE_UNUSED;
++     char *nextcharP ATTRIBUTE_UNUSED;
++{
++  char *cp, *cp2;
++  unsigned int j;
++
++  cp = NULL;
++   /* Find the last @ in this identifier; if LEX_AT is on, we can
++      get things like foo@8@PLT (for _cdecl foo(int,int), e.g.). */
++ 
++  for (cp2 = name; ;cp2++) {
++    if (*cp2 == '@') 
++      {
++        cp = cp2;
++      }
++    if (!is_part_of_name((unsigned char) *cp2))
++      {
++	if (cp == NULL)
++ 	   return 0;
++ 	else
++ 	   break;
++       }
++  }
++
++  for (j = 0; j < sizeof (gotrel) / sizeof (gotrel[0]); j++)
++    {
++      if (strncasecmp (cp + 1, gotrel[j].str, gotrel[j].len) == 0)
++	{
++	  if (gotrel[j].rel[(unsigned int) flag_code] != 0)
++	    {
++	      /* We've found an acceptable addressing modifier; record
++		 that in the expr we're building. */
++              i.reloc[this_operand] = gotrel[j].rel[(unsigned int) flag_code];
++
++	      /* Make sure we have a GOT now that we need it. */
++	      if (GOT_symbol == NULL && gotrel[j].need_got)
++		GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
++
++	      /* We shorten "name" to be just the interesting part, but
++		 don't otherwise change anything in the parse. */
++	      *cp = '\0';
++
++	      return 0;
++	    }
++
++	  as_bad (_("@%s reloc is not supported in %s bit mode"),
++		  gotrel[j].str, mode_name[(unsigned int) flag_code]);
++	  return 0;
++	}
++    }
++    return 0;
++}
++#endif 
++
+ /* x86_cons_fix_new is called via the expression parsing code when a
+    reloc is needed.  We use this hook to get the correct .got reloc.  */
+ static RELOC_ENUM got_reloc = NO_RELOC;
+@@ -3611,7 +3774,7 @@ i386_immediate (imm_start)
+      char *imm_start;
+ {
+   char *save_input_line_pointer;
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+   char *gotfree_input_line;
+ #endif
+   segT exp_seg = 0;
+@@ -3632,7 +3795,7 @@ i386_immediate (imm_start)
+   save_input_line_pointer = input_line_pointer;
+   input_line_pointer = imm_start;
+ 
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+   gotfree_input_line = lex_got (&i.reloc[this_operand], NULL);
+   if (gotfree_input_line)
+     input_line_pointer = gotfree_input_line;
+@@ -3645,7 +3808,7 @@ i386_immediate (imm_start)
+     as_bad (_("junk `%s' after expression"), input_line_pointer);
+ 
+   input_line_pointer = save_input_line_pointer;
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+   if (gotfree_input_line)
+     free (gotfree_input_line);
+ #endif
+@@ -3759,7 +3922,7 @@ i386_displacement (disp_start, disp_end)
+   expressionS *exp;
+   segT exp_seg = 0;
+   char *save_input_line_pointer;
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+   char *gotfree_input_line;
+ #endif
+   int bigdisp = Disp32;
+@@ -3824,7 +3987,7 @@ i386_displacement (disp_start, disp_end)
+       *displacement_string_end = '0';
+     }
+ #endif
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+   gotfree_input_line = lex_got (&i.reloc[this_operand], NULL);
+   if (gotfree_input_line)
+     input_line_pointer = gotfree_input_line;
+@@ -3840,7 +4003,7 @@ i386_displacement (disp_start, disp_end)
+ #endif
+   RESTORE_END_STRING (disp_end);
+   input_line_pointer = save_input_line_pointer;
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+   if (gotfree_input_line)
+     free (gotfree_input_line);
+ #endif
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gas.orig/config/tc-i386.h gas/config/tc-i386.h
+--- gas.orig/config/tc-i386.h	Tue May 28 15:26:03 2002
++++ gas/config/tc-i386.h	Tue May 28 13:44:09 2002
+@@ -162,13 +162,21 @@ extern int tc_coff_sizemachdep PARAMS ((
+ 
+ #endif /* ! BFD_ASSEMBLER */
+ 
+-#ifndef LEX_AT
++#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+ #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
+ extern void x86_cons PARAMS ((expressionS *, int));
+ 
+ #define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
+ extern void x86_cons_fix_new
+   PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
++
++#ifdef RECOGNIZE_AT_GOT_ANYWAY
++#define md_parse_name(name, exprP, nextcharP) \
++  i386_parse_name ((name), (exprP), (nextcharP))
++int i386_parse_name PARAMS ((char *name,
++			   expressionS *exprP,
++			   char *nextchar));
++#endif
+ #endif
+ 
+ #define TC_FORCE_RELOCATION(fixp) tc_i386_force_relocation(fixp)
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gas.orig/config/te-interix.h gas/config/te-interix.h
+--- gas.orig/config/te-interix.h	Tue May 28 15:26:03 2002
++++ gas/config/te-interix.h	Tue May 28 13:44:03 2002
+@@ -1,6 +1,7 @@
+ #define TE_PE_DYN /* PE with dynamic linking (UNIX shared lib) support */
+ #define TE_PE
+ #define LEX_AT 1 /* can have @'s inside labels */
++#define RECOGNIZE_AT_GOT_ANYWAY   /* @GOTOFF, etc, still apply! */
+ #define LEX_QM 3 /* can have ?'s in or begin labels */
+ 
+ /* The PE format supports long section names.  */

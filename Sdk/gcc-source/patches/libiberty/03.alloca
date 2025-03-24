@@ -1,0 +1,38 @@
+For MSVC6, we MUST use the built-in alloca (the Gwyn alloca() doesn't
+work reliably).  Properly, this should test the compiler version and
+for Interix, but for now, this will do.
+
+	* configure.in: Remove Interix test for alloca.
+
+--- configure.in.orig	Wed Sep 20 13:47:51 2000
++++ configure.in	Wed Sep 20 13:48:22 2000
+@@ -317,28 +317,7 @@
+   # tests.  This will only work if the compiler works.
+   AC_PROG_CC_WORKS
+   AC_REPLACE_FUNCS($funcs)
+-
+-  case "${host}" in
+-  *-*-interix)
+-    # On Interix, it wrongly concludes that the MSVC compiler supports alloca.
+-    # (MSVC does on Win32, not on Interix.)
+-    # This should be temporary.
+-
+-    ac_cv_header_alloca_h=no
+-    ac_cv_func_alloca_works=no
+-    ALLOCA=alloca.o
+-    cat >> confdefs.h <<\EOF
+-#define C_ALLOCA 1
+-EOF
+-    cat >> confdefs.h <<EOF
+-#define STACK_DIRECTION -1
+-EOF
+-    ;;
+-  *)
+-    AC_FUNC_ALLOCA
+-    ;;
+-  esac
+-
++  AC_FUNC_ALLOCA
+   AC_FUNC_VFORK
+   if test $ac_cv_func_vfork_works = no; then
+     LIBOBJS="$LIBOBJS vfork.o"

@@ -1,0 +1,9 @@
+./bfd/39.base
+./bfd/50.newmagic
+./bfd/60.dynlink
+./bfd/applyem
+./fb.egcs/01.fb.egcs
+./gdb/02.procfs
+./gdb/36.wizard.mode
+./libstdc++-v3/01.libs
+./libstdc++-v3/applyem

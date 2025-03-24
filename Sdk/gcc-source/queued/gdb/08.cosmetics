@@ -1,0 +1,26 @@
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+
+	* c-exp.y(direct_abs_decl): type cast to shut up compiler.
+
+Index: src/gdb/c-exp.y
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/c-exp.y,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 c-exp.y
+--- src/gdb/c-exp.y	2001/12/23 00:34:41	1.1.1.1
++++ src/gdb/c-exp.y	2001/12/23 23:38:57
+@@ -755,12 +755,12 @@ direct_abs_decl: '(' abs_decl ')'
+ 			{ $$ = $2; }
+ 	|	direct_abs_decl array_mod
+ 			{
+-			  push_type_int ($2);
++			  push_type_int ((int)$2);
+ 			  push_type (tp_array);
+ 			}
+ 	|	array_mod
+ 			{
+-			  push_type_int ($1);
++			  push_type_int ((int)$1);
+ 			  push_type (tp_array);
+ 			  $$ = 0;
+ 			}

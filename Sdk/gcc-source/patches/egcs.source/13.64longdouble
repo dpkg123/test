@@ -1,0 +1,22 @@
+Make the meaning of long double be 64 bits, that way the native libc works
+correctly.
+
+Corresponding changes to both libstdc++ and gcc.
+
+Not sure about 2d change, yet?
+
+--- gcc/config/i386/i386-interix.h.orig	Wed Feb 13 18:54:54 2002
++++ gcc/config/i386/i386-interix.h	Thu Feb 14 14:46:17 2002
+@@ -57,6 +57,12 @@ Boston, MA 02111-1307, USA.  */
+ /* Use unsigned long */
+ #define SIZE_TYPE "long unsigned int"
+ 
++/* Turn off long double being 96 bits.  */
++#undef LONG_DOUBLE_TYPE_SIZE
++#define LONG_DOUBLE_TYPE_SIZE 64
++#undef LIBGCC2_LONG_DOUBLE_TYPE_SIZE
++#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64
++
+ #define ASM_LOAD_ADDR(loc, reg)   "     leal " #loc "," #reg "\n"
+ 
+ /* cpp handles __STDC__ */

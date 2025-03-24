@@ -1,0 +1,8 @@
+--- /C/CVS/egcs.baseline/gcc/gcc/config/i386/t-interix	Tue Jan 15 10:19:56 2002
++++ config/i386/t-interix	Thu Feb  7 15:22:42 2002
+@@ -5,4 +5,4 @@ interix.o: $(srcdir)/config/i386/interix
+ 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/i386/interix.c
+ 
+ # System headers will track gcc's needs.
+-USER_H=
++USER_H=stdbool.h

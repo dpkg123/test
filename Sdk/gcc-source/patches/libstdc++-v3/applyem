@@ -1,0 +1,9 @@
+# For this to work, stddef.h needs to have the definition of wchar_t
+# be conditional on c++
+
+# math.h needs to #define isinf isnan and isfinite
+
+# q-patch libstdc++-v3 01 0  # get lib search right  (OBE????)
+q-patch libstdc++-v3 02 0  # LD_LIBRARY_PATH must be honored.
+# q-patch libstdc++-v3 03 1  # 64 bit long doubles.
+q-patch libstdc++-v3 04 0  # link to just-built file for abi_check

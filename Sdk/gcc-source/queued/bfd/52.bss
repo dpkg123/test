@@ -1,0 +1,61 @@
+When writing (and reading) .o files, .bss sizes are treated normally.
+However, for executables, the REAL size is zero; use the virtual size.
+
+Index: src/bfd/peXXigen.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/peXXigen.c,v
+retrieving revision 1.5
+diff -p -c -r1.5 peXXigen.c
+*** src/bfd/peXXigen.c	2001/12/23 05:28:31	1.5
+--- src/bfd/peXXigen.c	2001/12/23 07:12:52
+*************** _bfd_XXi_swap_scnhdr_out (abfd, in, out)
+*** 842,850 ****
+  		    scnhdr_ext->s_vaddr);
+  
+    /* NT wants the size data to be rounded up to the next
+!      NT_FILE_ALIGNMENT, but zero if it has no content (as in .bss,
+!      sometimes).  */
+!   if ((scnhdr_int->s_flags & IMAGE_SCN_CNT_UNINITIALIZED_DATA) != 0)
+      {
+        ps = scnhdr_int->s_size;
+        ss = 0;
+--- 842,853 ----
+  		    scnhdr_ext->s_vaddr);
+  
+    /* NT wants the size data to be rounded up to the next
+!      but zero if it has no content (as in .bss, sometimes).  However, this
+!      applies only to executables, not objects. */
+! 
+!   if (scnhdr_int->s_flags & IMAGE_SCN_CNT_UNINITIALIZED_DATA
+!      && coff_data (abfd)->link_info
+!      && ! coff_data (abfd)->link_info->relocateable)
+      {
+        ps = scnhdr_int->s_size;
+        ss = 0;
+Index: src/bfd/peicode.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/peicode.h,v
+retrieving revision 1.4
+diff -p -c -r1.4 peicode.h
+*** src/bfd/peicode.h	2001/12/23 07:07:40	1.4
+--- src/bfd/peicode.h	2001/12/23 07:09:22
+*************** coff_swap_scnhdr_in (abfd, ext, in)
+*** 261,266 ****
+--- 261,267 ----
+    scnhdr_int->s_nlnno = H_GET_16 (abfd, scnhdr_ext->s_nlnno);
+  #endif
+  
++ #ifdef COFF_IMAGE_WITH_PE
+  #ifndef COFF_NO_HACK_SCNHDR_SIZE
+    /* If this section holds uninitialized data, use the virtual size
+       (stored in s_paddr) instead of the physical size.  */
+*************** coff_swap_scnhdr_in (abfd, ext, in)
+*** 273,278 ****
+--- 274,280 ----
+           only works if it correctly holds the virtual size of the
+           section.  */
+      }
++ #endif
+  #endif
+  }
+  

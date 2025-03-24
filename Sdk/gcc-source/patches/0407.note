@@ -1,0 +1,93 @@
+Everyone, but DJ and Ian in particular:
+
+I have made ftp.interix.com:~ftp/pub/up/binutils.patch.tgz available for 
+anonymous FTP access, with the intent that it be applied to the
+current greater binutils.  (No, you don't want it in the mailing list!)
+
+It is a tarball containing a coherent set of patches which have two
+effects:
+
+1) Add Interix support.
+2) Significantly improves the overall support of the MS PE/PEI format
+   (a COFF variant).
+
+The effects of the former are obvious.
+
+The effects of the latter include: 
+  - support for LIB.EXE-generated DLL libraries (and in general 
+    compatability with all DLL libraries).
+  - support for COMDAT (although more support may be needed),
+  - a plethora of "little" fixes for various "issues" w.r.t. PE/PEI format,
+  - a rearrangement of the bfd sources so that fewer copies of the PE/PEI
+    functions are needed.  (Moving things from coffcode.h, coffswap.h as 
+    makes sense.)
+  - nearly complete pass of all ld, gas, and binutils regressions.
+    (And more queued up for later.)  (Details with the individual patches.)
+  - some POSIX-ification of binutils commands.
+  - Complete support of intermixed MSVC and gcc-generated objects.
+    (Given the right gdb, there is even limited (line numbers only)
+    support for debugging with MSVC-generated (but ld-linked) object files.)
+  - Improvements to the testsuites.
+
+I'm not set up to test this on Cygwin, which is the platform most
+likely to be affected by these changes (other than Interix, of course).
+It is possible that I broke something.  Thus, I'd ask for testing
+of these changes by those interested.
+
+The patches are all applied with patch -p 5 except toplevel, which is
+applied with -p 1.  (It's identical to a patch applied to egcs.
+That's generally true of libiberty, as well.)
+
+Each patch file contains detailed comments and a ChangeLog entry.
+The naming convention should be obvious.  The leading numbers
+in the filenames are for my housekeeping and can be ignored (and
+in general will be sparse).  In some cases, it was easier (for
+various reasons) to generate more than one patch file for the same
+directory; each has its own comments and ChangeLog; all should be
+applied.  In all cases, the 40.* file is a patch for the testsuite.
+I have tested the patches against the 0404 tarball.  A few line
+numbers are off slightly, but all patches apply correctly.
+
+Coming attractions:
+
+With this set of patches applied, it becomes possible to put together
+another (fairly large) patch that brings the 32-bit (NT) Alpha up to
+the same level.
+
+I also have withheld for the moment some additional patches that are
+not central to the basic goal of complete PE support.  I'll submit
+those as followups after this batch has stabilized.
+
+
+Ian: yes, I recognize that this is a BIG chunk to chew at once.  I've
+trimmed it quite significantly already.  Please be kind in your
+requests to break it up further.  A lot of these patches interact, and
+breaking them up and still keeping a working set of tools will be very
+difficult.  If there are specific patches that you really need separated
+I can do that, but I'd request that you make as few such requests
+as possible, in part because that will delay getting on to the "good stuff"
+that's queued up behind this.
+
+Known compatability (possible) issues:
+
+1)  PE is more sensitive to section flag (Characteristics) bits than the
+    current gnu tools (which look at the section name).  I've reworked 
+    both gas and bfd (the ld part) to make it generate and honor the
+    bits.  There may (or may not) be a compatability problem with existing
+    Cygwin binaries.  (There should not be any compatability issues w.r.t.
+    existing MSVC binaries.)  In testing, look particularly for that
+    (it may reach out an bite you, and it may be subtle, and it may not
+    be a problem at all).  If it is a problem, I'll fix it, but I'll
+    need details (and probably a sample file).
+
+2)  The meaning of COFF (not stabs) line numbers is subtly different on 
+    PE than "pure" COFF; this also affects the .bf, .ef, and .lf pseudo-
+    symbols.  My understanding is that I'm the only one who cares about
+    such things in the PE world, and my intent was that regular COFF is
+    unaffected.
+
+3)  bfd/04.constructors discusses some interactions between constructors/
+    destructors and ld -r that should be checked in the Cygwin context.
+
+4)  As discussed earlier on this list, theres an issue with MOE and related
+    COFF debug symbols.  At the moment, that's left unchanged.

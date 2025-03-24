@@ -1,0 +1,59 @@
+Done in bfd instead, but I don't trust that.
+
+There may be other ways to do this, but this seems to be as clean as
+any, given that we're really dealing with a special kind of multiply
+defined symbol.  It does need to be multiply defined, we just don't want
+to gripe about it, so we can't simply just pre-filter it.  Yes, I know
+the guard is wrong in the strict sense, but it's better than unconditional,
+I think.
+
+One alternative, if acceptable: replace the multiple_defintion hook in the 
+emulation code, make the extra test, and pass it on to multiple_definition
+directly if needed.  Or suggest others.
+
+	* ldmain.c (multiple_definition): Handle possible name conflict
+	on MS's string pooling (??_) symbols.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/ldmain.c ld/ldmain.c
+--- ld.nil/ldmain.c	Wed Jul  7 14:17:26 1999
++++ ld/ldmain.c	Wed Jul  7 14:17:45 1999
+@@ -842,6 +842,37 @@ multiple_definition (info, name, obfd, o
+ 	  && bfd_is_abs_section (nsec->output_section)))
+     return true;
+ 
++#if defined(__INTERIX) || defined(_WIN32)
++  /* Uglyness alert:  MSVC does constant (string) pooling by hashing the
++     contents into a internal symbol, and relying on the linker to match
++     the names.   However, if one is a literal and the other an initializer
++     for data, one will end up in the .data section, the other in .rdata,
++     as far as the compiler is concerned.  LINK.EXE does the name match, but 
++     combines the two different sections into .data (at least in observed
++     cases) which is technically wrong (altho instances of actual failures
++     would be very rare).
++
++     As long as there are no EXTERN references to the symbols, which there
++     shouldn't be, we can treat the .data and .rdata instances as separate
++     symbols.  We'll gripe about duplicates except when we have a COMDAT
++     of the same name but different sections, AND it's one of these synthetic
++     names.  Those will be "matched up" via the COMDAT code elsewhere. */
++
++  if (osec->comdat != NULL && nsec->comdat != NULL &&
++      strcmp (osec->comdat->name, nsec->comdat->name) == 0 &&
++      strcmp (osec->comdat->name, name) == 0 &&
++      strncmp(name, "??_",3 )==0)
++  {
++      /*
++      char *oldname = bfd_get_section_name (obfd, osec);
++      char *newname = bfd_get_section_name (nbfd, nsec);
++      einfo (_("%P: %B:  \
++warning: symbol `%s' appears in both `%s' and `%s' sections.  \
++Treated as distinct symbols.\n"),
++	     nbfd, name, oldname, newname);
++      */
++      return true;
++  }
++#endif
++
+   einfo (_("%X%C: multiple definition of `%T'\n"),
+ 	 nbfd, nsec, nval, name);
+   if (obfd != (bfd *) NULL)

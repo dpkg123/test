@@ -1,0 +1,227 @@
+Remove some of the confusion around CORE_ADDR vs. long vs.
+long long vs. LONGEST.  On Alpha NT, ints are 32 bits, addresses
+(pointers, in memory) are 32 bits, but registers and long long are
+64 bits.  This implies care in getting these types right.
+
+See also a patch concerning CC_HAS_LONG_LONG.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* i386-tdep.c(i386_saved_pc_after_call, i386_frame_saved_pc): 
+	add CORE_ADDR casts.
+	* findvar.c(read_register, read_register_pid): Change to LONGEST.
+	* gdbtypes.c(create_range_type): Change args to LONGEST.
+	* gdbtypes.h(create_range_type): Likewise.
+	* valarith.c(value_subscripted_rvalue, value_bit_index): Likewise.
+	* valopts.c(value_slice): Likewise.
+	* scm-lang.c(scm_get_field, scm_lookup_name, scm_evaluate_string): 
+	cast to CORE_ADDR.
+	* scm-valprint.c(scm_scmval_print): cast to/from CORE_ADDR.
+	* value.h (value_bit_index, value_ptr): arg becomes CORE_ADDR.
+	(read_register, read_register_pid): result type becomes LONGEST.
+
+Index: src/gdb/gdbtypes.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/gdbtypes.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 gdbtypes.c
+--- src/gdb/gdbtypes.c	2001/12/23 00:34:47	1.1.1.1
++++ src/gdb/gdbtypes.c	2001/12/24 00:55:52
+@@ -561,7 +561,7 @@ allocate_stub_method (struct type *type)
+ 
+ struct type *
+ create_range_type (struct type *result_type, struct type *index_type,
+-		   int low_bound, int high_bound)
++		   LONGEST low_bound, LONGEST high_bound)
+ {
+   if (result_type == NULL)
+     {
+Index: src/gdb/gdbtypes.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/gdbtypes.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 gdbtypes.h
+--- src/gdb/gdbtypes.h	2001/12/23 00:34:47	1.1.1.1
++++ src/gdb/gdbtypes.h	2001/12/24 00:55:52
+@@ -1083,8 +1083,8 @@ extern struct type *make_function_type (
+ 
+ extern struct type *lookup_function_type (struct type *);
+ 
+-extern struct type *create_range_type (struct type *, struct type *, int,
+-				       int);
++extern struct type *create_range_type (struct type *, struct type *, LONGEST,
++				       LONGEST);
+ 
+ extern struct type *create_array_type (struct type *, struct type *,
+ 				       struct type *);
+Index: src/gdb/i386-tdep.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/i386-tdep.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 i386-tdep.c
+--- src/gdb/i386-tdep.c	2001/12/23 20:46:14	1.2
++++ src/gdb/i386-tdep.c	2001/12/24 00:55:52
+@@ -566,9 +566,9 @@ i386_frame_saved_pc (struct frame_info *
+       return read_memory_unsigned_integer (sp, 4);
+     }
+ 
+-  return read_memory_unsigned_integer (frame->frame + 4, 4);
+-}
+-
++  return (CORE_ADDR) read_memory_unsigned_integer (frame->frame + 4, 4);
++}
++
+ /* Immediately after a function call, return the saved pc.  */
+ 
+ static CORE_ADDR
+@@ -577,7 +577,7 @@ i386_saved_pc_after_call (struct frame_i
+   if (frame->signal_handler_caller)
+     return i386_sigtramp_saved_pc (frame);
+ 
+-  return read_memory_unsigned_integer (read_register (SP_REGNUM), 4);
++  return read_memory_unsigned_integer ((CORE_ADDR)read_register (SP_REGNUM), 4);
+ }
+ 
+ /* Return number of args passed to a frame.
+Index: src/gdb/scm-lang.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/scm-lang.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 scm-lang.c
+--- src/gdb/scm-lang.c	2001/12/23 00:34:54	1.1.1.1
++++ src/gdb/scm-lang.c	2001/12/24 00:55:52
+@@ -76,7 +76,7 @@ LONGEST
+ scm_get_field (LONGEST svalue, int index)
+ {
+   char buffer[20];
+-  read_memory (SCM2PTR (svalue) + index * TYPE_LENGTH (builtin_type_scm),
++  read_memory ((CORE_ADDR)(SCM2PTR (svalue) + index * TYPE_LENGTH (builtin_type_scm)),
+ 	       buffer, TYPE_LENGTH (builtin_type_scm));
+   return extract_signed_integer (buffer, TYPE_LENGTH (builtin_type_scm));
+ }
+@@ -157,7 +157,7 @@ scm_lookup_name (char *str)
+   struct symbol *sym;
+   args[0] = value_allocate_space_in_inferior (len);
+   args[1] = value_from_longest (builtin_type_int, len);
+-  write_memory (value_as_long (args[0]), str, len);
++  write_memory ((CORE_ADDR)value_as_long (args[0]), str, len);
+ 
+   if (in_eval_c ()
+       && (sym = lookup_symbol ("env",
+@@ -189,9 +189,9 @@ scm_evaluate_string (char *str, int len)
+   struct value *func;
+   struct value *addr = value_allocate_space_in_inferior (len + 1);
+   LONGEST iaddr = value_as_long (addr);
+-  write_memory (iaddr, str, len);
++  write_memory ((CORE_ADDR)iaddr, str, len);
+   /* FIXME - should find and pass env */
+-  write_memory (iaddr + len, "", 1);
++  write_memory ((CORE_ADDR)iaddr + len, "", 1);
+   func = find_function_in_inferior ("scm_evstr");
+   return call_function_by_hand (func, 1, &addr);
+ }
+Index: src/gdb/scm-valprint.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/scm-valprint.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 scm-valprint.c
+--- src/gdb/scm-valprint.c	2001/12/23 00:34:54	1.1.1.1
++++ src/gdb/scm-valprint.c	2001/12/24 00:55:52
+@@ -151,7 +151,7 @@ taloop:
+       if (SCM_ICHRP (svalue))
+ 	{
+ 	  svalue = SCM_ICHR (svalue);
+-	  scm_printchar (svalue, stream);
++	  scm_printchar ((int)svalue, stream);
+ 	  break;
+ 	}
+       else if (SCM_IFLAGP (svalue)
+@@ -252,7 +252,7 @@ taloop:
+ 	    int len = SCM_LENGTH (svalue);
+ 
+ 	    char *str = (char *) alloca (len);
+-	    read_memory (SCM_CDR (svalue), str, len + 1);
++	    read_memory ((CORE_ADDR)SCM_CDR (svalue), str, len + 1);
+ 	    /* Should handle weird characters FIXME */
+ 	    str[len] = '\0';
+ 	    fputs_filtered (str, stream);
+Index: src/gdb/valarith.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/valarith.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 valarith.c
+--- src/gdb/valarith.c	2001/12/23 00:34:57	1.1.1.1
++++ src/gdb/valarith.c	2001/12/24 00:55:52
+@@ -38,8 +38,8 @@
+ #define TRUNCATION_TOWARDS_ZERO ((-5 / 2) == -2)
+ #endif
+ 
+-static struct value *value_subscripted_rvalue (struct value *, struct value *, int);
+-
++static struct value *value_subscripted_rvalue (struct value *, struct value *, LONGEST);
++
+ void _initialize_valarith (void);
+ 
+ 
+@@ -213,8 +213,8 @@ value_subscript (struct value *array, st
+    to doubles, but no longer does.  */
+ 
+ static struct value *
+-value_subscripted_rvalue (struct value *array, struct value *idx, int lowerbound)
+-{
++value_subscripted_rvalue (struct value *array, struct value *idx, LONGEST lowerbound)
++{
+   struct type *array_type = check_typedef (VALUE_TYPE (array));
+   struct type *elt_type = check_typedef (TYPE_TARGET_TYPE (array_type));
+   unsigned int elt_size = TYPE_LENGTH (elt_type);
+@@ -1342,7 +1342,7 @@ value_complement (struct value *arg1)
+    Return -1 if out of range, -2 other error. */
+ 
+ int
+-value_bit_index (struct type *type, char *valaddr, int index)
++value_bit_index (struct type *type, char *valaddr, LONGEST index)
+ {
+   LONGEST low_bound, high_bound;
+   LONGEST word;
+Index: src/gdb/valops.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/valops.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 valops.c
+--- src/gdb/valops.c	2001/12/23 00:34:57	1.1.1.1
++++ src/gdb/valops.c	2001/12/24 00:55:52
+@@ -3313,7 +3313,7 @@ value_of_this (int complain)
+    the original ARRAY.  */
+ 
+ struct value *
+-value_slice (struct value *array, int lowbound, int length)
++value_slice (struct value *array, LONGEST lowbound, LONGEST length)
+ {
+   struct type *slice_range_type, *slice_type, *range_type;
+   LONGEST lowerbound, upperbound, offset;
+Index: src/gdb/value.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/value.h,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 value.h
+--- src/gdb/value.h	2001/12/23 00:34:57	1.1.1.1
++++ src/gdb/value.h	2001/12/24 00:55:52
+@@ -419,8 +419,8 @@ extern struct value *value_being_returne
+ 
+ extern struct value *value_in (struct value *element, struct value *set);
+ 
+-extern int value_bit_index (struct type *type, char *addr, int index);
+-
++extern int value_bit_index (struct type *type, char *addr, LONGEST index);
++
+ extern int using_struct_return (struct value *function, CORE_ADDR funcaddr,
+ 				struct type *value_type, int gcc_p);
+ 
+@@ -549,7 +549,7 @@ extern struct value *value_copy (struct 
+ 
+ extern struct value *varying_to_slice (struct value *);
+ 
+-extern struct value *value_slice (struct value *, int, int);
++extern struct value *value_slice (struct value *, LONGEST, LONGEST);
+ 
+ extern struct value *call_function_by_hand (struct value *, int,
+ 					    struct value **);

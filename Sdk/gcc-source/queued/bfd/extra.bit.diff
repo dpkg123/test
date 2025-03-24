@@ -1,0 +1,1011 @@
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/archive.c bfd/archive.c
+--- bfd.pre.48/archive.c	Tue Feb  5 15:07:05 2002
++++ bfd/archive.c	Tue Feb  5 15:23:32 2002
+@@ -1397,7 +1397,7 @@ bfd_ar_hdr_from_filesystem (abfd, filena
+   char *temp, *temp1;
+   bfd_size_type amt;
+ 
+-  if (member && (member->flags & BFD_IN_MEMORY) != 0)
++  if (member && (bfd_get_file_flags(member) & BFD_IN_MEMORY) != 0)
+     {
+       /* Assume we just "made" the member, and fake it.  */
+       struct bfd_in_memory *bim = (struct bfd_in_memory *) member->iostream;
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/bfd-in.h bfd/bfd-in.h
+--- bfd.pre.48/bfd-in.h	Tue Feb  5 15:07:05 2002
++++ bfd/bfd-in.h	Tue Feb  5 17:09:54 2002
+@@ -195,7 +195,11 @@ extern void bfd_fprintf_vma PARAMS ((bfd
+ #define printf_vma(x) fprintf_vma(stdout,x)
+ #define bfd_printf_vma(abfd,x) bfd_fprintf_vma (abfd,stdout,x)
+ 
+-typedef unsigned int flagword;	/* 32 bits of flags */
++typedef struct {
++    unsigned int word1;
++    unsigned int word2;
++    } large_flagword; /* lots of flags */
++typedef unsigned long flagword; /* 32 bits of flags */
+ typedef unsigned char bfd_byte;
+ 
+ /* File formats.  */
+@@ -339,11 +343,11 @@ typedef struct sec *sec_ptr;
+ #define bfd_section_vma(bfd, ptr) ((ptr)->vma)
+ #define bfd_section_lma(bfd, ptr) ((ptr)->lma)
+ #define bfd_section_alignment(bfd, ptr) ((ptr)->alignment_power)
+-#define bfd_get_section_flags(bfd, ptr) ((ptr)->flags + 0)
++#define bfd_get_section_flags(bfd, ptr) ((ptr)->flags.word1)
+ #define bfd_get_section_userdata(bfd, ptr) ((ptr)->userdata)
+ 
+-#define bfd_is_com_section(ptr) (((ptr)->flags & SEC_IS_COMMON) != 0)
+-
++#define bfd_is_com_section(ptr) ((bfd_get_section_flags(0,ptr) & SEC_IS_COMMON) != 0)
++
+ #define bfd_set_section_vma(bfd, ptr, val) (((ptr)->vma = (ptr)->lma= (val)), ((ptr)->user_set_vma = (boolean)true), true)
+ #define bfd_set_section_alignment(bfd, ptr, val) (((ptr)->alignment_power = (val)),true)
+ #define bfd_set_section_userdata(bfd, ptr, val) (((ptr)->userdata = (val)),true)
+@@ -512,7 +516,7 @@ extern void warn_deprecated
+   ((abfd)->xvec->header_byteorder == BFD_ENDIAN_LITTLE)
+ #define bfd_get_file_flags(abfd) ((abfd)->flags)
+ #define bfd_applicable_file_flags(abfd) ((abfd)->xvec->object_flags)
+-#define bfd_applicable_section_flags(abfd) ((abfd)->xvec->section_flags)
++#define bfd_applicable_section_flags(abfd) ((abfd)->xvec->section_flags.word1)
+ #define bfd_my_archive(abfd) ((abfd)->my_archive)
+ #define bfd_has_map(abfd) ((abfd)->has_armap)
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/binary.c bfd/binary.c
+--- bfd.pre.48/binary.c	Tue Feb  5 15:07:05 2002
++++ bfd/binary.c	Tue Feb  5 15:58:51 2002
+@@ -96,7 +96,7 @@ binary_object_p (abfd)
+   sec = bfd_make_section (abfd, ".data");
+   if (sec == NULL)
+     return NULL;
+-  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_HAS_CONTENTS;
++  bfd_get_section_flags(abfd, sec) = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_HAS_CONTENTS;
+   sec->vma = 0;
+   sec->_raw_size = statbuf.st_size;
+   sec->filepos = 0;
+@@ -273,7 +273,7 @@ binary_set_section_contents (abfd, sec, 
+       found_low = false;
+       low = 0;
+       for (s = abfd->sections; s != NULL; s = s->next)
+-	if (((s->flags
++	if (((bfd_get_section_flags(abfd, s)
+ 	      & (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_NEVER_LOAD))
+ 	     == (SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC))
+ 	    && (s->_raw_size > 0)
+@@ -289,7 +289,7 @@ binary_set_section_contents (abfd, sec, 
+ 
+ 	  /* Skip following warning check for sections that will not
+ 	     occupy file space.  */
+-	  if ((s->flags
++	  if ((bfd_get_section_flags(abfd, s)
+ 	       & (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_NEVER_LOAD))
+ 	      != (SEC_HAS_CONTENTS | SEC_ALLOC)
+ 	      || (s->_raw_size == 0))
+@@ -314,9 +314,9 @@ binary_set_section_contents (abfd, sec, 
+   /* We don't want to output anything for a section that is neither
+      loaded nor allocated.  The contents of such a section are not
+      meaningful in the binary format.  */
+-  if ((sec->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
++  if ((bfd_get_section_flags(abfd, sec) & (SEC_LOAD | SEC_ALLOC)) == 0)
+     return true;
+-  if ((sec->flags & SEC_NEVER_LOAD) != 0)
++  if ((bfd_get_section_flags(abfd, sec) & SEC_NEVER_LOAD) != 0)
+     return true;
+ 
+   return _bfd_generic_set_section_contents (abfd, sec, data, offset, size);
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/coffcode.h bfd/coffcode.h
+--- bfd.pre.48/coffcode.h	Tue Feb  5 15:07:05 2002
++++ bfd/coffcode.h	Tue Feb  5 16:56:08 2002
+@@ -309,9 +309,9 @@ CODE_FRAGMENT
+ 
+ #define STRING_SIZE_SIZE (4)
+ 
+-static long sec_to_styp_flags PARAMS ((const char *, flagword));
++static long sec_to_styp_flags PARAMS ((const char *, large_flagword));
+ static boolean styp_to_sec_flags
+-  PARAMS ((bfd *, PTR, const char *, asection *, flagword *));
++  PARAMS ((bfd *, PTR, const char *, asection *, large_flagword *));
+ static boolean coff_bad_format_hook PARAMS ((bfd *, PTR));
+ static void coff_set_custom_section_alignment
+   PARAMS ((bfd *, asection *, const struct coff_section_alignment_entry *,
+@@ -339,7 +339,8 @@ static long coff_canonicalize_reloc
+ static PTR coff_mkobject_hook PARAMS ((bfd *, PTR,  PTR));
+ #endif
+ #ifdef COFF_WITH_PE
+-static flagword handle_COMDAT PARAMS ((bfd *, flagword, PTR, const char *, asection *));
++static large_flagword handle_COMDAT PARAMS ((bfd *, large_flagword, 
++       PTR, const char *, asection *));
+ #endif
+ 
+ /* void warning(); */
+@@ -492,8 +493,8 @@ sec_to_styp_flags (sec_name, sec_flags)
+ static long
+ sec_to_styp_flags (sec_name, sec_flags)
+      const char *sec_name ATTRIBUTE_UNUSED;
+-     flagword sec_flags;
+-{
++     large_flagword sec_flags;
++{
+   long styp_flags = 0;
+ 
+   /* caution: there are at least three groups of symbols that have
+@@ -507,30 +508,30 @@ sec_to_styp_flags (sec_name, sec_flags)
+   /* skip LOAD */
+   /* READONLY later */
+   /* skip RELOC */
+-  if ((sec_flags & SEC_CODE) != 0)
++  if ((sec_flags.word1 & SEC_CODE) != 0)
+     styp_flags |= IMAGE_SCN_CNT_CODE;
+-  if ((sec_flags & SEC_DATA) != 0)
++  if ((sec_flags.word1 & SEC_DATA) != 0)
+     styp_flags |= IMAGE_SCN_CNT_INITIALIZED_DATA;
+-  if ((sec_flags & SEC_ALLOC) != 0 && (sec_flags & SEC_LOAD) == 0)
++  if ((sec_flags.word1 & SEC_ALLOC) != 0 && (sec_flags.word1 & SEC_LOAD) == 0)
+     styp_flags |= IMAGE_SCN_CNT_UNINITIALIZED_DATA;  /* ==STYP_BSS */
+   /* skip ROM */
+   /* skip constRUCTOR */
+   /* skip CONTENTS */
+ #ifdef STYP_NOLOAD
+-  if ((sec_flags & (SEC_NEVER_LOAD | SEC_COFF_SHARED_LIBRARY)) != 0)
++  if ((sec_flags.word1 & (SEC_NEVER_LOAD | SEC_COFF_SHARED_LIBRARY)) != 0)
+     styp_flags |= STYP_NOLOAD;
+ #endif
+-  if ((sec_flags & SEC_IS_COMMON) != 0)
++  if ((sec_flags.word1 & SEC_IS_COMMON) != 0)
+     styp_flags |= IMAGE_SCN_LNK_COMDAT;
+-  if ((sec_flags & SEC_DEBUGGING) != 0)
++  if ((sec_flags.word1 & SEC_DEBUGGING) != 0)
+     styp_flags |= IMAGE_SCN_MEM_DISCARDABLE;
+-  if ((sec_flags & SEC_EXCLUDE) != 0)
++  if ((sec_flags.word1 & SEC_EXCLUDE) != 0)
+     styp_flags |= IMAGE_SCN_LNK_REMOVE;
+-  if ((sec_flags & SEC_NEVER_LOAD) != 0)
++  if ((sec_flags.word1 & SEC_NEVER_LOAD) != 0)
+     styp_flags |= IMAGE_SCN_LNK_REMOVE;
+   /* skip IN_MEMORY */
+   /* skip SORT */
+-  if (sec_flags & SEC_LINK_ONCE)
++  if (sec_flags.word1 & SEC_LINK_ONCE)
+     styp_flags |= IMAGE_SCN_LNK_COMDAT;
+   /* skip LINK_DUPLICATES */
+   /* skip LINKER_CREATED */
+@@ -539,12 +540,13 @@ sec_to_styp_flags (sec_name, sec_flags)
+      though the semantics don't quite match.  The bits from the input
+      are retained in pei_section_data(abfd, section)->pe_flags */
+ 
+-  styp_flags |= IMAGE_SCN_MEM_READ;       /* always readable.  */
+-  if ((sec_flags & SEC_READONLY) == 0)
++  if ((sec_flags.word2 & SEC_NOREAD) == 0)
++    styp_flags |= IMAGE_SCN_MEM_READ;    /* Invert NOREAD for read. */
++  if ((sec_flags.word1 & SEC_READONLY) == 0)
+     styp_flags |= IMAGE_SCN_MEM_WRITE;    /* Invert READONLY for write */
+-  if (sec_flags & SEC_CODE)
++  if (sec_flags.word1 & SEC_CODE)
+     styp_flags |= IMAGE_SCN_MEM_EXECUTE;  /* CODE->EXECUTE */
+-  if (sec_flags & SEC_SHARED)
++  if (sec_flags.word1 & SEC_SHARED)
+     styp_flags |= IMAGE_SCN_MEM_SHARED;   /* Shared remains meaningful */
+ 
+   return styp_flags;
+@@ -565,8 +567,8 @@ styp_to_sec_flags (abfd, hdr, name, sect
+      PTR hdr;
+      const char *name;
+      asection *section ATTRIBUTE_UNUSED;
+-     flagword *flags_ptr;
+-{
++     long_flagword *flags_ptr;
++{
+   struct internal_scnhdr *internal_s = (struct internal_scnhdr *) hdr;
+   long styp_flags = internal_s->s_flags;
+   flagword sec_flags = 0;
+@@ -702,10 +704,10 @@ styp_to_sec_flags (abfd, hdr, name, sect
+ 
+ #else /* COFF_WITH_PE */
+ 
+-static flagword
++static large_flagword
+ handle_COMDAT (abfd, sec_flags, hdr, name, section)
+      bfd * abfd;
+-     flagword sec_flags;
++     large_flagword sec_flags;
+      PTR hdr;
+      const char *name;
+      asection *section;
+@@ -715,8 +717,8 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+   int seen_state = 0;
+   char *target_name = NULL;
+ 
+-  sec_flags |= SEC_LINK_ONCE;
+-
++  sec_flags.word1 |= SEC_LINK_ONCE;
++
+   /* Unfortunately, the PE format stores essential information in
+      the symbol table, of all places.  We need to extract that
+      information now, so that objdump and the linker will know how
+@@ -863,23 +865,23 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 		  {
+ 		  case IMAGE_COMDAT_SELECT_NODUPLICATES:
+ #ifdef STRICT_PE_FORMAT
+-		    sec_flags |= SEC_LINK_DUPLICATES_ONE_ONLY;
++		    sec_flags.word1 |= SEC_LINK_DUPLICATES_ONE_ONLY;
+ #else
+-		    sec_flags &= ~SEC_LINK_ONCE;
++		    sec_flags.word1 &= ~SEC_LINK_ONCE;
+ #endif
+ 		    break;
+ 
+ 		  case IMAGE_COMDAT_SELECT_ANY:
+-		    sec_flags |= SEC_LINK_DUPLICATES_DISCARD;
++		    sec_flags.word1 |= SEC_LINK_DUPLICATES_DISCARD;
+ 		    break;
+ 
+ 		  case IMAGE_COMDAT_SELECT_SAME_SIZE:
+-		    sec_flags |= SEC_LINK_DUPLICATES_SAME_SIZE;
++		    sec_flags.word1 |= SEC_LINK_DUPLICATES_SAME_SIZE;
+ 		    break;
+ 
+ 		  case IMAGE_COMDAT_SELECT_EXACT_MATCH:
+ 		    /* Not yet fully implemented ??? */
+-		    sec_flags |= SEC_LINK_DUPLICATES_SAME_CONTENTS;
++		    sec_flags.word1 |= SEC_LINK_DUPLICATES_SAME_CONTENTS;
+ 		    break;
+ 
+ 		    /* debug$S gets this case; other
+@@ -904,13 +906,13 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 		       Note that there aren't bits to represent such a
+ 		       state in sec_flags.  */
+ 
+-		    sec_flags &= ~SEC_LINK_ONCE;
++		    sec_flags.word1 &= ~SEC_LINK_ONCE;
+ 		    goto breakloop;
+ 
+ 		  default:  /* 0 means "no symbol" */
+ 		    /* debug$F gets this case; other 
+                            implications ??? */
+-		    sec_flags |= SEC_LINK_DUPLICATES_DISCARD;
++		    sec_flags.word1 |= SEC_LINK_DUPLICATES_DISCARD;
+ 		    goto breakloop;
+ 		  }
+  	      }
+@@ -972,7 +974,7 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+ 		if (isym.n_sclass == C_STAT)
+ 		  {
+ 		    section->comdat = NULL;
+-		    sec_flags &= ~SEC_LINK_ONCE;
++		    sec_flags.word1 &= ~SEC_LINK_ONCE;
+ 		    goto breakloop;
+ 		  }
+ 		section->comdat->symbol =
+@@ -1022,16 +1024,16 @@ styp_to_sec_flags (abfd, hdr, name, sect
+      PTR hdr;
+      const char *name;
+      asection *section;
+-     flagword *flags_ptr;
+-{
++     large_flagword *flags_ptr;
++{
+   struct internal_scnhdr *internal_s = (struct internal_scnhdr *) hdr;
+   long styp_flags = internal_s->s_flags;
+-  flagword sec_flags;
++  large_flagword sec_flags;
+   boolean result = true;
+ 
+   /* Assume read only unless IMAGE_SCN_MEM_WRITE is specified.  */
+-  sec_flags = SEC_READONLY;
+-
++  sec_flags.word1 = SEC_READONLY;
++
+   /* Process each flag bit in styp_flags in turn.  */
+   while (styp_flags)
+     {
+@@ -1060,11 +1062,11 @@ styp_to_sec_flags (abfd, hdr, name, sect
+ 	  break;
+ #ifdef SEC_NEVER_LOAD
+ 	case STYP_NOLOAD:
+-	  sec_flags |= SEC_NEVER_LOAD;
++	  sec_flags.word1 |= SEC_NEVER_LOAD;
+ 	  break;
+ #endif
+ 	case IMAGE_SCN_MEM_READ:
+-	  /* Ignored, assume it always to be true.  */
++	  sec_flags.word1 |= SEC_NOREAD;
+ 	  break;
+ 	case IMAGE_SCN_TYPE_NO_PAD:
+ 	  /* Skip.  */
+@@ -1079,28 +1081,28 @@ styp_to_sec_flags (abfd, hdr, name, sect
+ 	  unhandled = "IMAGE_SCN_MEM_NOT_PAGED";
+ 	  break;
+ 	case IMAGE_SCN_MEM_EXECUTE:
+-	  sec_flags |= SEC_CODE;
++	  sec_flags.word1 |= SEC_CODE;
+ 	  break;
+ 	case IMAGE_SCN_MEM_WRITE:
+-	  sec_flags &= ~ SEC_READONLY;
++	  sec_flags.word1 &= ~ SEC_READONLY;
+ 	  break;
+ 	case IMAGE_SCN_MEM_DISCARDABLE:
+-	  sec_flags |= SEC_DEBUGGING;
++	  sec_flags.word1 |= SEC_DEBUGGING;
+ 	  break;
+ 	case IMAGE_SCN_MEM_SHARED:
+-	  sec_flags |= SEC_SHARED;
++	  sec_flags.word1 |= SEC_SHARED;
+ 	  break;
+ 	case IMAGE_SCN_LNK_REMOVE:
+-	  sec_flags |= SEC_EXCLUDE;
++	  sec_flags.word1 |= SEC_EXCLUDE;
+ 	  break;
+ 	case IMAGE_SCN_CNT_CODE:
+-	  sec_flags |= SEC_CODE | SEC_ALLOC | SEC_LOAD;
++	  sec_flags.word1 |= SEC_CODE | SEC_ALLOC | SEC_LOAD;
+ 	  break;
+ 	case IMAGE_SCN_CNT_INITIALIZED_DATA:
+-	  sec_flags |= SEC_DATA | SEC_ALLOC | SEC_LOAD;
++	  sec_flags.word1 |= SEC_DATA | SEC_ALLOC | SEC_LOAD;
+ 	  break;
+ 	case IMAGE_SCN_CNT_UNINITIALIZED_DATA:
+-	  sec_flags |= SEC_ALLOC;
++	  sec_flags.word1 |= SEC_ALLOC;
+ 	  break;
+ 	case IMAGE_SCN_LNK_INFO:
+ 	  /* We mark these as SEC_DEBUGGING, but only if COFF_PAGE_SIZE is
+@@ -1110,7 +1112,7 @@ styp_to_sec_flags (abfd, hdr, name, sect
+ 	     COFF_PAGE_SIZE, we can't ensure the correct correspondence,
+ 	     and demand page loading of the file will fail.  */
+ #ifdef COFF_PAGE_SIZE
+-	  sec_flags |= SEC_DEBUGGING;
++	  sec_flags.word1 |= SEC_DEBUGGING;
+ #endif
+ 	  break;
+ 	case IMAGE_SCN_LNK_COMDAT:
+@@ -1140,7 +1142,7 @@ styp_to_sec_flags (abfd, hdr, name, sect
+      are permitted.  The GNU linker extension is to actually discard
+      all but one of the sections.  */
+   if (strncmp (name, ".gnu.linkonce", sizeof ".gnu.linkonce" - 1) == 0)
+-    sec_flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
++    sec_flags.word1 |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
+ #endif
+ 
+   if (flags_ptr)
+@@ -3098,7 +3100,7 @@ coff_compute_section_file_positions (abf
+ #endif
+ 
+       /* Only deal with sections which have contents.  */
+-      if (!(current->flags & SEC_HAS_CONTENTS)
++      if (!(bfd_get_section_flags(abfd, current) & SEC_HAS_CONTENTS)
+ 	  || current->_raw_size == 0)
+ 	continue;
+ 
+@@ -3161,7 +3163,7 @@ coff_compute_section_file_positions (abf
+ 	 must match the low order bits of the virtual address.  */
+ #ifdef COFF_PAGE_SIZE
+       if ((abfd->flags & D_PAGED) != 0
+-	  && (current->flags & SEC_ALLOC) != 0)
++	  && (bfd_get_section_flags(abfd, current) & SEC_ALLOC) != 0)
+ 	sofar += (current->vma - sofar) % page_size;
+ #endif
+       current->filepos = sofar;
+@@ -3497,7 +3499,7 @@ coff_write_object_contents (abfd)
+ 	 will be 0 too
+ 	 */
+       if (current->_raw_size == 0 ||
+-	  (current->flags & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0)
++	  (bfd_get_section_flags(abfd,current) & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0)
+ 	{
+ 	  section.s_scnptr = 0;
+ 	}
+@@ -3516,7 +3518,7 @@ coff_write_object_contents (abfd)
+ #endif
+       if (current->lineno_count != 0)
+ 	haslinno = true;
+-      if ((current->flags & SEC_DEBUGGING) != 0
++      if ((bfd_get_section_flags(abfd,current) & SEC_DEBUGGING) != 0
+ 	  && ! is_reloc_section)
+ 	hasdebug = true;
+ 
+@@ -3582,7 +3584,7 @@ coff_write_object_contents (abfd)
+       /* PE stores COMDAT section information in the symbol table.  If
+          this section is supposed to have some COMDAT info, track down
+          the symbol in the symbol table and modify it.  */
+-      if ((current->flags & SEC_LINK_ONCE) != 0)
++      if ((bfd_get_section_flags(abfd,current) & SEC_LINK_ONCE) != 0)
+ 	{
+ 	  unsigned int i, count;
+ 	  asymbol **psym;
+@@ -3629,7 +3631,7 @@ coff_write_object_contents (abfd)
+ 		 x_associated field is not currently supported.  */
+ 
+ 	      aux = csym->native + 1;
+-	      switch (current->flags & SEC_LINK_DUPLICATES)
++	      switch (bfd_get_section_flags(abfd,current) & SEC_LINK_DUPLICATES)
+ 		{
+ 		case SEC_LINK_DUPLICATES_DISCARD:
+ 		  aux->u.auxent.x_scn.x_comdat = IMAGE_COMDAT_SELECT_ANY;
+@@ -4876,7 +4878,7 @@ coff_slurp_reloc_table (abfd, asect, sym
+     return true;
+   if (asect->reloc_count == 0)
+     return true;
+-  if (asect->flags & SEC_CONSTRUCTOR)
++  if (bfd_get_section_flags(abfd,asect) & SEC_CONSTRUCTOR)
+     return true;
+   if (!coff_slurp_symbol_table (abfd))
+     return false;
+@@ -5008,7 +5010,7 @@ coff_canonicalize_reloc (abfd, section, 
+   arelent *tblptr = section->relocation;
+   unsigned int count = 0;
+ 
+-  if (section->flags & SEC_CONSTRUCTOR)
++  if (bfd_get_section_flags(abfd,section) & SEC_CONSTRUCTOR)
+     {
+       /* this section has relocs made up by us, they are not in the
+        file, so take them out of their chain and place them into
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/coffgen.c bfd/coffgen.c
+--- bfd.pre.48/coffgen.c	Tue Feb  5 15:07:05 2002
++++ bfd/coffgen.c	Tue Feb  5 15:42:13 2002
+@@ -83,8 +83,8 @@ make_a_section_from_file (abfd, hdr, tar
+   asection *return_section;
+   char *name;
+   boolean result = true;
+-  flagword flags;
+-
++  large_flagword flags;
++
+   name = NULL;
+ 
+   /* Handle long section names as in PE.  */
+@@ -153,14 +153,14 @@ make_a_section_from_file (abfd, hdr, tar
+ 
+   /* At least on i386-coff, the line number count for a shared library
+      section must be ignored.  */
+-  if ((return_section->flags & SEC_COFF_SHARED_LIBRARY) != 0)
++  if ((bfd_get_section_flags(abfd,return_section) & SEC_COFF_SHARED_LIBRARY) != 0)
+     return_section->lineno_count = 0;
+ 
+   if (hdr->s_nreloc != 0)
+-    return_section->flags |= SEC_RELOC;
++    bfd_get_section_flags(abfd,return_section) |= SEC_RELOC;
+   /* FIXME: should this check 'hdr->s_size > 0' */
+   if (hdr->s_scnptr != 0)
+-    return_section->flags |= SEC_HAS_CONTENTS;
++    bfd_get_section_flags(abfd,return_section) |= SEC_HAS_CONTENTS;
+ 
+   return result;
+ }
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/cofflink.c bfd/cofflink.c
+--- bfd.pre.48/cofflink.c	Tue Feb  5 15:07:05 2002
++++ bfd/cofflink.c	Tue Feb  5 17:04:01 2002
+@@ -822,7 +822,7 @@ _bfd_coff_final_link (abfd, info)
+ 	o->rel_filepos = 0;
+       else
+ 	{
+-	  o->flags |= SEC_RELOC;
++	  bfd_get_section_flags(abfd,o) |= SEC_RELOC;
+ 	  o->rel_filepos = rel_filepos;
+ 	  rel_filepos += o->reloc_count * relsz;
+ 	}
+@@ -1340,9 +1340,9 @@ process_embedded_commands (output_bfd, i
+ 	  asec = bfd_get_section_by_name (abfd, name);
+ 	  if (asec) {
+ 	    if (had_exec)
+-	      asec->flags |= SEC_CODE;
++	      bfd_get_section_flags(abfd, asec) |= SEC_CODE;
+ 	    if (!had_write)
+-	      asec->flags |= SEC_READONLY;
++	      bfd_get_section_flags(abfd, asec) |= SEC_READONLY;
+ 	  }
+ 	}
+       else if (strncmp (s,"-heap", 5) == 0)
+@@ -1382,7 +1382,7 @@ mark_relocs (finfo, input_bfd)
+       struct internal_reloc *	irel;
+       struct internal_reloc *	irelend;
+ 
+-      if ((a->flags & SEC_RELOC) == 0 || a->reloc_count  < 1)
++      if ((bfd_get_section_flags(input_bfd, a) & SEC_RELOC) == 0 || a->reloc_count  < 1)
+ 	continue;
+ 
+       /* Read in the relocs.  */
+@@ -2222,7 +2222,7 @@ _bfd_coff_link_input_bfd (finfo, input_b
+ 	     SEC_HAS_CONTENTS set, but, if they do, this must be
+ 	     changed.  */
+ 	  if (o->lineno_count == 0
+-	      || (o->output_section->flags & SEC_HAS_CONTENTS) == 0)
++	      || (bfd_get_section_flags(abfd,o->output_section) & SEC_HAS_CONTENTS) == 0)
+ 	    continue;
+ 
+ 	  if (bfd_seek (input_bfd, o->line_filepos, SEEK_SET) != 0
+@@ -2371,10 +2371,10 @@ _bfd_coff_link_input_bfd (finfo, input_b
+ 	  continue;
+ 	}
+ 
+-      if ((o->flags & SEC_HAS_CONTENTS) == 0
+-	  || (o->_raw_size == 0 && (o->flags & SEC_RELOC) == 0))
++      if ((bfd_get_section_flags(abfd,o) & SEC_HAS_CONTENTS) == 0
++	  || (o->_raw_size == 0 && (bfd_get_section_flags(abfd,o) & SEC_RELOC) == 0))
+ 	{
+-	  if ((o->flags & SEC_RELOC) != 0
++	  if ((bfd_get_section_flags(abfd,o) & SEC_RELOC) != 0
+ 	      && o->reloc_count != 0)
+ 	    {
+ 	      ((*_bfd_error_handler)
+@@ -2399,7 +2399,7 @@ _bfd_coff_link_input_bfd (finfo, input_b
+ 	  contents = finfo->contents;
+ 	}
+ 
+-      if ((o->flags & SEC_RELOC) != 0)
++      if ((bfd_get_section_flags(abfd,o) & SEC_RELOC) != 0)
+ 	{
+ 	  int target_index;
+ 	  struct internal_reloc *internal_relocs;
+@@ -2965,7 +2965,6 @@ _bfd_coff_generic_relocate_section (outp
+       asection *sec;
+       boolean need_imagebase;  /* Not all relocs get ImageBase */
+       boolean valIsValid;  /* whether the computed val is to be trusted */
+-      struct internal_reloc outrel;
+ 
+       symndx = rel->r_symndx;
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/ihex.c bfd/ihex.c
+--- bfd.pre.48/ihex.c	Tue Feb  5 15:07:06 2002
++++ bfd/ihex.c	Tue Feb  5 16:01:00 2002
+@@ -398,7 +398,7 @@ ihex_scan (abfd)
+ 		  sec = bfd_make_section (abfd, secname);
+ 		  if (sec == NULL)
+ 		    goto error_return;
+-		  sec->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
++		  bfd_get_section_flags(abfd, sec) = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
+ 		  sec->vma = extbase + segbase + addr;
+ 		  sec->lma = extbase + segbase + addr;
+ 		  sec->_raw_size = len;
+@@ -700,8 +700,8 @@ ihex_set_section_contents (abfd, section
+   bfd_size_type amt;
+ 
+   if (count == 0
+-      || (section->flags & SEC_ALLOC) == 0
+-      || (section->flags & SEC_LOAD) == 0)
++      || (bfd_get_section_flags(abfd, section) & SEC_ALLOC) == 0
++      || (bfd_get_section_flags(abfd, section) & SEC_LOAD) == 0)
+     return true;
+ 
+   amt = sizeof (struct ihex_data_list);
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/linker.c bfd/linker.c
+--- bfd.pre.48/linker.c	Tue Feb  5 15:07:06 2002
++++ bfd/linker.c	Tue Feb  5 15:53:56 2002
+@@ -1228,7 +1228,7 @@ generic_link_check_archive_element (abfd
+ 	  else
+ 	    h->u.c.p->section = bfd_make_section_old_way (symbfd,
+ 							  p->section->name);
+-	  h->u.c.p->section->flags = SEC_ALLOC;
++	  bfd_get_section_flags(symbfd, h->u.c.p->section) = SEC_ALLOC;
+ 	}
+       else
+ 	{
+@@ -1699,13 +1699,13 @@ _bfd_generic_link_add_one_symbol (info, 
+ 	  if (section == bfd_com_section_ptr)
+ 	    {
+ 	      h->u.c.p->section = bfd_make_section_old_way (abfd, "COMMON");
+-	      h->u.c.p->section->flags = SEC_ALLOC;
++	      bfd_get_section_flags(abfd, h->u.c.p->section) = SEC_ALLOC;
+ 	    }
+ 	  else if (section->owner != abfd)
+ 	    {
+ 	      h->u.c.p->section = bfd_make_section_old_way (abfd,
+ 							    section->name);
+-	      h->u.c.p->section->flags = SEC_ALLOC;
++	      bfd_get_section_flags(abfd, h->u.c.p->section) = SEC_ALLOC;
+ 	    }
+ 	  else
+ 	    h->u.c.p->section = section;
+@@ -1748,13 +1748,13 @@ _bfd_generic_link_add_one_symbol (info, 
+ 		{
+ 		  h->u.c.p->section
+ 		    = bfd_make_section_old_way (abfd, "COMMON");
+-		  h->u.c.p->section->flags = SEC_ALLOC;
++		  bfd_get_section_flags(abfd, h->u.c.p->section) = SEC_ALLOC;
+ 		}
+ 	      else if (section->owner != abfd)
+ 		{
+ 		  h->u.c.p->section
+ 		    = bfd_make_section_old_way (abfd, section->name);
+-		  h->u.c.p->section->flags = SEC_ALLOC;
++		  bfd_get_section_flags(abfd, h->u.c.p->section) = SEC_ALLOC;
+ 		}
+ 	      else
+ 		h->u.c.p->section = section;
+@@ -2070,7 +2070,7 @@ _bfd_generic_final_link (abfd, info)
+ 	      o->orelocation = (arelent **) bfd_alloc (abfd, amt);
+ 	      if (!o->orelocation)
+ 		return false;
+-	      o->flags |= SEC_RELOC;
++	      bfd_get_section_flags(abfd, o) |= SEC_RELOC;
+ 	      /* Reset the count so that it can be used as an index
+ 		 when putting in the output relocs.  */
+ 	      o->reloc_count = 0;
+@@ -2335,7 +2335,7 @@ _bfd_generic_link_output_symbols (output
+ 		case discard_sec_merge:
+ 		  output = true;
+ 		  if (info->relocateable
+-		      || ! (sym->section->flags & SEC_MERGE))
++		      || ! (bfd_get_section_flags(abfd, sym->section) & SEC_MERGE))
+ 		    break;
+ 		  /* FALLTHROUGH */
+ 		case discard_l:
+@@ -2365,7 +2365,7 @@ _bfd_generic_link_output_symbols (output
+ 
+ 	 Gross.  .bss and similar sections won't have the linker_mark
+ 	 field set.  */
+-      if ((sym->section->flags & SEC_HAS_CONTENTS) != 0
++      if ((bfd_get_section_flags(abfd, sym->section) & SEC_HAS_CONTENTS) != 0
+ 	  && sym->section->linker_mark == false)
+ 	output = false;
+ 
+@@ -2675,8 +2675,8 @@ default_fill_link_order (abfd, info, sec
+   file_ptr loc;
+   boolean result;
+ 
+-  BFD_ASSERT ((sec->flags & SEC_HAS_CONTENTS) != 0);
+-
++  BFD_ASSERT ((bfd_get_section_flags(abfd, sec) & SEC_HAS_CONTENTS) != 0);
++
+   size = link_order->size;
+   if (size == 0)
+     return true;
+@@ -2720,7 +2720,7 @@ default_indirect_link_order (output_bfd,
+   bfd_size_type sec_size;
+   file_ptr loc;
+ 
+-  BFD_ASSERT ((output_section->flags & SEC_HAS_CONTENTS) != 0);
++  BFD_ASSERT ((bfd_get_section_flags(abfd, output_section) & SEC_HAS_CONTENTS) != 0);
+ 
+   if (link_order->size == 0)
+     return true;
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/merge.c bfd/merge.c
+--- bfd.pre.48/merge.c	Tue Feb  5 15:07:06 2002
++++ bfd/merge.c	Tue Feb  5 16:18:58 2002
+@@ -370,12 +370,12 @@ _bfd_merge_section (abfd, psinfo, sec, p
+   bfd_size_type amt;
+ 
+   if (sec->_raw_size == 0
+-      || (sec->flags & SEC_EXCLUDE)
+-      || (sec->flags & SEC_MERGE) == 0
++      || (bfd_get_section_flags(abfd,sec) & SEC_EXCLUDE)
++      || (bfd_get_section_flags(abfd,sec) & SEC_MERGE) == 0
+       || sec->entsize == 0)
+     return true;
+ 
+-  if ((sec->flags & SEC_RELOC) != 0)
++  if ((bfd_get_section_flags(abfd,sec) & SEC_RELOC) != 0)
+     {
+       /* We aren't prepared to handle relocations in merged sections.  */
+       return true;
+@@ -392,7 +392,7 @@ _bfd_merge_section (abfd, psinfo, sec, p
+   align = bfd_get_section_alignment (sec->owner, sec);
+   if ((sec->entsize < (unsigned int)(1 << align)
+        && ((sec->entsize & (sec->entsize - 1))
+-	   || !(sec->flags & SEC_STRINGS)))
++	   || !(bfd_get_section_flags(abfd,sec) & SEC_STRINGS)))
+       || (sec->entsize > (unsigned int)(1 << align)
+ 	  && (sec->entsize & ((1 << align) - 1))))
+     {
+@@ -407,7 +407,8 @@ _bfd_merge_section (abfd, psinfo, sec, p
+ 
+   for (sinfo = (struct sec_merge_info *) *psinfo; sinfo; sinfo = sinfo->next)
+     if ((secinfo = sinfo->chain)
+-	&& ! ((secinfo->sec->flags ^ sec->flags) & (SEC_MERGE | SEC_STRINGS))
++	&& ! ((bfd_get_section_flags(abfd,secinfo->sec) 
++	       ^ bfd_get_section_flags(abfd,sec)) & (SEC_MERGE | SEC_STRINGS))
+ 	&& secinfo->sec->entsize == sec->entsize
+ 	&& ! strcmp (secinfo->sec->name, sec->name))
+       break;
+@@ -423,7 +424,7 @@ _bfd_merge_section (abfd, psinfo, sec, p
+       sinfo->chain = NULL;
+       *psinfo = (PTR) sinfo;
+       sinfo->htab =
+-	sec_merge_init (sec->entsize, (sec->flags & SEC_STRINGS));
++	sec_merge_init (sec->entsize, (bfd_get_section_flags(abfd, sec) & SEC_STRINGS));
+       if (sinfo->htab == NULL)
+ 	goto error_return;
+     }
+@@ -556,7 +557,7 @@ record_section (sinfo, secinfo)
+   end = secinfo->contents + sec->_raw_size;
+   nul = false;
+   mask = ((bfd_vma) 1 << align) - 1;
+-  if (sec->flags & SEC_STRINGS)
++  if (bfd_get_section_flags(abfd,sec) & SEC_STRINGS)
+     {
+       for (p = secinfo->contents; p < end; )
+ 	{
+@@ -792,7 +793,7 @@ _bfd_merge_sections (abfd, xsinfo, remov
+ 
+       /* Record the sections into the hash table.  */
+       for (secinfo = sinfo->chain; secinfo; secinfo = secinfo->next)
+-	if (secinfo->sec->flags & SEC_EXCLUDE)
++	if (bfd_get_section_flags(abfd,secinfo->sec) & SEC_EXCLUDE)
+ 	  {
+ 	    *secinfo->psecinfo = NULL;
+ 	    if (remove_hook)
+@@ -838,7 +839,7 @@ _bfd_merge_sections (abfd, xsinfo, remov
+   	  if (secinfo->first == NULL)
+ 	    {
+ 	      secinfo->sec->_cooked_size = 0;
+-	      secinfo->sec->flags |= SEC_EXCLUDE;
++	      bfd_get_section_flags(abfd,secinfo->sec) |= SEC_EXCLUDE;
+ 	    }
+     }
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/peXXigen.c bfd/peXXigen.c
+--- bfd.pre.48/peXXigen.c	Tue Feb  5 15:07:06 2002
++++ bfd/peXXigen.c	Tue Feb  5 16:59:54 2002
+@@ -198,10 +198,10 @@ _bfd_XXi_swap_sym_in (abfd, ext1, in1)
+ 	  sec->lineno_count = 0;
+ 	  sec->userdata = NULL;
+ 	  sec->next = (asection *) NULL;
+-	  sec->flags = 0;
+ 	  sec->alignment_power = 2;
+-	  sec->flags = SEC_HAS_CONTENTS | SEC_ALLOC | SEC_DATA | SEC_LOAD;
+-
++	  bfd_get_section_flags(abfd, sec) 
++	      = SEC_HAS_CONTENTS | SEC_ALLOC | SEC_DATA | SEC_LOAD;
++
+ 	  sec->target_index = unused_section_number;
+ 
+ 	  in->n_scnum = unused_section_number;
+@@ -533,7 +533,7 @@ add_data_entry (abfd, aout, idx, name, b
+ 	{
+ 	  aout->DataDirectory[idx].VirtualAddress =
+ 	    sec->vma & 0xffffffff;
+-	  sec->flags |= SEC_DATA;
++	  bfd_get_section_flags(abfd, sec) |= SEC_DATA;
+ 	}
+     }
+ }
+@@ -604,9 +604,9 @@ _bfd_XXi_swap_aouthdr_out (abfd, in, out
+       {
+ 	int rounded = FA(sec->_raw_size);
+ 
+-	if (sec->flags & SEC_DATA)
++	if (bfd_get_section_flags(abfd, sec) & SEC_DATA)
+ 	  dsize += rounded;
+-	if (sec->flags & SEC_CODE)
++	if (bfd_get_section_flags(abfd, sec) & SEC_CODE)
+ 	  tsize += rounded;
+ 	/* The image size is the total VIRTUAL size (which is what is
+ 	   in the virt_size field).  Files have been seen (from MSVC
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/peicode.h bfd/peicode.h
+--- bfd.pre.48/peicode.h	Tue Feb  5 15:07:06 2002
++++ bfd/peicode.h	Tue Feb  5 16:47:25 2002
+@@ -516,8 +516,8 @@ pe_ILF_save_relocs (pe_ILF_vars * vars,
+ 
+   sec->relocation  = vars->reltab;
+   sec->reloc_count = vars->relcount;
+-  sec->flags      |= SEC_RELOC;
+-
++  bfd_get_section_flags(abfd, sec) |= SEC_RELOC;
++
+   vars->reltab     += vars->relcount;
+   vars->int_reltab += vars->relcount;
+   vars->relcount   = 0;
+@@ -631,15 +631,17 @@ pe_ILF_make_a_section (pe_ILF_vars * var
+ 		       flagword      extra_flags)
+ {
+   asection_ptr sec;
+-  flagword     flags;
+-
++  large_flagword     flags;
++
+   sec = bfd_make_section_old_way (vars->abfd, name);
+   if (sec == NULL)
+     return NULL;
+ 
+-  flags = SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_KEEP | SEC_IN_MEMORY;
+-
+-  bfd_set_section_flags (vars->abfd, sec, flags | extra_flags);
++  flags.word1 = 
++      SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_KEEP | SEC_IN_MEMORY
++      | extra_flags;
++
++  bfd_set_section_flags (vars->abfd, sec, flags);
+ 
+   bfd_set_section_alignment (vars->abfd, sec, 2);
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/section.c bfd/section.c
+--- bfd.pre.48/section.c	Tue Feb  5 15:07:06 2002
++++ bfd/section.c	Tue Feb  5 17:14:31 2002
+@@ -184,8 +184,8 @@ CODE_FRAGMENT
+ .  {* The field flags contains attributes of the section. Some
+ .     flags are read in from the object file, and some are
+ .     synthesized from other information.  *}
+-.  flagword flags;
+-.
++.  large_flagword flags;
++.
+ .#define SEC_NO_FLAGS   0x000
+ .
+ .  {* Tells the OS to allocate space for this section when loading.
+@@ -360,6 +360,10 @@ CODE_FRAGMENT
+ .  {* This section contains data about section groups.  *}
+ .#define SEC_GROUP 0x80000000
+ .
++.  {* Here begins the second word of flags. *}
++.  {* This section is not readable (secure WOM or spacefiller) *}
++.#define SEC_NOREAD 0x1
++.
+ .  {*  End of section flags.  *}
+ .
+ .  {* Some internal packed boolean fields.  *}
+@@ -587,8 +591,8 @@ static const asymbol global_syms[] =
+ #define STD_SECTION(SEC, FLAGS, SYM, NAME, IDX)				\
+   const asymbol * const SYM = (asymbol *) &global_syms[IDX]; 		\
+   const asection SEC = 							\
+-    /* name, id,  index, next, flags, user_set_vma, reloc_done,      */	\
+-    { NAME,  IDX, 0,     NULL, FLAGS, 0,            0,			\
++    /* name, id,  index, next, flags,      user_set_vma, reloc_done, */	\
++    { NAME,  IDX, 0,     NULL, {FLAGS, 0}, 0,            0,		\
+ 									\
+     /* linker_mark, linker_has_input, gc_mark, segment_mark,         */	\
+        0,           0,                1,       0,			\
+@@ -991,8 +995,8 @@ FUNCTION
+ 	bfd_set_section_flags
+ 
+ SYNOPSIS
+-	boolean bfd_set_section_flags(bfd *abfd, asection *sec, flagword flags);
+-
++	boolean bfd_set_section_flags(bfd *abfd, asection *sec, large_flagword flags);
++
+ DESCRIPTION
+ 	Set the attributes of the section @var{sec} in the BFD
+ 	@var{abfd} to the value @var{flags}. Return <<true>> on success,
+@@ -1010,8 +1014,8 @@ boolean
+ bfd_set_section_flags (abfd, section, flags)
+      bfd *abfd ATTRIBUTE_UNUSED;
+      sec_ptr section;
+-     flagword flags;
+-{
++     large_flagword flags;
++{
+ #if 0
+   /* If you try to copy a text section from an input file (where it
+      has the SEC_CODE flag set) to an output file, this loses big if
+@@ -1234,7 +1238,7 @@ bfd_get_section_contents (abfd, section,
+ {
+   bfd_size_type sz;
+ 
+-  if (section->flags & SEC_CONSTRUCTOR)
++  if (bfd_get_section_flags(abfd, section) & SEC_CONSTRUCTOR)
+     {
+       memset (location, 0, (size_t) count);
+       return true;
+@@ -1256,13 +1260,13 @@ bfd_get_section_contents (abfd, section,
+     /* Don't bother.  */
+     return true;
+ 
+-  if ((section->flags & SEC_HAS_CONTENTS) == 0)
++  if ((bfd_get_section_flags(abfd, section) & SEC_HAS_CONTENTS) == 0)
+     {
+       memset (location, 0, (size_t) count);
+       return true;
+     }
+ 
+-  if ((section->flags & SEC_IN_MEMORY) != 0)
++  if ((bfd_get_section_flags(abfd, section) & SEC_IN_MEMORY) != 0)
+     {
+       memcpy (location, section->contents + offset, (size_t) count);
+       return true;
+@@ -1352,7 +1356,7 @@ _bfd_strip_section_from_output (info, s)
+ 	  for (is = abfd->sections; is != NULL; is = is->next)
+ 	    {
+ 	      if (is != s && is->output_section == os
+-		  && (is->flags & SEC_EXCLUDE) == 0)
++		  && (bfd_get_section_flags(0, is) & SEC_EXCLUDE) == 0)
+ 		break;
+ 	    }
+ 	  if (is != NULL)
+@@ -1376,5 +1380,5 @@ _bfd_strip_section_from_output (info, s)
+ 	  }
+     }
+ 
+-  s->flags |= SEC_EXCLUDE;
++  bfd_get_section_flags(0,s) |= SEC_EXCLUDE;
+ }
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/srec.c bfd/srec.c
+--- bfd.pre.48/srec.c	Tue Feb  5 15:07:06 2002
++++ bfd/srec.c	Tue Feb  5 15:57:07 2002
+@@ -582,7 +582,8 @@ srec_scan (abfd)
+ 		    sec = bfd_make_section (abfd, secname);
+ 		    if (sec == NULL)
+ 		      goto error_return;
+-		    sec->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
++		    bfd_get_section_flags(abfd, sec) 
++			= SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
+ 		    sec->vma = address;
+ 		    sec->lma = address;
+ 		    sec->_raw_size = bytes;
+@@ -872,8 +873,8 @@ srec_set_section_contents (abfd, section
+     return false;
+ 
+   if (bytes_to_do
+-      && (section->flags & SEC_ALLOC)
+-      && (section->flags & SEC_LOAD))
++      && (bfd_get_section_flags(abfd,section) & SEC_ALLOC)
++      && (bfd_get_section_flags(abfd,section) & SEC_LOAD))
+     {
+       bfd_byte *data;
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/stabs.c bfd/stabs.c
+--- bfd.pre.48/stabs.c	Tue Feb  5 15:07:06 2002
++++ bfd/stabs.c	Tue Feb  5 16:03:32 2002
+@@ -200,7 +200,7 @@ _bfd_link_section_stabs (abfd, psinfo, s
+       return true;
+     }
+ 
+-  if ((stabstrsec->flags & SEC_RELOC) != 0)
++  if ((bfd_get_section_flags(abfd, stabstrsec) & SEC_RELOC) != 0)
+     {
+       /* We shouldn't see relocations in the strings, and we aren't
+          prepared to handle them.  */
+@@ -238,7 +238,7 @@ _bfd_link_section_stabs (abfd, psinfo, s
+ 				   251))
+ 	goto error_return;
+       sinfo->stabstr = bfd_make_section_anyway (abfd, ".stabstr");
+-      sinfo->stabstr->flags |= SEC_HAS_CONTENTS | SEC_READONLY | SEC_DEBUGGING;
++      bfd_get_section_flags(abfd, sinfo->stabstr) |= SEC_HAS_CONTENTS | SEC_READONLY | SEC_DEBUGGING;
+     }
+ 
+   sinfo = (struct stab_info *) *psinfo;
+@@ -461,8 +461,8 @@ _bfd_link_section_stabs (abfd, psinfo, s
+      for that section.  */
+   stabsec->_cooked_size = (count - skip) * STABSIZE;
+   if (stabsec->_cooked_size == 0)
+-    stabsec->flags |= SEC_EXCLUDE;
+-  stabstrsec->flags |= SEC_EXCLUDE;
++    bfd_get_section_flags(abfd, stabsec) |= SEC_EXCLUDE;
++  bfd_get_section_flags(abfd, stabstrsec) |= SEC_EXCLUDE;
+   sinfo->stabstr->_cooked_size = _bfd_stringtab_size (sinfo->strings);
+ 
+   /* Calculate the `cumulative_skips' array now that stabs have been
+@@ -632,7 +632,7 @@ _bfd_discard_section_stabs (abfd, stabse
+   /* Shrink the stabsec as needed.  */
+   stabsec->_cooked_size -= skip * STABSIZE;
+   if (stabsec->_cooked_size == 0)
+-    stabsec->flags |= SEC_EXCLUDE;
++    bfd_get_section_flags(abfd, stabsec) |= SEC_EXCLUDE;
+ 
+   /* Recalculate the `cumulative_skips' array now that stabs have been
+      deleted for this section.  */
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files bfd.pre.48/tekhex.c bfd/tekhex.c
+--- bfd.pre.48/tekhex.c	Tue Feb  5 15:07:06 2002
++++ bfd/tekhex.c	Tue Feb  5 15:59:57 2002
+@@ -434,7 +434,7 @@ first_phase (abfd, type, src)
+ 	      src++;
+ 	      section->vma = getvalue (&src);
+ 	      section->_raw_size = getvalue (&src) - section->vma;
+-	      section->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
++	      bfd_get_section_flags(abfd, section) = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
+ 	      break;
+ 	    case '0':
+ 	    case '2':
+@@ -651,7 +651,7 @@ tekhex_get_section_contents (abfd, secti
+      file_ptr offset;
+      bfd_size_type count;
+ {
+-  if (section->flags & (SEC_LOAD | SEC_ALLOC))
++  if (bfd_get_section_flags(abfd, section) & (SEC_LOAD | SEC_ALLOC))
+     {
+       move_section_contents (abfd, section, locationp, offset, count, true);
+       return true;
+@@ -689,7 +689,7 @@ tekhex_set_section_contents (abfd, secti
+ 
+       for (s = abfd->sections; s; s = s->next)
+ 	{
+-	  if (s->flags & SEC_LOAD)
++	  if (bfd_get_section_flags(abfd, s) & SEC_LOAD)
+ 	    {
+ 	      for (vma = s->vma & ~(bfd_vma) CHUNK_MASK;
+ 		   vma < s->vma + s->_raw_size;
+@@ -699,7 +699,7 @@ tekhex_set_section_contents (abfd, secti
+ 	}
+ 
+     }
+-  if (section->flags & (SEC_LOAD | SEC_ALLOC))
++  if (bfd_get_section_flags(abfd, section) & (SEC_LOAD | SEC_ALLOC))
+     {
+       move_section_contents (abfd, section, locationp, offset, bytes_to_do,
+ 			     false);

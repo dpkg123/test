@@ -1,0 +1,11 @@
+export LD_LIBRARY_PATH=$X/local_bin
+cc -c bittest_nat.c
+gcc -g -c -fnative-struct bittest_gcc.c 
+echo NATIVE:
+gcc -g bittest_gcc.o bittest_nat.o
+a.out
+
+gcc -g -c -fgcc-struct bittest_gcc.c 
+echo GNU:
+gcc -g bittest_nat.o bittest_gcc.o
+a.out

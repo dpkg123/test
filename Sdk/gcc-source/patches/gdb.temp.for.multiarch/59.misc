@@ -1,0 +1,74 @@
+Miscellaneous small fixes:
+
+virtfunc.exp was failing with timouts; gdb was crashing.  The change to
+buildsym.h improves things so it reports the underlying error (which is
+apparently a gcc problem; the stabs records aren't properly nested.)
+
+templates.exp was failing because the compiler emitted a "const" keyword
+that it wasn't expecting.
+
+coffread.c: indentation, recognize RODATA as special, too.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/buildsym.h gdb/buildsym.h
+--- gdb.before/buildsym.h	Thu Mar  7 09:18:59 2002
++++ gdb/buildsym.h	Mon Mar 11 18:41:22 2002
+@@ -177,7 +177,9 @@ EXTERN int context_stack_size;
+    done by a real function, push_context.  This returns a pointer to a
+    struct context_stack.  */
+ 
+-#define	pop_context() (&context_stack[--context_stack_depth]);
++#define	pop_context() ( \
++   (context_stack_depth <= 0) ? error("Context stack underflow") : 0, \
++   &context_stack[--context_stack_depth]);
+ 
+ /* Nonzero if within a function (so symbols should be local, if
+    nothing says specifically).  */
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/coffread.c gdb/coffread.c
+--- gdb.before/coffread.c	Thu Mar  7 09:18:59 2002
++++ gdb/coffread.c	Tue Mar 12 14:10:13 2002
+@@ -1006,18 +1007,18 @@ coff_symtab_read (long symtab_offset, un
+ 	     or symnum of first global after last .file.  */
+ 	  next_file_symnum = cs->c_value;
+ 	  if (cs->c_naux > 0)
+-	      filestring = coff_getfilename (&main_aux, cs->c_naux);
++	    filestring = coff_getfilename (&main_aux, cs->c_naux);
+ 	  else
+ 	    filestring = "";
+ 
+ 	  coff_start_symtab (filestring);
+ 
+ 	  first_function_this_file = 0;
+ 	  break;
+ 
+-	  /* C_LABEL is used for labels and static functions.  Including
+-	     it here allows gdb to see static functions when no debug
+-	     info is available.  */
++	/* C_LABEL is used for labels and static functions.  Including
++	   it here allows gdb to see static functions when no debug
++	   info is available.  */
+ 	case C_LABEL:
+ 	  /* However, labels within a function can make weird backtraces,
+ 	     so filter them out (from phdm@macqel.be). */
+@@ -1113,7 +1115,9 @@ coff_symtab_read (long symtab_offset, un
+ 		  }
+ #endif
+ 
+-		if (sec == SECT_OFF_TEXT (objfile))
++		if (sec == SECT_OFF_TEXT (objfile)
++		    || sec == SECT_OFF_RODATA (objfile)
++		    )
+ 		  {
+ 		    ms_type =
+ 		      cs->c_sclass == external_class ? 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/testsuite/gdb.c++/templates.exp gdb/testsuite/gdb.c++/templates.exp
+--- gdb.before/testsuite/gdb.c++/templates.exp	Thu Mar  7 09:18:50 2002
++++ gdb/testsuite/gdb.c++/templates.exp	Mon Mar 11 18:23:32 2002
+@@ -440,7 +440,7 @@ gdb_expect {   
+ 
+ send_gdb "print Garply<Garply<char> >::garply\n"
+ gdb_expect {
+-   -re "\\$\[0-9\]* = \\{(class |)Garply<char> \\((class |)Garply<Garply<char> > \\*, int, (class |)Garply<char>\\)\\} $hex <Garply<Garply<char>\[ \t\]*>::garply\\(int, (class |)Garply<char>\\)>\r\n$gdb_prompt $" { pass "print Garply<Garply<char> >::garply" }
++   -re "\\$\[0-9\]* = \\{(class |)Garply<char> \\((class |)Garply<Garply<char> > \\*( const|), int, (class |)Garply<char>\\)\\} $hex <Garply<Garply<char>\[ \t\]*>::garply\\(int, (class |)Garply<char>\\)>\r\n$gdb_prompt $" { pass "print Garply<Garply<char> >::garply" }
+    -re ".*$gdb_prompt $" { fail "print Garply<Garply<char> >::garply" }
+    timeout { fail "print Garply<Garply<char> >::garply (timeout)" }
+ }

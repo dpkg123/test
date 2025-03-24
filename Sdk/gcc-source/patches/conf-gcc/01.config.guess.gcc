@@ -1,0 +1,24 @@
+--- config.guess	Mon May 26 10:46:34 2003
++++ config.guess.new	Mon Jun 16 15:48:58 2003
+@@ -770,7 +770,7 @@ EOF
+     i*:PW*:*)
+ 	echo ${UNAME_MACHINE}-pc-pw32
+ 	exit 0 ;;
+-    x86:Interix*:3*)
++    x86:Interix*:*)
+ 	echo i586-pc-interix3
+ 	exit 0 ;;
+     [345]86:Windows_95:* | [345]86:Windows_98:* | [345]86:Windows_NT:*)
+--- boehm-gc/config.guess	Mon May 26 10:46:55 2003
++++ boehm-gc/config.guess.new	Mon Jun 16 15:49:16 2003
+@@ -737,8 +737,8 @@ EOF
+     i*:PW*:*)
+ 	echo ${UNAME_MACHINE}-pc-pw32
+ 	exit 0 ;;
+-    x86:Interix*:3*)
+-	echo i386-pc-interix3
++    x86:Interix*:*)
++	echo i586-pc-interix3
+ 	exit 0 ;;
+     i*:Windows_NT*:* | Pentium*:Windows_NT*:*)
+ 	# How do we know it's Interix rather than the generic POSIX subsystem?

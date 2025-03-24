@@ -1,0 +1,23 @@
+Needed for gdb (to close just the fd's before an exec).
+
+	* bfd.c (bfd_fileno): New.
+
+Index: src/bfd/bfd.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/bfd.c,v
+retrieving revision 1.1.1.1
+diff -p -c -r1.1.1.1 bfd.c
+*** src/bfd/bfd.c	2001/12/23 00:34:27	1.1.1.1
+--- src/bfd/bfd.c	2001/12/23 03:43:20
+*************** DESCRIPTION
+*** 1208,1213 ****
+--- 1208,1216 ----
+  .		  struct bfd_link_order *, bfd_byte *,
+  .		  boolean, asymbol **));
+  .
++ .{* In case we're exec()-ing, we need to clean up JUST the fd *}
++ .#define bfd_fileno(abfd) fileno((FILE *)((abfd)->iostream))
++ .
+  
+  */
+  

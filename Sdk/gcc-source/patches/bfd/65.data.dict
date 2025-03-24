@@ -1,0 +1,16 @@
+Fix a bug (reported to binutils) that was clobbering the import table
+entries in the executable.
+
+
+--- peXXigen.c.o2	Wed Aug 14 14:29:50 2002
++++ peXXigen.c	Wed Aug 14 14:29:58 2002
+@@ -582,9 +582,6 @@ _bfd_XXi_swap_aouthdr_out (abfd, in, out
+ 
+   extra->NumberOfRvaAndSizes = IMAGE_NUMBEROF_DIRECTORY_ENTRIES;
+ 
+-  /* first null out all data directory entries ..  */
+-  memset (extra->DataDirectory, 0, sizeof (extra->DataDirectory));
+-
+   add_data_entry (abfd, extra, 0, ".edata", 0);
+ 
+   /* Don't call add_data_entry for .idata$2 or .idata$5.  It's done in

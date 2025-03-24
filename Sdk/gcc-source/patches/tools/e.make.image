@@ -1,0 +1,366 @@
+#!/bin/sh
+
+if [ $# != 7 ]
+then
+   echo usage e.make.image "<src dir> <image dir> <install dir> <version> <architecture> <tarfile> [1][2][3][t]"
+   exit 1
+fi
+SRC=$1
+IMAGE=$2
+INSTALL=$3 # unused
+VERSION=$4
+arch=$5
+RESULT=$6
+PHASE=$7
+TARGET=$arch-pc-interix3
+
+LN="/bin/ln -s"
+
+
+do_basic=0
+do_fortran=0
+do_shared=0
+do_tar=0
+
+case $PHASE in
+*1*) do_basic=1
+     ;;
+esac
+
+case $PHASE in
+*2*) do_fortran=1
+     ;;
+esac
+case $PHASE in
+*3*) do_shared=1
+     ;;
+esac
+
+case $PHASE in
+*t*) do_tar=1
+     ;;
+esac
+
+CONDIR_REAL=/opt/gcc.$VERSION
+SYSLIBDIR_REAL=/usr/lib
+LOCALLIBDIR_REAL=$CONDIR_REAL/lib
+
+CONDIR=$IMAGE/$CONDIR_REAL
+SYSLIBDIR=$IMAGE/$SYSLIBDIR_REAL
+INCDIR=$CONDIR/include
+BINDIR=$CONDIR/bin
+SYSINC=$INCDIR
+GppINCLUDE=$SYSINC/g++
+MAN1DIR=$IMAGE/usr/contrib/man/man1
+LIBSUBDIR=$CONDIR/lib/gcc-lib/$TARGET/$VERSION
+COMPINC=$LIBSUBDIR/include
+LOCALLIBDIR=$CONDIR/lib
+
+SRCB=$SRC/egcs.bin
+SRCL=$SRC/egcs.bin/$arch-pc-interix3
+SRCH=$SRC/egcs.source
+
+# The version of these tools matters at install time.
+TCLVER=8.3    # tcl and tk
+ITCLVER=3.2   # itcl and itk
+IWIDGETS_VERSION=3.0.0
+TIXVER=4.1
+
+if [ $do_basic -eq 1 ]
+then
+    rm -rf $IMAGE
+    mkdir -p $BINDIR $CONDIR $LIBSUBDIR
+    mkdir -p $LOCALLIBDIR
+    mkdir -p $SYSINC
+    mkdir -p $COMPINC
+    # mkdir -p $MAN1DIR 
+
+    cp $SRCB/gcc/xgcc $BINDIR/gcc
+    cp $SRCB/gcc/g++ $BINDIR
+
+    cp $SRCB/gcc/cc1 $LIBSUBDIR
+    cp $SRCB/gcc/cc1plus $LIBSUBDIR
+    cp $SRCB/gcc/cpp $LIBSUBDIR
+    cp $SRCB/gcc/collect2 $LIBSUBDIR
+
+    cp $SRCB/gcc/gcov $BINDIR
+    cp $SRCB/gcc/protoize $BINDIR
+    cp $SRCB/gcc/unprotoize $BINDIR
+    cp $SRCB/ld/ld-new $BINDIR/ld
+    cp $SRCB/gas/as-new $BINDIR/as
+    cp $SRCB/binutils/ar $BINDIR
+    cp $SRCB/binutils/nm-new $BINDIR/nm
+    cp $SRCB/binutils/objdump $BINDIR
+    cp $SRCB/binutils/objcopy $BINDIR
+    cp $SRCB/binutils/size $BINDIR
+    cp $SRCB/binutils/strings $BINDIR
+    cp $SRCB/binutils/liblock $BINDIR
+    cp $SRCB/binutils/strip-new $BINDIR/strip
+    cp $SRCB/gdb/gdb $BINDIR
+
+    cp $SRC/libexec/libdl/ld.so.* $LOCALLIBDIR
+    cp $SRC/libexec/libdl/libdl.so.* $LOCALLIBDIR
+    cp $SRC/libexec/libdl/dlfcn.h $SYSINC
+    cp $SRCB/gcc/include/*.h $COMPINC
+
+    $BINDIR/strip $BINDIR/gcc
+    $BINDIR/strip $BINDIR/g++
+
+    $BINDIR/strip $LIBSUBDIR/cc1
+    $BINDIR/strip $LIBSUBDIR/cc1plus
+    $BINDIR/strip $LIBSUBDIR/collect2
+    $BINDIR/strip $LIBSUBDIR/cpp
+
+    $BINDIR/strip $BINDIR/gcov
+    $BINDIR/strip $BINDIR/protoize
+    $BINDIR/strip $BINDIR/unprotoize
+    $BINDIR/strip $BINDIR/ld
+    $BINDIR/strip $BINDIR/as
+    $BINDIR/strip $BINDIR/ar
+    $BINDIR/strip $BINDIR/nm
+    $BINDIR/strip $BINDIR/objdump
+    $BINDIR/strip $BINDIR/objcopy
+    $BINDIR/strip $BINDIR/size
+    $BINDIR/strip $BINDIR/strings
+    $BINDIR/strip $BINDIR/liblock
+    $BINDIR/strip $BINDIR/gdb
+    $BINDIR/strip $LOCALLIBDIR/ld.so.*
+    $BINDIR/strip $LOCALLIBDIR/libdl.so.*
+    $SRCB/binutils/strip-new $BINDIR/strip
+
+    (cd $LOCALLIBDIR
+     $LN ld.so.* ld.so
+     $LN libdl.so.* libdl.so
+    )
+
+    chmod 555 $LOCALLIBDIR/ld.so.*
+    chmod 555 $LOCALLIBDIR/libdl.so.*
+    chmod 555 $BINDIR/gcc
+    chmod 555 $BINDIR/g++
+
+    chmod 555 $LIBSUBDIR/cc1
+    chmod 555 $LIBSUBDIR/cc1plus
+    chmod 555 $LIBSUBDIR/cpp
+
+    chmod 555 $BINDIR/gcov
+    chmod 555 $BINDIR/protoize
+    chmod 555 $BINDIR/unprotoize
+    chmod 555 $BINDIR/ld
+    chmod 555 $BINDIR/as
+    chmod 555 $BINDIR/ar
+    chmod 555 $BINDIR/nm
+    chmod 555 $BINDIR/objdump
+    chmod 555 $BINDIR/objcopy
+    chmod 555 $BINDIR/size
+    chmod 555 $BINDIR/strings
+    chmod 555 $BINDIR/liblock
+    chmod 555 $BINDIR/strip
+    chmod 555 $BINDIR/gdb
+
+    # put cpp in 2 places
+    cp $LIBSUBDIR/cpp $BINDIR/cpp
+
+    cp $SRCB/gcc/libgcc.a $LIBSUBDIR
+    # $BINDIR/strip --strip-unneeded $LIBSUBDIR/libgcc.a
+    chmod 444 $LIBSUBDIR/libgcc.a
+
+    #for protoize
+    mkdir -p $CONDIR/lib/gcc-lib/$TARGET/$VERSION
+    cp $SRCB/gcc/SYSCALLS.c.X $CONDIR/lib/gcc-lib/$TARGET/$VERSION
+    chmod 444 $CONDIR/lib/gcc-lib/$TARGET/$VERSION/SYSCALLS.c.X
+
+    if false
+    then
+	cp $SRCB/gcc/cccp.1 $MAN1DIR
+	cp $SRCB/gcc/cpp.1 $MAN1DIR
+	cp $SRCB/gcc/gcc.1 $MAN1DIR
+	cp $SRC/binutils/ar.1 $MAN1DIR
+	cp $SRC/binutils/nm.1 $MAN1DIR
+	cp $SRC/binutils/objdump.1 $MAN1DIR
+	cp $SRC/binutils/objcopy.1 $MAN1DIR
+	cp $SRC/binutils/size.1 $MAN1DIR
+	cp $SRC/binutils/strings.1 $MAN1DIR
+	cp $SRC/binutils/strip.1 $MAN1DIR
+    fi
+
+    cxx=true
+    if [ x$cxx = xtrue ] 
+    then
+	( cd $SRCL/libstdc++-v3; \
+	gmake -s install \
+	   prefix=$CONDIR/ \
+	   gxx_include_dir=$CONDIR/include/g++ \
+	   INSTALL="$SRC/install-sh -c"
+	)
+    fi
+
+    gdbtk=true
+    if [ x$gdbtk = xtrue ] 
+    then
+	SHDIR=$CONDIR/share
+
+	# TCL 
+	( cd $SRCB/tcl; \
+	gmake -s install \
+	   prefix=$CONDIR/ \
+	   INSTALL="$SRC/install-sh -c"
+	)
+
+	# TK 
+	( cd $SRCB/tk; \
+	gmake -s install \
+	   prefix=$CONDIR/ \
+	   INSTALL="$SRC/install-sh -c"
+	)
+
+	# ITCL 
+	( cd $SRCB/itcl; \
+	gmake -s install \
+	   prefix=$CONDIR/ \
+	   INSTALL="$SRC/install-sh -c"
+	)
+
+	# TIX 
+	( cd $SRCB/tix; \
+	gmake -s install \
+	   prefix=$CONDIR/ \
+	   INSTALL="$SRC/install-sh -c"
+	)
+
+	# libgui 
+	( cd $SRCB/libgui; \
+	gmake -s install \
+	   prefix=$CONDIR/ \
+	   guidir=$CONDIR/libgui/library \
+	   INSTALL="$SRC/install-sh -c"
+	)
+
+	# gdb itself 
+	( cd $SRCB/gdb; \
+	gmake -s install \
+	   prefix=$CONDIR/ \
+	   INSTALL="$SRC/install-sh -c"
+	)
+
+    fi
+
+    # chmod 444 $MAN1DIR/*
+fi
+
+# The above installed a lot of stuff we don't need.  Toss that which
+# we clearly don't need.
+
+rm $CONDIR/bin/tclsh*
+rm $CONDIR/bin/tixindex
+rm $CONDIR/bin/tclwish*
+rm $CONDIR/bin/tixwish*
+rm $CONDIR/bin/wish*
+rm $CONDIR/include/i*.h
+rm $CONDIR/include/t*.h
+rm $CONDIR/lib/itcl*
+rm $CONDIR/lib/itk*
+rm $CONDIR/lib/iwidgets
+rm $CONDIR/lib/libitcl*.a
+rm $CONDIR/lib/libitk*.a
+rm $CONDIR/lib/libtcl*.a
+rm $CONDIR/lib/libtix*.a
+rm $CONDIR/lib/libtk*.a
+rm $CONDIR/lib/tclConfig.sh
+rm $CONDIR/lib/tkConfig.sh
+rm -rf $CONDIR/man
+rm -rf $CONDIR/share/iwidgets*/demos
+rm -rf $CONDIR/share/tix*/demos
+rm -rf $CONDIR/share/tk*/demos
+rm -rf $CONDIR/share/tk*/images
+
+if [ $do_fortran -eq 1 ]
+then
+    cp $SRCB/gcc/g77 $BINDIR
+    cp $SRCB/gcc/f771 $LIBSUBDIR
+    cp $SRC/asa/asa $BINDIR
+    $BINDIR/strip $BINDIR/g77
+    $BINDIR/strip $LIBSUBDIR/f771
+    $BINDIR/strip $BINDIR/asa
+    chmod 555 $BINDIR/g77
+    chmod 555 $LIBSUBDIR/f771
+    chmod 555 $BINDIR/asa
+
+    cp $SRCL/libf2c/.libs/libg2c.a $LOCALLIBDIR
+    # $BINDIR/strip --strip-unneeded $LOCALLIBDIR/libg2c.a
+    chmod 444 $LOCALLIBDIR/libg2c.a
+fi
+
+if [ $do_shared -eq 1 ]
+then
+
+    # We may have used the system's libc, and we may have built our
+    # own.  However, in either case we need to have a copy of 
+    # versioned one (ONLY) on the image so our executables will run.
+    # (We assume that there will be a libc.so and some libc.so.* on
+    # the system, but it may not be the one we need to execute with.)
+
+    LIBC_REAL=$(objdump -p $SRC/local_bin/libc.so | grep SONAME | awk '{print $2}')
+    cp $SRC/local_bin/libc.so $LOCALLIBDIR/$LIBC_REAL
+    $BINDIR/strip $LOCALLIBDIR/$LIBC_REAL
+
+    LIBM_REAL=$(objdump -p $SRC/local_bin/libm.so | grep SONAME | awk '{print $2}')
+    cp $SRC/local_bin/libm.so $LOCALLIBDIR/$LIBM_REAL
+    $BINDIR/strip $LOCALLIBDIR/$LIBM_REAL
+
+    cp $SRC/local_bin/libg2c.so?* $LOCALLIBDIR
+    cp $SRC/local_bin/libstdc++.so?* $LOCALLIBDIR
+    cp $SRC/local_bin/libsupc++.so?* $LOCALLIBDIR
+    cp $SRC/local_bin/libsupc++convenience.so?* $LOCALLIBDIR
+    cp $SRC/local_bin/libmath.so?* $LOCALLIBDIR
+
+    $BINDIR/strip $LOCALLIBDIR/libg2c.so?*
+    $BINDIR/strip $LOCALLIBDIR/libstdc++.so?*
+    $BINDIR/strip $LOCALLIBDIR/libsupc++.so?*
+    $BINDIR/strip $LOCALLIBDIR/libsupc++convenience.so?*
+    $BINDIR/strip $LOCALLIBDIR/libmath.so?*
+
+    (cd $LOCALLIBDIR
+     $LN libg2c.so?* libg2c.so
+     $LN libstdc++.so?* libstdc++.so
+     $LN libsupc++.so?* libsupc++.so
+     $LN libsupc++convenience.so?* libsupc++convenience.so
+     $LN libmath.so?* libmath.so
+    )
+
+    if [ -f $LOCALLIBDIR/libc.so.* ]
+    then
+	chmod 555 $LOCALLIBDIR/libc.so.*
+    fi
+    if [ -f $LOCALLIBDIR/libm.so.* ]
+    then
+	chmod 555 $LOCALLIBDIR/libm.so.*
+    fi
+    chmod 555 $LOCALLIBDIR/libg2c.so?*
+    chmod 555 $LOCALLIBDIR/libstdc++.so?*
+    chmod 555 $LOCALLIBDIR/libsupc++.so?*
+    chmod 555 $LOCALLIBDIR/libsupc++convenience.so?*
+    chmod 555 $LOCALLIBDIR/libmath.so?*
+
+    # Copy crt0.o so we have a consistent set including that, as well.
+    cp /usr/lib/crt0.o $LOCALLIBDIR
+
+    # Link the versioned libraries to /usr/lib so we don't need to use
+    # LD_LIBRARY_PATH to execute applications.
+    mkdir -p $SYSLIBDIR
+    (cd $LOCALLIBDIR
+     ln -s $LOCALLIBDIR_REAL/$(echo libg2c.so?*) $SYSLIBDIR
+     ln -s $LOCALLIBDIR_REAL/$(echo libstdc++.so?*) $SYSLIBDIR
+     ln -s $LOCALLIBDIR_REAL/$(echo libsupc++.so?*) $SYSLIBDIR
+     ln -s $LOCALLIBDIR_REAL/$(echo libsupc++convenience.so?*) $SYSLIBDIR
+     ln -s $LOCALLIBDIR_REAL/$(echo libmath.so?*) $SYSLIBDIR
+    )
+fi
+
+if [ $do_tar -eq 1 ]
+then
+    find $IMAGE -type d | xargs -n50 chmod 755
+
+    cd $IMAGE
+    find . \! -type d | pax -w -x ustar | gzip >$RESULT
+fi
+

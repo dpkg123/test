@@ -1,0 +1,40 @@
+We also need to sort the constructors properly to get constructor order
+stuff working.
+
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc
+--- //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc	Thu Mar 25 02:15:29 1999
++++ //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc	Mon Mar 29 11:22:54 1999
+@@ -16,7 +16,7 @@ if test "${RELOCATING}"; then
+   R_DATA='*(SORT(.data$*))'
+   R_RDATA='*(SORT(.rdata$*))'
+   R_IDATA='
+-    SORT(*)(.idata$2)
++    SORT(*)(.idata$2)  /* here we sort by filename! */
+     SORT(*)(.idata$3)
+     /* These zeroes mark the end of the import list.  */
+     LONG (0); LONG (0); LONG (0); LONG (0); LONG (0);
+@@ -69,17 +69,19 @@ SECTIONS
+  
+     /* collect constructors only for final links */
+     ${RELOCATING+
++        LONG (-1)
+         KEEP (*(.ctor_head))
+-	KEEP (*(SORT(.ctors.*)))
++	KEEP (*(SORT(.ctors.*)))   /* Here we sort by section name! */
+         KEEP (*(.ctors))
+         KEEP (*(.ctor))
+-        LONG (0);
+-
++        LONG (0)
++
++        LONG (-1)
+         KEEP (*(.dtor_head))
+ 	KEEP (*(SORT(.dtors.*)))
+         KEEP (*(.dtors))
+         KEEP (*(.dtor))
+-        LONG (0);
++        LONG (0)
+     }
+     ${RELOCATING+ *(.fini)}
+     /* ??? Why is .gcc_exc here?  */

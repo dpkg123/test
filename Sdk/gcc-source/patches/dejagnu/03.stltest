@@ -1,0 +1,18 @@
+Wasn't testing for STL3 any longer.  (nickc notified.)
+
+########################
+Be sure to remove autoconf in e.makeit when removing this!
+########################
+
+--- configure.in.bak	Thu Oct  3 18:01:16 2002
++++ configure.in	Thu Oct  3 17:44:49 2002
+@@ -19,6 +19,9 @@ dnl AM_PROG_LEX
+ dnl we need the path to Docbook so we can build packages.
+ DJ_AC_PATH_DOCBOOK
+ 
++dnl check for STL version
++DJ_AC_STL
++
+ dnl we need the path to the tcl shell to build a release
+ DJ_AC_PATH_TCLSH
+ 

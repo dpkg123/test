@@ -1,0 +1,44 @@
+Add .ident pseudo for consistency with alpha, customer request for
+support of #pragma ident.
+
+	* config/obj-coff.c (obj_coff_ident): New.
+	* config/obj-coff.c (obj_pseudo_table): add ident, 
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/obj-coff.c gas/config/obj-coff.c
+--- gas.orig/config/obj-coff.c	Fri Aug 20 14:00:39 1999
++++ gas/config/obj-coff.c	Fri Aug 20 14:18:35 1999
+@@ -1295,6 +1427,25 @@ obj_coff_section (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_ident PARAMS ((int));
++static void
++obj_coff_ident (ignore)
++     int ignore;
++{
++  asection *sec;
++
++  segT current_seg = now_seg;		/* save current seg	*/
++  subsegT current_subseg = now_subseg;
++  /* we could put it in .comment, but that creates an extra section
++     that shouldn't be loaded into memory, which requires linker changes...
++     For now, until proven otherwise, use .rdata */
++  sec = subseg_new (".rdata$zzz", 0);
++  bfd_set_section_flags (stdoutput, sec, 
++	 (SEC_ALLOC|SEC_LOAD|SEC_READONLY|SEC_DATA) & bfd_applicable_section_flags (stdoutput));
++  stringer (1);				/* read string		*/
++  subseg_set (current_seg, current_subseg);	/* restore current seg	*/
++}
++
+ void
+ coff_adjust_symtab ()
+ {
+@@ -4417,7 +4573,7 @@ const pseudo_typeS obj_pseudo_table[] =
+   {"ident", obj_coff_ident, 0},
+ #else
+   {"optim", s_ignore, 0},	/* For sun386i cc (?) */
+-  {"ident", s_ignore, 0},	/* we don't yet handle this. */
++  {"ident", obj_coff_ident, 0},
+ #endif
+   {"version", s_ignore, 0},
+   {"ABORT", s_abort, 0},

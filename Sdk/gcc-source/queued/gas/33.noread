@@ -1,0 +1,75 @@
+Support for NOREAD flag.  See corresponding BFD change for details.
+
+	* config/obj-coff.c: (obj_coff_section) Recognize 'y' as
+	unreadable section flag.
+
+diff -urpPd --exclude-from=exclude.files config/obj-coff.c.orig config/obj-coff.c
+--- config/obj-coff.c.orig	Sat Mar 18 15:19:38 2000
++++ config/obj-coff.c	Fri Mar 10 16:22:15 2000
+@@ -1410,6 +1410,7 @@ coff_frob_file_after_relocs ()
+                                                  'x' for text
+   						 'r' for read-only data
+   						 's' for shared data (PE)
++						 'y' for nonreadable data
+    But if the argument is not a quoted string, treat it as a
+    subsegment number.
+ 
+@@ -1423,7 +1423,9 @@ obj_coff_section (ignore)
+   unsigned int exp;
+   flagword flags, oldflags;
+   asection *sec;
+-
++  boolean set_flags[sec_flag_last];
++  enum section_sec_flags flagval;
++
+   if (flag_mri)
+     {
+       char type;
+@@ -1445,6 +1447,8 @@ obj_coff_section (ignore)
+   exp = 0;
+   flags = SEC_NO_FLAGS;
+ 
++  memset(set_flags, 0, sizeof(set_flags));
++
+   if (*input_line_pointer == ',')
+     {
+       ++input_line_pointer;
+@@ -1474,6 +1476,7 @@ obj_coff_section (ignore)
+ 		case 'a': break; /* For compatability with ELF.  */
+ 		case 'x': flags |= SEC_CODE | SEC_LOAD; break;
+ 		case 'r': flags |= SEC_READONLY; break;
++ 		case 'y': set_flags[sec_flag_NOREAD] = true; break;
+ 
+ 		case 'i': /* STYP_INFO */
+ 		case 'l': /* STYP_LIB */
+@@ -1508,6 +1513,14 @@ obj_coff_section (ignore)
+         as_warn (_("error setting flags for \"%s\": %s"),
+                  bfd_section_name (stdoutput, sec),
+                  bfd_errmsg (bfd_get_error ()));
++
++      for (flagval=0; flagval < sec_flag_last; flagval++) 
++	{
++	  if (set_flags[flagval]) 
++	    {
++	      bfd_set_section_flag_value(bfd, sec, flagval);
++	    }
++        }
+     }
+   else if (flags != SEC_NO_FLAGS)
+     {
+@@ -1517,6 +1530,15 @@ obj_coff_section (ignore)
+ 			     | SEC_DATA | SEC_SHARED | SEC_NEVER_LOAD);
+       if ((flags ^ oldflags) & matchflags)
+ 	as_warn (_("Ignoring changed section attributes for %s"), name);
++
++      for (flagval=0; flagval < sec_flag_last; flagval++) 
++	{
++	  if (flagval == sec_flag_NOREAD   /* add more here */
++	  && set_flags[flagval] != bfd_section_flag_value(abfd, sec, flagval))
++	    {
++	      as_warn (_("Ignoring changed section attributes for %s"), name);
++	    }
++        }
+     }
+ 
+   demand_empty_rest_of_line ();

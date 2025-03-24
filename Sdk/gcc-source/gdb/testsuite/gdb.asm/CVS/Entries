@@ -1,0 +1,20 @@
+/Makefile.in/1.2/Fri Apr  5 02:48:23 2002/-ko/
+/arm.inc/1.1/Thu Dec 20 22:12:20 2001//
+/asm-source.exp/1.27/Fri Nov  8 03:21:33 2002/-ko/
+/asmsrc1.s/1.5/Tue Oct 22 01:43:37 2002/-ko/
+/asmsrc2.s/1.4/Tue Oct 22 01:43:37 2002/-ko/
+/common.inc/1.3/Tue Oct 22 01:43:37 2002/-ko/
+/configure/1.10/Sun Apr  7 23:57:23 2002/-ko/
+/configure.in/1.10/Sun Apr  7 23:57:23 2002/-ko/
+/d10v.inc/1.4/Tue Dec  4 19:45:57 2001/-ko/
+/i386.inc/1.2/Tue Dec  4 19:45:57 2001//
+/m32r.inc/1.1/Thu Nov 22 01:13:10 2001//
+/mips.inc/1.1/Tue Oct 22 01:43:37 2002//
+/powerpc.inc/1.1/Fri Apr  5 02:48:33 2002//
+/s390.inc/1.2/Mon Dec  3 21:53:16 2001//
+/sparc.inc/1.1/Tue Nov 27 01:29:03 2001//
+/sparc64.inc/1.1/Fri Apr 19 17:21:48 2002//
+/v850.inc/1.1/Tue May 14 10:25:33 2002//
+/x86_64.inc/1.1/Thu Jun  6 15:19:17 2002//
+/xstormy16.inc/1.1/Thu Dec 13 13:42:19 2001//
+D

@@ -1,0 +1,137 @@
+On PE (at least) there are times when being able to change the size
+of a section is useful.  Objcopy does not provide a way to do this.
+This patch adds --change-section-size similar to the other --change-*
+functions.
+
+	* objcopy.c (struct_section_list): add change-size fields.
+	(OPTION_CHANGE_SECTION_LIST): add. 
+	(copy_options) init --change-section-size opion.  
+	(copy_usage) gripe about errors.
+	(find_section_list): test for it.
+	(copy_object): change size appropriately.
+	(setup_section): set section info appropriately.
+	(copy_main): recognize change of size; gripe if unused.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files objcopy.c.orig objcopy.c
+--- objcopy.c.orig	Sat Mar 18 15:26:17 2000
++++ objcopy.c	Fri Mar 10 15:33:26 2000
+@@ -116,6 +116,8 @@ struct section_list
+   bfd_vma 		vma_val;   /* Amount to change by or set to.  */
+   enum change_action    change_lma;/* Whether to change or set LMA.  */
+   bfd_vma 		lma_val;   /* Amount to change by or set to.  */
++  enum change_action    change_size;/* Whether to change or set size.  */
++  bfd_vma 		size_val;  /* Amount to change by or set to.  */
+   boolean 		set_flags; /* Whether to set the section flags.  */
+   flagword 		flags;     /* What to set the section flags to.  */
+ };
+@@ -192,7 +194,8 @@ static boolean weaken = false;
+ #define OPTION_CHANGE_SECTION_ADDRESS (OPTION_CHANGE_START + 1)
+ #define OPTION_CHANGE_SECTION_LMA (OPTION_CHANGE_SECTION_ADDRESS + 1)
+ #define OPTION_CHANGE_SECTION_VMA (OPTION_CHANGE_SECTION_LMA + 1)
+-#define OPTION_CHANGE_WARNINGS (OPTION_CHANGE_SECTION_VMA + 1)
++#define OPTION_CHANGE_SECTION_SIZE (OPTION_CHANGE_SECTION_VMA + 1)
++#define OPTION_CHANGE_WARNINGS (OPTION_CHANGE_SECTION_SIZE + 1)
+ #define OPTION_DEBUGGING (OPTION_CHANGE_WARNINGS + 1)
+ #define OPTION_GAP_FILL (OPTION_DEBUGGING + 1)
+ #define OPTION_NO_CHANGE_WARNINGS (OPTION_GAP_FILL + 1)
+@@ -243,6 +246,7 @@ static struct option copy_options[] =
+   {"change-section-address", required_argument, 0, OPTION_CHANGE_SECTION_ADDRESS},
+   {"change-section-lma", required_argument, 0, OPTION_CHANGE_SECTION_LMA},
+   {"change-section-vma", required_argument, 0, OPTION_CHANGE_SECTION_VMA},
++  {"change-section-size", required_argument, 0, OPTION_CHANGE_SECTION_SIZE},
+   {"change-start", required_argument, 0, OPTION_CHANGE_START},
+   {"change-warnings", no_argument, 0, OPTION_CHANGE_WARNINGS},
+   {"debugging", no_argument, 0, OPTION_DEBUGGING},
+@@ -330,6 +334,8 @@ copy_usage (stream, exit_status)
+                                    Change the LMA of section <name> by <val>\n\
+      --change-section-vma <name>{=|+|-}<val>\n\
+                                    Change the VMA of section <name> by <val>\n\
++     --change-section-size <name>{=|+|-}<val>\n\
++                                   Change the size of section <name> by <val>\n\
+ "));
+   fprintf (stream, _("\
+     {--[no-]change-warnings|--[no-]adjust-warnings}\n\
+@@ -460,8 +466,10 @@ find_section_list (name, add)
+   p->copy = false;
+   p->change_vma = CHANGE_IGNORE;
+   p->change_lma = CHANGE_IGNORE;
++  p->change_size = CHANGE_IGNORE;
+   p->vma_val = 0;
+   p->lma_val = 0;
++  p->size_val = 0;
+   p->set_flags = false;
+   p->flags = 0;
+ 
+@@ -763,6 +771,10 @@ copy_object (ibfd, obfd)
+ 			   bfd_section_alignment (obfd, padd->section)))
+ 			RETURN_NONFATAL (bfd_get_filename (obfd));
+ 		    }
++
++		  if (pset->change_size != CHANGE_IGNORE)
++		    if (! bfd_set_section_size (obfd, padd->section, pset->size_val))
++		      RETURN_NONFATAL (bfd_get_filename (obfd));
+ 		}
+ 	    }
+ 	}
+@@ -1206,6 +1218,11 @@ setup_section (ibfd, isection, obfdarg)
+     }
+ 
+   size = bfd_section_size (ibfd, isection);
++  if (p != NULL && p->change_size == CHANGE_MODIFY)
++    size += p->size_val;
++  else if (p != NULL && p->change_size == CHANGE_SET)
++    size = p->size_val;
++
+   if (copy_byte >= 0)
+     size = (size + interleave - 1) / interleave;
+   if (! bfd_set_section_size (obfd, osection, size))
+@@ -1860,6 +1877,7 @@ copy_main (argc, argv)
+ 	case OPTION_CHANGE_SECTION_ADDRESS:
+ 	case OPTION_CHANGE_SECTION_LMA:
+ 	case OPTION_CHANGE_SECTION_VMA:
++	case OPTION_CHANGE_SECTION_SIZE:
+ 	  {
+ 	    const char *s;
+ 	    int len;
+@@ -1879,6 +1897,9 @@ copy_main (argc, argv)
+ 	      case OPTION_CHANGE_SECTION_VMA:
+ 		option = "--change-section-vma";
+ 		break;
++	      case OPTION_CHANGE_SECTION_SIZE:
++		option = "--change-section-size";
++		break;
+ 	      }
+ 	    
+ 	    s = strchr (optarg, '=');
+@@ -1925,6 +1946,11 @@ copy_main (argc, argv)
+ 		p->change_vma = what;
+ 		p->vma_val    = val;
+ 		break;
++
++	      case OPTION_CHANGE_SECTION_SIZE:
++		p->change_size = what;
++		p->size_val    = val;
++		break;
+ 	      }
+ 	  }
+ 	  break;
+@@ -2082,6 +2108,19 @@ copy_main (argc, argv)
+ 		  non_fatal (_("Warning: --change-section-lma %s%c0x%s never used"),
+ 			     p->name,
+ 			     p->change_lma == CHANGE_SET ? '=' : '+',
++			     buff);
++		}
++
++	      if (p->change_size != CHANGE_IGNORE)
++		{
++		  char buff [20];
++
++		  sprintf_vma (buff, p->size_val);
++		  
++		  /* xgettext:c-format */
++		  non_fatal (_("Warning: --change-section-size %s%c0x%s never used"),
++			     p->name,
++			     p->change_size == CHANGE_SET ? '=' : '+',
+ 			     buff);
+ 		}
+ 	    }

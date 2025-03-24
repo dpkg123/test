@@ -1,0 +1,4 @@
+q-patch dejagnu 01 2
+# q-patch dejagnu 02 2   # appears obsolete, but need to test to confirm. 5/14
+q-patch dejagnu 03 0
+#q-patch dejagnu 101 1

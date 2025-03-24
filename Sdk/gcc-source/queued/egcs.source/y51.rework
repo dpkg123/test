@@ -1,0 +1,704 @@
+There had accrued a lot of historical differences between cygwin.h and
+interix.h that weren't necessary.  Although still significantly different,
+what could be shared is now shared, and they are in roughly the same order.
+This should make maintenance easier.
+
+There are also a few real changes in here, associated with using the
+winnt.c stuff, and ASM_FILE_START, ASM_DECLARE_FUNCTION_NAME
+ASM_OUTPUT_EXTERNAL, and ASM_OUTPUT_EXTERNAL_LIBCALL, and ASM_FILE_END.
+N.B.  The change to ASM_FILE_END may remove the need for some code that
+tests whether a symbol's type is T_NULL or not in bfd.  However, it won't
+hurt to leave it there.
+
+This also allows Interix to use winnt.c, rather than interix.c, which
+is fully deleted.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved/config/i386/i386-interix.h.orig gcc/config/i386/i386-interix.h
+--- gcc.saved/config/i386/i386-interix.h.orig	Mon Apr  1 11:51:10 2002
++++ gcc/config/i386/i386-interix.h	Mon Apr  1 14:34:05 2002
+@@ -24,18 +24,22 @@ along with GNU CC; see the file COPYING.
+ the Free Software Foundation, 59 Temple Place - Suite 330,
+ Boston, MA 02111-1307, USA.  */
+ 
++/* Note: Interix doesn't support user-written DLLs (use conventional
++   shared libs (.so) instead).  Thus a lot of the stuff that might apply
++   about dllimport/dllexport and the like does not apply here. */
++
++/* YES_UNDERSCORES must precede gas.h */
+ #define YES_UNDERSCORES
+ 
+-/* YES_UNDERSCORES must precede gas.h */
+-#include <i386/gas.h>
+-/* The rest must follow.  */
+-
+-#undef TARGET_ASM_CONSTRUCTOR
+-
+ #define DBX_DEBUGGING_INFO
+ #define SDB_DEBUGGING_INFO
+ #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+ 
++#include <i386/gas.h>
++#include <stdio.h>
++
++#undef TARGET_ASM_CONSTRUCTOR
++
+ #define HANDLE_SYSV_PRAGMA
+ #undef HANDLE_PRAGMA_WEAK  /* until the link format can handle it */
+ 
+@@ -52,28 +56,8 @@ Boston, MA 02111-1307, USA.  */
+ { "ms-bitfields", MASK_MS_BITFIELD_LAYOUT, N_("Use native (MS) bitfield layout") }, \
+ { "no-ms-bitfields", -MASK_MS_BITFIELD_LAYOUT, N_("use gcc default bitfield layout") },
+ 
+-
+-/* By default, target has a 80387, uses IEEE compatible arithmetic,
+-   and returns float values in the 387 and needs stack probes
+-   We also align doubles to 64-bits for MSVC default compatibility
+-   We do bitfields MSVC-compatably by default, too. */
+-#undef TARGET_SUBTARGET_DEFAULT
+-#define TARGET_SUBTARGET_DEFAULT \
+-   (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_STACK_PROBE | \
+-    MASK_ALIGN_DOUBLE | MASK_MS_BITFIELD_LAYOUT)
+-
+-#undef TARGET_CPU_DEFAULT
+-#define TARGET_CPU_DEFAULT 2 /* 486 */
+-
+-#define WCHAR_UNSIGNED 1
+-#define WCHAR_TYPE_SIZE 16
+-#define WCHAR_TYPE "short unsigned int"
+-
+-/* WinNT (and thus Interix) use unsigned int */
+-#define SIZE_TYPE "unsigned int"
+-
+-#define ASM_LOAD_ADDR(loc, reg)   "     leal " #loc "," #reg "\n"
+-
++/* Most *_SPEC entries are found in config/interix.h */
++
+ /* cpp handles __STDC__ */
+ #undef CPP_PREDEFINES
+ #define CPP_PREDEFINES " \
+@@ -103,171 +87,18 @@ Boston, MA 02111-1307, USA.  */
+ %{posix:-D_POSIX_SOURCE} \
+ -isystem %$INTERIX_ROOT/usr/include"
+ 
+-#undef TARGET_VERSION
+-#define TARGET_VERSION fprintf (stderr, " (i386 Interix)");
+-
+-/* The global __fltused is necessary to cause the printf/scanf routines
+-   for outputting/inputting floating point numbers to be loaded.  Since this
+-   is kind of hard to detect, we just do it all the time.  */
+-
+-#ifdef ASM_FILE_START
+-#undef ASM_FILE_START
+-#endif
+-#define ASM_FILE_START(FILE) \
+-  do {  fprintf (FILE, "\t.file\t");                            \
+-        output_quoted_string (FILE, dump_base_name);            \
+-        fprintf (FILE, "\n");                                   \
+-        fprintf (FILE, ".global\t__fltused\n");                 \
+-  } while (0)
+-
+-/* A table of bytes codes used by the ASM_OUTPUT_ASCII and
+-   ASM_OUTPUT_LIMITED_STRING macros.  Each byte in the table
+-   corresponds to a particular byte value [0..255].  For any
+-   given byte value, if the value in the corresponding table
+-   position is zero, the given character can be output directly.
+-   If the table value is 1, the byte must be output as a \ooo
+-   octal escape.  If the tables value is anything else, then the
+-   byte value should be output as a \ followed by the value
+-   in the table.  Note that we can use standard UN*X escape
+-   sequences for many control characters, but we don't use
+-   \a to represent BEL because some svr4 assemblers (e.g. on
+-   the i386) don't know about that.  Also, we don't use \v
+-   since some versions of gas, such as 2.2 did not accept it.  */
+-
+-#define ESCAPES \
+-"\1\1\1\1\1\1\1\1btn\1fr\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\
+-\0\0\"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\
+-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\\\0\0\0\
+-\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1\
+-\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\
+-\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\
+-\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\
+-\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1"
+-
+-/* Some svr4 assemblers have a limit on the number of characters which
+-   can appear in the operand of a .string directive.  If your assembler
+-   has such a limitation, you should define STRING_LIMIT to reflect that
+-   limit.  Note that at least some svr4 assemblers have a limit on the
+-   actual number of bytes in the double-quoted string, and that they
+-   count each character in an escape sequence as one byte.  Thus, an
+-   escape sequence like \377 would count as four bytes.
+-
+-   If your target assembler doesn't support the .string directive, you
+-   should define this to zero.
+-*/
+-
+-#define STRING_LIMIT	((unsigned) 256)
+-
+-#define STRING_ASM_OP	"\t.string\t"
+-
+-/* The routine used to output NUL terminated strings.  We use a special
+-   version of this for most svr4 targets because doing so makes the
+-   generated assembly code more compact (and thus faster to assemble)
+-   as well as more readable, especially for targets like the i386
+-   (where the only alternative is to output character sequences as
+-   comma separated lists of numbers).   */
+-
+-#define ASM_OUTPUT_LIMITED_STRING(FILE, STR)				\
+-  do									\
+-    {									\
+-      register const unsigned char *_limited_str =			\
+-        (const unsigned char *) (STR);					\
+-      register unsigned ch;						\
+-      fprintf ((FILE), "%s\"", STRING_ASM_OP);				\
+-      for (; (ch = *_limited_str); _limited_str++)			\
+-        {								\
+-	  register int escape = ESCAPES[ch];				\
+-	  switch (escape)						\
+-	    {								\
+-	    case 0:							\
+-	      putc (ch, (FILE));					\
+-	      break;							\
+-	    case 1:							\
+-	      fprintf ((FILE), "\\%03o", ch);				\
+-	      break;							\
+-	    default:							\
+-	      putc ('\\', (FILE));					\
+-	      putc (escape, (FILE));					\
+-	      break;							\
+-	    }								\
+-        }								\
+-      fprintf ((FILE), "\"\n");						\
+-    }									\
+-  while (0)
+-
+-/* The routine used to output sequences of byte values.  We use a special
+-   version of this for most svr4 targets because doing so makes the
+-   generated assembly code more compact (and thus faster to assemble)
+-   as well as more readable.  Note that if we find subparts of the
+-   character sequence which end with NUL (and which are shorter than
+-   STRING_LIMIT) we output those using ASM_OUTPUT_LIMITED_STRING.  */
+-
+-#undef ASM_OUTPUT_ASCII
+-#define ASM_OUTPUT_ASCII(FILE, STR, LENGTH)				\
+-  do									\
+-    {									\
+-      register const unsigned char *_ascii_bytes =			\
+-        (const unsigned char *) (STR);					\
+-      register const unsigned char *limit = _ascii_bytes + (LENGTH);	\
+-      register unsigned bytes_in_chunk = 0;				\
+-      for (; _ascii_bytes < limit; _ascii_bytes++)			\
+-        {								\
+-	  register const unsigned char *p;				\
+-	  if (bytes_in_chunk >= 64)					\
+-	    {								\
+-	      fputc ('\n', (FILE));					\
+-	      bytes_in_chunk = 0;					\
+-	    }								\
+-	  for (p = _ascii_bytes; p < limit && *p != '\0'; p++)		\
+-	    continue;							\
+-	  if (p < limit && (p - _ascii_bytes) <= (long) STRING_LIMIT)	\
+-	    {								\
+-	      if (bytes_in_chunk > 0)					\
+-		{							\
+-		  fputc ('\n', (FILE));					\
+-		  bytes_in_chunk = 0;					\
+-		}							\
+-	      ASM_OUTPUT_LIMITED_STRING ((FILE), _ascii_bytes);		\
+-	      _ascii_bytes = p;						\
+-	    }								\
+-	  else								\
+-	    {								\
+-	      if (bytes_in_chunk == 0)					\
+-		fprintf ((FILE), "\t.byte\t");				\
+-	      else							\
+-		fputc (',', (FILE));					\
+-	      fprintf ((FILE), "0x%02x", *_ascii_bytes);		\
+-	      bytes_in_chunk += 5;					\
+-	    }								\
+-	}								\
+-      if (bytes_in_chunk > 0)						\
+-        fprintf ((FILE), "\n");						\
+-    }									\
+-  while (0)
+-
+-/* Emit code to check the stack when allocating more that 4000
+-   bytes in one go.  */
+-
+-#define CHECK_STACK_LIMIT 0x1000
+-
+-/* the following are OSF linker (not gld) specific... we don't want them */
+-#undef HAS_INIT_SECTION
+-#undef LD_INIT_SWITCH
+-#undef LD_FINI_SWITCH
+-
+-#define EH_FRAME_IN_DATA_SECTION
+-
+-/* Note that there appears to be two different ways to support const
+-   sections at the moment.  You can either #define the symbol
+-   READONLY_DATA_SECTION (giving it some code which switches to the
+-   readonly data section) or else you can #define the symbols
+-   EXTRA_SECTIONS, EXTRA_SECTION_FUNCTIONS, SELECT_SECTION, and
+-   SELECT_RTX_SECTION.  We do both here just to be on the safe side.  */
+-
+-#define USE_CONST_SECTION	1
+-
+-#define CONST_SECTION_ASM_OP	"\t.section\t.rdata,\"r\""
+-
++#define SIZE_TYPE "unsigned int"
++#define PTRDIFF_TYPE "int"
++#define WCHAR_UNSIGNED 1
++#define WCHAR_TYPE_SIZE 16
++#define WCHAR_TYPE "unsigned short"
++
++/* Enable parsing of #pragma pack(push,<n>) and #pragma pack(pop).  */
++#define HANDLE_PRAGMA_PACK_PUSH_POP 1
++
++union tree_node;
++#define TREE union tree_node *
++
+ /* A default list of other sections which we might be "in" at any given
+    time.  For targets that use additional sections (e.g. .tdesc) you
+    should override this definition in the target-specific file which
+@@ -300,70 +131,6 @@ const_section ()							\
+     }									\
+ }
+ 
+-/* The MS compilers take alignment as a number of bytes, so we do as well */
+-#undef ASM_OUTPUT_ALIGN
+-#define ASM_OUTPUT_ALIGN(FILE,LOG) \
+-  if ((LOG)!=0) fprintf ((FILE), "\t.balign %d\n", 1<<(LOG))
+-
+-/* The linker will take care of this, and having them causes problems with
+-   ld -r (specifically -rU).  */
+-#define CTOR_LISTS_DEFINED_EXTERNALLY 1
+-
+-/* If using MS bitfield layout, alignment is limited to 32 bits even if the
+-   overall default is larger. */
+-#define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED)			      \
+-  ((TYPE_NATIVE((RLI)->t) && (COMPUTED) > 32) ? 32 : (COMPUTED))
+-
+-#define SET_ASM_OP	"\t.set\t"
+-/* Output a definition (implements alias) */
+-#define ASM_OUTPUT_DEF(FILE,LABEL1,LABEL2)				\
+-do									\
+-{									\
+-    fprintf ((FILE), "%s", SET_ASM_OP);					\
+-    assemble_name (FILE, LABEL1);					\
+-    fprintf (FILE, ",");						\
+-    assemble_name (FILE, LABEL2);					\
+-    fprintf (FILE, "\n");						\
+-    }									\
+-while (0)
+-
+-#define HOST_PTR_PRINTF "%p"
+-#define HOST_PTR_AS_INT unsigned long
+-
+-#define PCC_BITFIELD_TYPE_MATTERS 1
+-
+-/* The following two flags are usually "off" for i386, because some non-gnu
+-   tools (for the i386) don't handle them.  However, we don't have that
+-   problem, so....  */
+-
+-/* Forward references to tags are allowed.  */
+-#define SDB_ALLOW_FORWARD_REFERENCES
+-
+-/* Unknown tags are also allowed.  */
+-#define SDB_ALLOW_UNKNOWN_REFERENCES
+-
+-/* The integer half of this list needs to be constant.  However, there's
+-   a lot of disagreement about what the floating point adjustments should
+-   be.  We pick one that works with gdb.  (The underlying problem is
+-   what to do about the segment registers.  Since we have access to them
+-   from /proc, we'll allow them to be accessed in gdb, even tho the
+-   gcc compiler can't generate them.  (There's some evidence that 
+-   MSVC does, but possibly only for certain special "canned" sequences.) */
+-
+-#undef DBX_REGISTER_NUMBER
+-#define DBX_REGISTER_NUMBER(n) \
+-(TARGET_64BIT ? dbx64_register_map[n] \
+- : (n) == 0 ? 0 \
+- : (n) == 1 ? 2 \
+- : (n) == 2 ? 1 \
+- : (n) == 3 ? 3 \
+- : (n) == 4 ? 6 \
+- : (n) == 5 ? 7 \
+- : (n) == 6 ? 5 \
+- : (n) == 7 ? 4 \
+- : ((n) >= FIRST_STACK_REG && (n) <= LAST_STACK_REG) ? (n)+8 \
+- : (-1))
+-
+ /* Define this macro if references to a symbol must be treated
+    differently depending on something about the variable or
+    function named by the symbol (such as what section it is in).
+@@ -416,19 +183,38 @@ do {									\
+   else									\
+     (VAR) = _name;							\
+ } while (0)
+-      
++
++/* Emit code to check the stack when allocating more that 4000
++   bytes in one go.  */
++
++#define CHECK_STACK_LIMIT 4000
++
++/* By default, target has a 80387, uses IEEE compatible arithmetic,
++   and returns float values in the 387 and needs stack probes
++   We also align doubles to 64-bits for MSVC default compatibility
++   Ditto for bitfields. */
++#undef TARGET_SUBTARGET_DEFAULT
++#define TARGET_SUBTARGET_DEFAULT \
++   (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_STACK_PROBE | \
++    MASK_ALIGN_DOUBLE | MASK_MS_BITFIELD_LAYOUT)
++
++#undef TARGET_CPU_DEFAULT
++#define TARGET_CPU_DEFAULT 2 /* 486 */
++
++#undef TARGET_VERSION
++#define TARGET_VERSION fprintf (stderr, " (i386 Interix)");
++
++/* The MS compilers take alignment as a number of bytes, so we do as well */
++#undef ASM_OUTPUT_ALIGN
++#define ASM_OUTPUT_ALIGN(FILE,LOG) \
++  if ((LOG)!=0) fprintf ((FILE), "\t.balign %d\n", 1<<(LOG))
++
+ /* Define this macro if in some cases global symbols from one translation
+    unit may not be bound to undefined symbols in another translation unit
+    without user intervention.  For instance, under Microsoft Windows
+    symbols must be explicitly imported from shared libraries (DLLs).  */
+ #define MULTIPLE_SYMBOL_SPACES
+ 
+-/* Enable parsing of #pragma pack(push,<n>) and #pragma pack(pop).  */
+-#define HANDLE_PRAGMA_PACK_PUSH_POP 1
+-
+-union tree_node;
+-#define TREE union tree_node *
+-
+ extern void i386_pe_unique_section PARAMS ((TREE, int));
+ #define UNIQUE_SECTION(DECL,RELOC) i386_pe_unique_section (DECL, RELOC)
+ 
+@@ -437,17 +223,175 @@ extern void i386_pe_unique_section PARAM
+ /* Switch into a generic section.  */
+ #define TARGET_ASM_NAMED_SECTION  default_pe_asm_named_section
+ 
+-/* DWARF2 Unwinding doesn't work with exception handling yet.  */
+-#define DWARF2_UNWIND_INFO 0
+-
++/* Select attributes for named sections.  */
++#define TARGET_SECTION_TYPE_FLAGS  i386_pe_section_type_flags
++
++/* Write the extra assembler code needed to declare a function
++   properly.  If we are generating SDB debugging information, this
++   will happen automatically, so we only need to handle other cases.  */
++#undef ASM_DECLARE_FUNCTION_NAME
++#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
++  do									\
++    {									\
++      if (write_symbols != SDB_DEBUG)					\
++	i386_pe_declare_function_type (FILE, NAME, TREE_PUBLIC (DECL));	\
++      ASM_OUTPUT_LABEL (FILE, NAME);					\
++    }									\
++  while (0)
++
++/* Add an external function to the list of functions to be declared at
++   the end of the file.  */
++#define ASM_OUTPUT_EXTERNAL(FILE, DECL, NAME)				\
++  do									\
++    {									\
++      if (TREE_CODE (DECL) == FUNCTION_DECL)				\
++	i386_pe_record_external_function (NAME);			\
++    }									\
++  while (0)
++
++/* Declare the type properly for any external libcall.  */
++#define ASM_OUTPUT_EXTERNAL_LIBCALL(FILE, FUN) \
++  i386_pe_declare_function_type (FILE, XSTR (FUN, 0), 1)
++
++/* This says out to put a global symbol in the BSS section.  */
++#undef ASM_OUTPUT_ALIGNED_BSS
++#define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN) \
++  asm_output_aligned_bss ((FILE), (DECL), (NAME), (SIZE), (ALIGN))
++
++/* Output function declarations at the end of the file.  */
++#undef ASM_FILE_END
++#define ASM_FILE_END(FILE) \
++  i386_pe_asm_file_end (FILE)
++
++#undef ASM_COMMENT_START
++#define ASM_COMMENT_START " #"
++
+ /* Don't assume anything about the header files.  */
+ #define NO_IMPLICIT_EXTERN_C
+ 
+-/* MSVC returns structs of up to 8 bytes via registers. */
+-
++/* External function declarations.  */
++extern void i386_pe_record_external_function PARAMS ((const char *));
++extern void i386_pe_declare_function_type PARAMS ((FILE *, const char *, int));
++extern void i386_pe_record_exported_symbol PARAMS ((const char *, int));
++extern void i386_pe_asm_file_end PARAMS ((FILE *));
++
++/* For Win32 ABI compatibility */
++#undef DEFAULT_PCC_STRUCT_RETURN
+ #define DEFAULT_PCC_STRUCT_RETURN 0
+ 
++/* A bitfield declared as `int' forces `int' alignment for the struct.  */
++#undef PCC_BITFIELD_TYPE_MATTERS 
++#define PCC_BITFIELD_TYPE_MATTERS 1
++
++/* Enable alias attribute support.  */
++#ifndef SET_ASM_OP
++#define SET_ASM_OP "\t.set\t"
++#endif
++
++/* If using MS bitfield layout, alignment is limited to 32 bits even if the
++   overall default is larger. */
++#define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED)			      \
++  ((TYPE_NATIVE((RLI)->t) && (COMPUTED) > 32) ? 32 : (COMPUTED))
++
++/* Note that there appears to be two different ways to support const
++   sections at the moment.  You can either #define the symbol
++   READONLY_DATA_SECTION (giving it some code which switches to the
++   readonly data section) or else you can #define the symbols
++   EXTRA_SECTIONS, EXTRA_SECTION_FUNCTIONS, SELECT_SECTION, and
++   SELECT_RTX_SECTION.  We do both here just to be on the safe side.  */
++
++#define USE_CONST_SECTION	1
++
++#define CONST_SECTION_ASM_OP	"\t.section\t.rdata,\"r\""
++/* The linker will take care of this, and having them causes problems with
++   ld -r (specifically -rU).  */
++#define CTOR_LISTS_DEFINED_EXTERNALLY 1
++
++/* Output a definition (implements alias) */
++#define ASM_OUTPUT_DEF(FILE,LABEL1,LABEL2)				\
++do									\
++{									\
++    fprintf ((FILE), "%s", SET_ASM_OP);					\
++    assemble_name (FILE, LABEL1);					\
++    fprintf (FILE, ",");						\
++    assemble_name (FILE, LABEL2);					\
++    fprintf (FILE, "\n");						\
++    }									\
++while (0)
++
++#define HOST_PTR_PRINTF "%p"
++#define HOST_PTR_AS_INT unsigned long
++
++/* The following two flags are usually "off" for i386, because some non-gnu
++   tools (for the i386) don't handle them.  However, we don't have that
++   problem, so....  */
++
++/* Forward references to tags are allowed.  */
++#define SDB_ALLOW_FORWARD_REFERENCES
++
++/* Unknown tags are also allowed.  */
++#define SDB_ALLOW_UNKNOWN_REFERENCES
++
++/* DWARF2 Unwinding doesn't work with exception handling yet.  */
++#define DWARF2_UNWIND_INFO 0
++/* MSVC returns structs of up to 8 bytes via registers. */
++
+ #undef RETURN_IN_MEMORY
+ #define RETURN_IN_MEMORY(TYPE) \
+   (TYPE_MODE (TYPE) == BLKmode || \
+      (AGGREGATE_TYPE_P (TYPE) && int_size_in_bytes(TYPE) > 8 ))
++
++#define ASM_LOAD_ADDR(loc, reg)   "     leal " #loc "," #reg "\n"
++
++/* The integer half of this list needs to be constant.  However, there's
++   a lot of disagreement about what the floating point adjustments should
++   be.  We pick one that works with gdb.  (The underlying problem is
++   what to do about the segment registers.  Since we have access to them
++   from /proc, we'll allow them to be accessed in gdb, even tho the
++   gcc compiler can't generate them.  (There's some evidence that 
++   MSVC does, but possibly only for certain special "canned" sequences.) */
++
++#undef DBX_REGISTER_NUMBER
++#define DBX_REGISTER_NUMBER(n) \
++(TARGET_64BIT ? dbx64_register_map[n] \
++ : (n) == 0 ? 0 \
++ : (n) == 1 ? 2 \
++ : (n) == 2 ? 1 \
++ : (n) == 3 ? 3 \
++ : (n) == 4 ? 6 \
++ : (n) == 5 ? 7 \
++ : (n) == 6 ? 5 \
++ : (n) == 7 ? 4 \
++ : ((n) >= FIRST_STACK_REG && (n) <= LAST_STACK_REG) ? (n)+8 \
++ : (-1))
++
++/* The global __fltused is necessary to cause the printf/scanf routines
++   for outputting/inputting floating point numbers to be loaded.  Since this
++   is kind of hard to detect, we just do it all the time.  */
++
++#ifdef ASM_FILE_START
++#undef ASM_FILE_START
++#endif
++#define ASM_FILE_START(FILE) \
++  do {  fprintf (FILE, "\t.file\t");                            \
++        output_quoted_string (FILE, dump_base_name);            \
++        fprintf (FILE, "\n");                                   \
++        fprintf (FILE, ".global\t__fltused\n");                 \
++  } while (0)
++
++#define EH_FRAME_IN_DATA_SECTION
++
++/* the following are OSF linker (not gld) specific... we don't want them */
++#undef HAS_INIT_SECTION
++#undef LD_INIT_SWITCH
++#undef LD_FINI_SWITCH
++
++/* The following are needed for us to be able to use winnt.c, but are not
++   otherwise meaningful to Interix.  (The functions that use these are
++   never called because we don't do DLLs.) */
++#define TARGET_NOP_FUN_DLLIMPORT 1
++#define I386_PE_STRIP_ENCODING(SYM_NAME) \
++  ((SYM_NAME) + ((SYM_NAME)[0] == '@' \
++		  ? ((SYM_NAME)[3] == '*' ? 4 : 3) : 0) \
++	      + ((SYM_NAME)[0] == '*' ? 1 : 0))
++#define drectve_section()  /* nothing */
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved/config/i386/interix.c gcc/config/i386/interix.c
+--- gcc.saved/config/i386/interix.c	Mon Mar 11 11:39:13 2002
++++ gcc/config/i386/interix.c	Tue Mar 12 10:10:42 2002
+@@ -1,107 +0,0 @@
+-/* Subroutines for insn-output.c for Windows NT.
+-   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
+-
+-This file is part of GNU CC.
+-
+-GNU CC is free software; you can redistribute it and/or modify
+-it under the terms of the GNU General Public License as published by
+-the Free Software Foundation; either version 2, or (at your option)
+-any later version.
+-
+-GNU CC is distributed in the hope that it will be useful,
+-but WITHOUT ANY WARRANTY; without even the implied warranty of
+-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-GNU General Public License for more details.
+-
+-You should have received a copy of the GNU General Public License
+-along with GNU CC; see the file COPYING.  If not, write to
+-the Free Software Foundation, 59 Temple Place - Suite 330,
+-Boston, MA 02111-1307, USA.  */
+-
+-#include "config.h"
+-#include "system.h"
+-#include "rtl.h"
+-#include "regs.h"
+-#include "hard-reg-set.h"
+-#include "output.h"
+-#include "tree.h"
+-#include "flags.h"
+-
+-/* Return string which is the former assembler name modified with a 
+-   suffix consisting of an atsign (@) followed by the number of bytes of 
+-   arguments */
+-
+-const char *
+-gen_stdcall_suffix (decl)
+-  tree decl;
+-{
+-  int total = 0;
+-  /* ??? This probably should use XSTR (XEXP (DECL_RTL (decl), 0), 0) instead
+-     of DECL_ASSEMBLER_NAME.  */
+-  const char *const asmname = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
+-  char *newsym;
+-
+-  if (TYPE_ARG_TYPES (TREE_TYPE (decl)))
+-    if (TREE_VALUE (tree_last (TYPE_ARG_TYPES (TREE_TYPE (decl)))) 
+-        == void_type_node)
+-      {
+-	tree formal_type = TYPE_ARG_TYPES (TREE_TYPE (decl));
+-
+-	while (TREE_VALUE (formal_type) != void_type_node)
+-	  {
+-	    int parm_size
+-	      = TREE_INT_CST_LOW (TYPE_SIZE (TREE_VALUE (formal_type)));
+-	    /* Must round up to include padding.  This is done the same
+-	       way as in store_one_arg.  */
+-	    parm_size = ((parm_size + PARM_BOUNDARY - 1)
+-			 / PARM_BOUNDARY * PARM_BOUNDARY);
+-	    total += parm_size;
+-	    formal_type = TREE_CHAIN (formal_type);
+-	  }
+-      }
+-
+-  newsym = xmalloc (strlen (asmname) + 10);
+-  sprintf (newsym, "%s@%d", asmname, total/BITS_PER_UNIT);
+-  return IDENTIFIER_POINTER (get_identifier (newsym));
+-}
+-
+-/* Cover function for UNIQUE_SECTION.  */
+-
+-void
+-i386_pe_unique_section (decl, reloc)
+-     tree decl;
+-     int reloc;
+-{
+-  int len;
+-  const char *name;
+-  char *string,*prefix;
+-
+-  name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (decl));
+-  /* Strip off any encoding in fnname.  */
+-  STRIP_NAME_ENCODING (name, name);
+-
+-  /* The object is put in, for example, section .text$foo.
+-     The linker will then ultimately place them in .text
+-     (everything from the $ on is stripped). Don't put
+-     read-only data in .rdata section to avoid a PE linker 
+-     bug when .rdata$* grouped sections are used in code
+-     without a .rdata section.  */
+-  if (TREE_CODE (decl) == FUNCTION_DECL)
+-    prefix = ".text$";
+-/* else if (DECL_INITIAL (decl) == 0
+-	   || DECL_INITIAL (decl) == error_mark_node)
+-    prefix = ".bss"; */
+-  else if (DECL_READONLY_SECTION (decl, reloc))
+-#ifdef READONLY_DATA_SECTION
+-    prefix = ".rdata$";
+-#else
+-    prefix = ".text$";
+-#endif
+-  else
+-    prefix = ".data$";
+-  len = strlen (name) + strlen (prefix);
+-  string = alloca (len + 1);
+-  sprintf (string, "%s%s", prefix, name);
+-
+-  DECL_SECTION_NAME (decl) = build_string (len, string);
+-}
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved/config/i386/t-interix gcc/config/i386/t-interix
+--- gcc.saved/config/i386/t-interix	Mon Mar 11 11:39:13 2002
++++ gcc/config/i386/t-interix	Tue Mar 12 10:10:57 2002
+@@ -1,6 +1,5 @@
+ LIB1ASMSRC = i386/cygwin.asm
+ LIB1ASMFUNCS = _chkstk
+ 
+-interix.o: $(srcdir)/config/i386/interix.c
+-	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/i386/interix.c
+-
++winnt.o: $(srcdir)/config/i386/winnt.c $(RTL_H) $(TREE_H) $(CONFIG_H)
++	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/i386/winnt.c
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.saved/config.gcc gcc/config.gcc
+--- gcc.saved/config.gcc	Mon Mar 11 11:39:50 2002
++++ gcc/config.gcc	Tue Mar 12 10:11:53 2002
+@@ -1480,7 +1480,7 @@ i[34567]86-*-interix3*)
+ 	xm_file="i386/xm-i386-interix.h"
+ 	xm_defines=POSIX
+ 	tmake_file="t-interix i386/t-interix"
+-	extra_objs=interix.o
++	extra_objs=winnt.o
+ 	xmake_file="x-interix"
+ 	if test x$enable_threads = xyes ; then
+ 		thread_file='posix'
+@@ -1494,7 +1494,7 @@ i[34567]86-*-interix*)
+ 	xm_file="i386/xm-i386-interix.h"
+ 	xm_defines=POSIX
+ 	tmake_file="t-interix i386/t-interix"
+-	extra_objs=interix.o
++	extra_objs=winnt.o
+ 	if test x$enable_threads = xyes ; then
+ 		thread_file='posix'
+ 	fi

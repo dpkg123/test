@@ -1,0 +1,3 @@
+q-patch conf-gcc 01 0 # fix the config.guess files
+q-patch conf-gcc 02 0 # fix the dg.exp testsuite file 
+q-patch conf-gcc 03 0 # fix interix.h 

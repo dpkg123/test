@@ -1,0 +1,202 @@
+--- binutils.nil/nm.c	Wed Jul  7 16:58:52 1999
++++ binutils/nm.c	Wed Jul  7 16:59:21 1999
+@@ -151,7 +151,7 @@ print_symbol_filename_posix PARAMS ((bfd
+ 
+ 
+ static void
+-print_value PARAMS ((bfd_vma));
++print_value PARAMS ((symbol_info *));
+ 
+ static void
+ print_symbol_info_bsd PARAMS ((symbol_info * info, bfd * abfd));
+@@ -229,11 +229,14 @@ static int dynamic = 0;		/* print dynami
+ static int show_version = 0;	/* show the version number */
+ static int show_stats = 0;	/* show statistics */
+ static int line_numbers = 0;	/* print line numbers for symbols */
++#ifdef __INTERIX /* for SUS conformance */
++static int full_output = 0;	/* don't suppress internal symbols */
++#endif /* __INTERIX */
+ 
+ /* When to print the names of files.  Not mutually exclusive in SYSV format.  */
+ static int filename_per_file = 0;	/* Once per file, on its own line.  */
+ static int filename_per_symbol = 0;	/* Once per symbol, at start of line.  */
+ 
+ /* Print formats for printing a symbol value.  */
+ #ifndef BFD64
+ static char value_format[] = "%08lx";
+@@ -261,7 +266,12 @@ static struct option long_options[] =
+   {"demangle", no_argument, &do_demangle, 1},
+   {"dynamic", no_argument, &dynamic, 1},
+   {"extern-only", no_argument, &external_only, 1},
++#ifdef __INTERIX /* for SUS conformance */
++  {"full", no_argument, 0, 'f'},
++  {"format", required_argument, 0, 'F'},
++#else
+   {"format", required_argument, 0, 'f'},
++#endif /* __INTERIX */
+   {"help", no_argument, 0, 'h'},
+   {"line-numbers", no_argument, 0, 'l'},
+   {"no-cplus", no_argument, &do_demangle, 0},  /* Linux compatibility.  */
+@@ -289,6 +299,17 @@ usage (stream, status)
+      FILE *stream;
+      int status;
+ {
++#ifdef __INTERIX /* for SUS conformance */
++  fprintf (stream, _("\
++Usage: %s [-aABCDfglnopPrsuvV] [-t radix] [--radix=radix] [--target=bfdname]\n\
++       [--debug-syms] [--extern-only] [--print-armap] [--print-file-name]\n\
++       [--numeric-sort] [--no-sort] [--reverse-sort] [--size-sort]\n\
++       [--undefined-only] [--portability] [-F {bsd,sysv,posix}]\n\
++       [--format={bsd,sysv,posix}] [--demangle] [--no-demangle] [--dynamic]\n\
++       [--defined-only] [--line-numbers]\n\
++       [--version] [--help]\n\
++       [file...]\n"),
++#else
+   fprintf (stream, _("\
+ Usage: %s [-aABCDglnopPrsuvV] [-t radix] [--radix=radix] [--target=bfdname]\n\
+        [--debug-syms] [--extern-only] [--print-armap] [--print-file-name]\n\
+@@ -298,6 +319,7 @@ Usage: %s [-aABCDglnopPrsuvV] [-t radix]
+        [--defined-only] [--line-numbers]\n\
+        [--version] [--help]\n\
+        [file...]\n"),
++#endif
+ 	   program_name);
+   list_supported_targets (program_name, stream);
+   if (status == 0)
+@@ -388,7 +410,11 @@ main (argc, argv)
+   bfd_init ();
+   set_default_bfd_target ();
+ 
++#ifdef __INTERIX  /* Conform to SUS */
++  while ((c = getopt_long (argc, argv, "aABCDefF:glnopPrst:uvV", long_options, (int *) 0)) != EOF)
++#else
+   while ((c = getopt_long (argc, argv, "aABCDef:glnopPrst:uvV", long_options, (int *) 0)) != EOF)
++#endif
+     {
+       switch (c)
+ 	{
+@@ -411,9 +437,18 @@ main (argc, argv)
+ 	case 'e':
+ 	  /* Ignored for HP/UX compatibility.  */
+ 	  break;
++#ifdef __INTERIX /* for SUS compatability */
++	case 'F':
++	  set_output_format (optarg);
++	  break;
++	case 'f':
++          full_output = 1;
++	  break;
++#else /* __INTERIX */
+ 	case 'f':
+ 	  set_output_format (optarg);
+ 	  break;
++#endif /* __INTERIX */
+ 	case 'g':
+ 	  external_only = 1;
+ 	  break;
+@@ -960,6 +997,9 @@ filter_symbols (abfd, dynamic, minisyms,
+ {
+   bfd_byte *from, *fromend, *to;
+   asymbol *store;
++  char leading_char;
++
++  leading_char = bfd_get_symbol_leading_char (abfd);
+ 
+   store = bfd_make_empty_symbol (abfd);
+   if (store == NULL)
+@@ -980,7 +1020,17 @@ filter_symbols (abfd, dynamic, minisyms,
+       if (sym == NULL)
+ 	bfd_fatal (bfd_get_filename (abfd));
+ 
++/* The SUS definition of -f is so vague as to not be useful.  If/when
++   we find a clear definition, this is the place to implement it.  
++   The disabled code below suppresses "internal" symbols if the object
++   language uses _ prefixes for hidden symbols. */
++#if 0 /* for SUS conformance */
++      if (full_output)
++	keep = 1;
++      else if (undefined_only)
++#else
+       if (undefined_only)
++#endif
+ 	keep = bfd_is_und_section (sym->section);
+       else if (external_only)
+ 	keep = ((sym->flags & BSF_GLOBAL) != 0
+@@ -988,7 +1038,20 @@ filter_symbols (abfd, dynamic, minisyms,
+ 		|| bfd_is_und_section (sym->section)
+ 		|| bfd_is_com_section (sym->section));
+       else
++#if 0 /* for SUS conformance */
++        /* not full output or one of the special cases...
++	   if we have a leading character, keep symbols which begin
++	       with it (they're user symbols).
++	   if we don't, just keep them all (based on what the alpha
++	       does).  (Exactly what the discard criteria
++	       should be is unclear, but this is close; bfd needs
++	       a way to tell us) */
++        keep = (leading_char != 0 
++		  ? sym->name[0] == leading_char
++		  : 1);
++#else
+ 	keep = 1;
++#endif
+ 
+       if (keep
+ 	  && ! print_debug_syms
+@@ -1392,9 +1455,10 @@ print_symbol_filename_posix (archive_bfd
+ /* Print a symbol value.  */
+ 
+ static void
+-print_value (val)
+-     bfd_vma val;
++print_value (info)
++     symbol_info *info;
+ {
++  bfd_vma val = info->value;
+ #if ! defined (BFD64) || BFD_HOST_64BIT_LONG
+   printf (value_format, val);
+ #else
+@@ -1427,7 +1493,7 @@ print_symbol_info_bsd (info, abfd)
+      symbol_info *info;
+      bfd *abfd;
+ {
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     {
+       printf ("%*s",
+ #ifdef BFD64
+@@ -1438,7 +1504,7 @@ print_symbol_info_bsd (info, abfd)
+ 	      "");
+     }
+   else
+-    print_value (info->value);
++    print_value (info);
+   printf (" %c", info->type);
+   if (info->type == '-')
+     {
+@@ -1458,10 +1524,10 @@ print_symbol_info_sysv (info, abfd)
+      bfd *abfd;
+ {
+   print_symname ("%-20s|", info->name, abfd);	/* Name */
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     printf ("        ");	/* Value */
+   else
+-    print_value (info->value);
++    print_value (info);
+   printf ("|   %c  |", info->type);	/* Class */
+   if (info->type == '-')
+     {
+@@ -1481,10 +1547,10 @@ print_symbol_info_posix (info, abfd)
+ {
+   print_symname ("%s ", info->name, abfd);
+   printf ("%c ", info->type);
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     printf ("        ");
+   else
+-    print_value (info->value);
++    print_value (info);
+   /* POSIX.2 wants the symbol size printed here, when applicable;
+      BFD currently doesn't provide it, so we take the easy way out by
+      considering it to never be applicable.  */

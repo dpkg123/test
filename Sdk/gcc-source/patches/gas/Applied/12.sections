@@ -1,0 +1,21 @@
+This patch is inactive until others are applied: don't tweak symbols
+if we don't need to.  Mumit... this goes with other patches you may
+particularly care about!
+
+	* tc-i386.c (tc_i386_fix_adjustable): Applies to PE, too.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -943,8 +943,10 @@ int
+ tc_i386_fix_adjustable(fixP)
+      fixS * fixP;
+ {
+-#ifdef OBJ_ELF
++#if defined(OBJ_ELF) || defined(TE_PE)
+   /* Prevent all adjustments to global symbols. */
++  /* PE doesn't make everything section relative, and it really botches
++     up dynamic linking to do so! */
+   if (S_IS_EXTERN (fixP->fx_addsy))
+     return 0;
+   if (S_IS_WEAK (fixP->fx_addsy))

@@ -1,0 +1,4 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:603: /dev/fs/C/gnu2.intel/local_bin/gcc -B/dev/fs/C/gnu2.intel/local_bin/  -E conftest.c

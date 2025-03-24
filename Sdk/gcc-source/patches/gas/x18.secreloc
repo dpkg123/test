@@ -1,0 +1,89 @@
+This is possibly (untested) "Mumit's bug".  In any case, if relocation
+is against a symbol, don't apply the section stuff, it's wrong.
+
+	* write.c (fixup_segment): Don't add value,
+	handle section symbols specially (see bfd),
+	* config/tc-i386.c (md_apply_fix3): no section special case for
+	MS conformant PE.  (Flagged by STRICT_PE_FORMAT).
+	(tc_gen_reloc): similarly.
+	* config/te-interix.h: add STRICT_PE_FORMAT.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/write.c gas/write.c
+--- gas.orig/write.c	Fri Aug 20 14:00:50 1999
++++ gas/write.c	Fri Aug 20 14:01:24 1999
+@@ -2683,7 +2710,11 @@ fixup_segment (fixP, this_segment_type)
+ #if !(defined (TC_ARM)  && defined (OBJ_ELF))
+ #if !(defined (TC_I960) && defined (OBJ_ELF))
+ #if !defined (TC_I386) || !(defined (OBJ_ELF) || defined (OBJ_COFF)) || defined (TE_PE)
++#ifndef STRICT_PE_FORMAT /* [ */
++       /* PUSHMI_PULLU: this seems to add the symbol value a 2d time, and
++	  specifically, it breaks stabs on PE/COFF. */
+ 		  add_number += S_GET_VALUE (add_symbolP);
++#endif /* ] */
+ #endif
+ #endif
+ #endif
+@@ -2693,7 +2724,11 @@ fixup_segment (fixP, this_segment_type)
+ 	    }
+ 	}
+ 
+-      if (pcrel)
++      /* if the relocation is against a section symbol, then 
++	 we need to adjust it for that.  However, if something
++	 prevented it from becoming a relocation against a section
++	 symbol, it's a Bad Thing to do this. */
++      if (pcrel && symbol_section_p(fixP->fx_addsy))
+ 	{
+ 	  add_number -= MD_PCREL_FROM_SECTION (fixP, this_segment_type);
+ 	  if (add_symbolP == 0)
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -3974,13 +3975,16 @@ md_apply_fix3 (fixP, valp, seg)
+ 	  value += fixP->fx_where + fixP->fx_frag->fr_address;
+ 	}
+ #endif
++
++#ifndef STRICT_PE_FORMAT
+ #if defined (OBJ_COFF) && defined (TE_PE)
+       /* For some reason, the PE format does not store a section
+ 	 address offset for a PC relative symbol.  */
+       if (S_GET_SEGMENT (fixP->fx_addsy) != seg)
+ 	value += md_pcrel_from (fixP);
+ #endif
++#endif
+     }
+ 
+   /* Fix a few things - the dynamic linker expects certain values here,
+      and we must not dissappoint it. */
+@@ -4463,6 +4428,20 @@ tc_gen_reloc (section, fixp)
+       assert (rel->howto != NULL);
+     }
+ 
++#ifdef STRICT_PE_FORMAT
++  /*
++   * Ohhh, this is ugly.  The problem is that if this is a local global
++   * symbol, the relocation will entirely be performed at link time, not
++   * at assembly time.  bfd_install_reloc doesn't know about this sort
++   * of thing, and as a result we need to fake it out here.
++   *
++   * Note that if you change this as part of cleaning up the apalling
++   * mess of complementary adds/subtracts of which this is part, that
++   * bfd:coff_i386_reloc may need attention too.
++   */
++  if (S_IS_EXTERN (fixp->fx_addsy) && !S_IS_COMMON(fixp->fx_addsy))
++    rel->addend -= symbol_get_bfdsym (fixp->fx_addsy)->value;
++#endif
+   return rel;
+ }
+ 
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/te-interix.c gas/config/te-interix.h
+--- gas.orig/config/te-interix.h	Fri Aug 20 14:00:41 1999
++++ gas/config/te-interix.c	Fri Aug 20 14:01:23 1999
+@@ -11,4 +11,6 @@
+ #define LOCAL_LABELS_FB 1
+ #endif
+ 
++#define STRICT_PE_FORMAT
++
+ #include "obj-format.h"

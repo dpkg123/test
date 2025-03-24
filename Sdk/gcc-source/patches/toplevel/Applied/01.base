@@ -1,0 +1,68 @@
+SUBMITTED 0408.
+The following patch adds support for i386-pc-interix. Diffs against dev
+snapshot 1999-01-17.  It has been applied to egcs.
+
+Wed Jan 20 19:05:37 1999  Mumit Khan  <khan@xraylith.wisc.edu>
+
+        * config.guess: Add support for i386-pc-interix.
+        * config/mh-interix: New file.
+
+Index: egcs-dev/config.guess
+diff -u egcs-dev/config.guess:1.1.1.1 egcs-dev/config.guess:1.2
+--- egcs-dev/config.guess:1.1.1.1       Tue Jan 19 21:23:01 1999
++++ egcs-dev/config.guess       Wed Jan 20 19:08:04 1999
+@@ -1,6 +1,6 @@
+ #! /bin/sh
+ # Attempt to guess a canonical system name.
+-#   Copyright (C) 1992, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
++#   Copyright (C) 1992, 93, 94, 95, 96, 97, 1998, 1999 Free Software Foundation, Inc.
+ #
+ # This file is free software; you can redistribute it and/or modify it
+ # under the terms of the GNU General Public License as published by
+@@ -531,6 +531,13 @@
+     i*:MINGW*:*)
+ 	echo ${UNAME_MACHINE}-pc-mingw32
+ 	exit 0 ;;
++    i*:Windows_NT*:* | Pentium*:Windows_NT*:*)
++        # How do we know it's Interix rather than generic posix subsystem?
++        # It also conflicts with pre-2.0 versions of AT&T UWIN. Should we
++        # change UNAME_MACHINE based on the output of uname instead of
++        # i386?
++        echo i386-pc-interix
++        exit 0 ;;
+     p*:CYGWIN*:*)
+ 	echo powerpcle-unknown-cygwin32
+ 	exit 0 ;;
+Index: egcs-dev/config/mh-interix
+diff -u /dev/null egcs-dev/config/mh-interix:1.1
+--- /dev/null   Wed Jan 20 23:02:22 1999
++++ egcs-dev/config/mh-interix  Wed Jan 20 19:08:04 1999
+@@ -0,0 +1,14 @@
++# The shell may not be in /bin.
++SHELL = sh
++RANLIB = true
++
++# We don't want debugging info in Interix-hosted toolchains.
++# Accomplish this by overriding CFLAGS. This is also a workaround
++# for LD crash when building shared libstdc++.
++CFLAGS=-O2
++CXXFLAGS=-O2
++
++# We also need to override LIBGCC2_DEBUG_CFLAGS so libgcc2 will be
++# built without debugging information
++
++LIBGCC2_DEBUG_CFLAGS=
+diff -u egcs-dev/configure.in:1.1.1.1 egcs-dev/configure.in:1.2
+--- egcs-dev/configure.in:1.1.1.1       Tue Jan 19 21:23:01 1999
++++ egcs-dev/configure.in       Wed Jan 20 19:08:04 1999
+@@ -196,6 +196,9 @@
+     ;;
+   *-mingw32*)
+     host_makefile_frag="${host_makefile_frag} config/mh-mingw32"
++    ;;
++  *-interix*)
++    host_makefile_frag="${host_makefile_frag} config/mh-interix"
+     ;;
+   *-windows*)
+     host_makefile_frag="${host_makefile_frag} config/mh-windows"
+Index: egcs-dev/config/mh-interix

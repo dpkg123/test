@@ -1,0 +1,362 @@
+#!/bin/sh
+# Test lib semantics for weak symbols.
+# Breadth test of a lot of stuff.
+# Also tests against MS assembler as a control.
+#
+# Test that shared library semantics match the following
+# 
+# 1)  If a symbol is undefined when a weak or strong definition is
+#     encountered while searching a library (either .a or .so), the 
+#     symbol is included in the load.
+# 
+#     For a shared library this means that ONLY that symbol is
+#     included in the load.  (Or, conversely, individual symbols from
+#     a shared library that duplicate a symbol already defined are
+#     not reported as duplicates.)
+# 
+#     For a conventional library, the whole .o is included, possibly
+#     defining other symbols, including possible (strong) duplicates that
+#     cause errors.
+# 
+# 2)  If a symbol is defined as a weak definition, it still satisfies
+#     the search above if it's undefined at the time of the search.
+#     However, if subsequently a strong definition for the symbol
+#     is found, the strong one takes precedence (or triggers an error
+#     if not unique).
+# 
+#     If only weak symbols are found, the lexically first one takes
+#     precedence.
+
+# Compile/assemble pieces/parts for new library entry points:
+
+# strong(), strong_data[] -- always strong.
+#   strong() returns 1; strong_data[2] = {1,2}
+# _weak() _weak_data[] -- hidden, always strong.
+#   _weak() returns 3; _weak_data[2] == {3,4}
+# weak() _weak_data[] -- public, weak
+#   weak() returns 5; weak_data[0] == {5,6}
+#   user's weak() returns 99; weak_data[2] == {98,99}
+
+CC=$1
+LD=$1
+MASM="ml.exe /coff /nologo"
+AR=$4/ar
+
+# Change to work directory.
+cd weak.d
+
+RESULT=
+
+export LD_LIBRARY_PATH=.
+if false
+then ########################
+:
+fi ###################
+
+rm -f *.o
+$CC -c *.c *.s
+
+# Assemble a few with the MS assembler as a control
+$MASM -c weak_a.asm >/dev/null 2>&1
+mv weak_a.obj weak_a.o
+$MASM -c weak_d_a.asm>/dev/null 2>&1
+mv weak_d_a.obj weak_d_a.o
+
+# Consciously created with weak alias files listed last.
+rm -f statlib.a
+$AR -rc statlib.a _weak.o _weak_d.o strong.o strong_d.o callweak.o weak_a.o weak_d_a.o 
+
+# Make corresponding shared lib
+$LD --shared -o dynlib.so -Wl,--whole-archive statlib.a -Wl,--no-whole-archive
+
+# Similarly, but for testing of conflicting weak symbols (later tests)
+rm -f statlib2.a
+$AR -rc statlib2.a _weak2.o _weak2_d.o weak2_a.o weak2_d_a.o 
+$LD --shared -o dynlib2.so -Wl,--whole-archive statlib2.a -Wl,--no-whole-archive
+
+# In all tests, control with similar strong symbols.
+
+# 1 ---------------------------------------------------------------------
+# Link against static lib with weak symbols backed by strong
+# Both code and data.  Be sure data gets and keeps right values.
+
+# We expect all reference to the weak symbols to be the same (return 3)
+
+# echo "#1\c"
+$LD driver.o statlib.a -o a.out.1
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 3
+weak_data[0] 3" >res1
+
+if a.out.1 | cmp - res1
+then
+    # echo " OK"
+    RESULT="${RESULT}1"
+else
+    echo " (simple case) FAILED"
+    a.out.1
+fi
+
+
+# 2 ---------------------------------------------------------------------
+# Link against same lib with prior def of same symbol locally.
+# We expect local override of the weak symbols (local weak returns 5)
+# (callweak must still return 3!)
+
+# echo "#2\c"
+$LD driver.o weak.o weak_d.o statlib.a -o a.out.2
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 5
+weak_data[0] 5" >res2
+
+if a.out.2 | cmp - res2
+then
+    # echo " OK"
+    RESULT="${RESULT}2"
+else
+    echo " (static, prior override) FAILED"
+    a.out.2
+fi
+
+# 3 ---------------------------------------------------------------------
+# Link against same lib with subsequent def...
+# We expect local override of the weak symbols (local weak returns 5)
+# (callweak must still return 3!)
+
+# echo "#3\c"
+$LD driver.o statlib.a weak.o weak_d.o -o a.out.3
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 5
+weak_data[0] 5" >res3
+
+if a.out.3 | cmp - res3
+then
+    # echo " OK"
+    RESULT="${RESULT}3"
+else
+    echo " (static, subsequent override) FAILED"
+    a.out.3
+fi
+
+# Shared Lib tests ---------------------------------------------------
+# 4 ---------------------------------------------------------------------
+# Link against shared lib with no conflicts.
+# We expect all reference to the weak symbols to be the same (return 3)
+
+# echo "#4\c"
+$LD driver.o dynlib.so -o a.out.4
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 3
+weak_data[0] 3" >res4
+
+if a.out.4 | cmp - res4
+then
+    # echo " OK"
+    RESULT="${RESULT}4"
+else
+    echo " (shared, simple case) FAILED"
+    a.out.4
+fi
+
+
+# 5 ---------------------------------------------------------------------
+# Link against same lib with prior def of same symbol locally.
+# We expect local override of the weak symbols (local weak returns 5)
+# (callweak must still return 3!)
+
+# echo "#5\c"
+$LD driver.o weak.o weak_d.o dynlib.so -o a.out.5
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 5
+weak_data[0] 5" >res5
+
+if a.out.5 | cmp - res5
+then
+    # echo " OK"
+    RESULT="${RESULT}5"
+else
+    echo " (shared, prior override) FAILED"
+    a.out.5
+fi
+
+# 6 ---------------------------------------------------------------------
+# Link against same lib with subsequent def...
+# We expect local override of the weak symbols (local weak returns 5)
+# (callweak must still return 3!)
+
+# echo "#6\c"
+$LD driver.o dynlib.so weak.o weak_d.o -o a.out.6
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 5
+weak_data[0] 5" >res6
+
+if a.out.6 | cmp - res6
+then
+    # echo " OK"
+    RESULT="${RESULT}6"
+else
+    echo " (shared, subsequent override) FAILED"
+    a.out.6
+fi
+
+# 7 ---------------------------------------------------------------------
+# Link against 2 libs both providing weak symbol, aliased to different syms.
+# We expect local override of the weak symbols with the FIRST 
+# weak (weak returns 7)
+# (callweak must still return 3!)
+
+# echo "#7\c"
+$LD driver.o statlib2.a statlib.a -o a.out.7
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 7
+weak_data[0] 7" >res7
+
+if a.out.7 | cmp - res7
+then
+    # echo " OK"
+    RESULT="${RESULT}7"
+else
+    echo " (static, prior weak) FAILED"
+    a.out.7
+fi
+
+# 8 ---------------------------------------------------------------------
+# As above, only with a pair of shared libs.
+# We expect local override of the weak symbols with the FIRST 
+# weak (weak returns 7)
+# (callweak must still return 3!)
+
+# echo "#8\c"
+$LD driver.o dynlib2.so dynlib.so -o a.out.8
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 7
+weak_data[0] 7" >res8
+
+if a.out.8 | cmp - res8
+then
+    # echo " OK"
+    RESULT="${RESULT}8"
+else
+    echo " (dynamic, prior weak) FAILED"
+    a.out.8
+fi
+
+# 9 ---------------------------------------------------------------------
+# A shared lib (strong) followed by a weak.  We should get the strong
+# from the shared lib. (And since we're not perturbing weak, it should be 3).
+# (callweak must still return 3!)
+
+# echo "#9\c"
+$LD driver.o dynlib.so strong_a.o strong_d_a.o -o a.out.9
+
+# Create the results file
+echo "\
+strong() 1
+strong_data[0] 1
+
+from callweak() 3
+from callweak(): _weak_data[0] 3
+
+weak() 3
+weak_data[0] 3" >res9
+
+if a.out.9 | cmp - res9
+then
+    # echo " OK"
+    RESULT="${RESULT}9"
+else
+    echo " (dynamic, prior weak) FAILED"
+    a.out.9
+fi
+
+
+# 10 ---------------------------------------------------------------------
+#Control: make sure we get conflicts reported when we expect that
+
+cp weak.o weak2.o
+cp weak_d.o weak2_d.o
+# echo "#10\c"
+$LD driver.o weak2.o weak2_d.o weak.o weak_d.o statlib.a -o a.out.10 >res10 2>&1
+
+if ! egrep -q "multiple definition of ._?weak." res10
+then
+    echo " (intentional conflict: weak) FAILED"
+elif ! egrep -q "multiple definition of ._?weak_data." res10
+then
+    echo " (intentional conflict: weak_def) FAILED"
+else
+    RESULT="${RESULT}10"
+    # echo " OK"
+fi
+
+if [ $RESULT = "12345678910" ]
+then
+    exit 0
+else
+    exit 1
+fi
+

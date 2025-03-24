@@ -1,0 +1,15 @@
+diff -drupP //S/CVS/binutils.baseline/tk/unix/configure.in unix/configure.in
+--- //S/CVS/binutils.baseline/tk/unix/configure.in	Sun Feb  6 16:19:30 2000
++++ unix/configure.in	Thu Feb 17 10:13:06 2000
+@@ -129,6 +129,11 @@ if test $tk_ok = no; then
+ fi
+ AC_MSG_RESULT($tk_ok)
+ if test $tk_ok = no; then
++    AC_MSG_CHECKING([fd_set and sys/time])
++    AC_HEADER_EGREP(fd_mask, sys/time.h, tk_ok=yes)
++fi
++AC_MSG_RESULT($tk_ok)
++if test $tk_ok = no; then
+     AC_DEFINE(NO_FD_SET)
+ fi
+ 

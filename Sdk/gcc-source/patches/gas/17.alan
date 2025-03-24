@@ -1,0 +1,104 @@
+Apparently PE wants relocs on all external syms.  Also, I can't see
+any reason now why I excluded PE from the MD_APPLY_SYM_CHANGE.
+Applying the following:
+
+	* config/tc-i386.h (EXTERN_FORCE_RELOC): Define.
+	(MD_APPLY_SYM_VALUE): Define for PE too.
+
+There's also a need for some changes in tc-i386.c:md_apply_fix3.
+I'll apply the following when I hear back from Donn, in all
+likelihood with some corrections..  I'm not at all sure about
+the hack inside #ifdef TE_PE, whether it's needed or should
+occur prior to the previous bfd_install_relocation hack.
+
+	* config/tc-i386.c (md_apply_fix3): Hack around bfd_install_relocation
+	brain damage for PE.
+
+Index: gas/config/tc-i386.c
+===================================================================
+RCS file: /cvs/src/src/gas/config/tc-i386.c,v
+retrieving revision 1.134
+diff -c -p -r1.134 tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -4777,46 +4777,39 @@ md_apply_fix3 (fixP, valP, seg)
+ 
+   if (fixP->fx_addsy != NULL
+       && (fixP->fx_r_type == BFD_RELOC_32_PCREL
++#ifdef TE_PE_DYN
++          || fixP->fx_r_type == BFD_RELOC_386_PLT32
++#endif
+ 	  || fixP->fx_r_type == BFD_RELOC_16_PCREL
+ 	  || fixP->fx_r_type == BFD_RELOC_8_PCREL)
+-      && !use_rela_relocations)
++      && !use_rela_relocations
++      && EXTERN_FORCE_RELOC)
+     {
++      segT sym_seg;
++
++      value += md_pcrel_from (fixP);
++
+       /* This is a hack.  There should be a better way to handle this.
+ 	 This covers for the fact that bfd_install_relocation will
+ 	 subtract the current location (for partial_inplace, PC relative
+ 	 relocations); see more below.  */
+-#ifndef OBJ_AOUT
+-      if (OUTPUT_FLAVOR == bfd_target_elf_flavour
+-#ifdef TE_PE
+-	  || OUTPUT_FLAVOR == bfd_target_coff_flavour
+-#endif
+-	  )
+-	value += fixP->fx_where + fixP->fx_frag->fr_address;
++
++      sym_seg = S_GET_SEGMENT (fixP->fx_addsy);
++#ifndef TE_PE
++      /* For some reason, the PE format does not ever store a section
++	 address offset for a PC relative symbol.  */
++      if ((sym_seg == seg 
++	  || (symbol_section_p (fixP->fx_addsy)
++	       && sym_seg != absolute_section))
++	  && !S_FORCE_RELOC (fixP->fx_addsy))
+ #endif
+-#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+-      if (OUTPUT_FLAVOR == bfd_target_elf_flavour)
+ 	{
+-	  segT sym_seg = S_GET_SEGMENT (fixP->fx_addsy);
+-
+-	  if ((sym_seg == seg
+-	       || (symbol_section_p (fixP->fx_addsy)
+-		   && sym_seg != absolute_section))
+-	      && !S_FORCE_RELOC (fixP->fx_addsy))
+-	    {
+-	      /* Yes, we add the values in twice.  This is because
+-		 bfd_install_relocation subtracts them out again.  I think
+-		 bfd_install_relocation is broken, but I don't dare change
+-		 it.  FIXME.  */
+-	      value += fixP->fx_where + fixP->fx_frag->fr_address;
+-	    }
++	  /* Yes, we add the values in twice.  This is because
++	     bfd_install_relocation subtracts them out again.  I think
++	     bfd_install_relocation is broken, but I don't dare change
++	     it.  FIXME.  */
++	  value += fixP->fx_where + fixP->fx_frag->fr_address;
+ 	}
+-#endif
+-#if defined (OBJ_COFF) && defined (TE_PE)
+-      /* For some reason, the PE format does not store a section
+-	 address offset for a PC relative symbol.  */
+-      if (S_GET_SEGMENT (fixP->fx_addsy) != seg)
+-	value += md_pcrel_from (fixP);
+-#endif
+     }
+ 
+   /* Fix a few things - the dynamic linker expects certain values here,
+@@ -4827,6 +4820,10 @@ md_apply_fix3 (fixP, valP, seg)
+     switch (fixP->fx_r_type)
+       {
+       case BFD_RELOC_386_PLT32:
++#ifdef TE_PE_DYN
++       /* We already took care of this above for PE */
++       break;
++#endif
+       case BFD_RELOC_X86_64_PLT32:
+ 	/* Make the jump instruction point to the address of the operand.  At
+ 	   runtime we merely add the offset to the actual PLT entry.  */

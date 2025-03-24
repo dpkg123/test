@@ -1,0 +1,23 @@
+# q-patch egcs.source 01 1  #rupp 1  Now accepted.
+# q-patch egcs.source 02 2  #rupp 2  Now accepted.
+# q-patch egcs.source 03 2  #bootstrap  OBE, apparently.
+# q-patch egcs.source 04 2  #ldiv (8 byte structs) APPLIED a/o 4/15
+#q-patch egcs.source 05 2  #HAVE___INT64
+# q-patch egcs.source 41 0  #packing: bug fix  OBE
+q-patch egcs.source 42 0  #packing: interix 
+q-patch egcs.source 43 0  #packing: attribute
+q-patch egcs.source 06 0  #munmap  TEMPORARY
+q-patch egcs.source 08 0  # DO_GLOBAL_CTROS_BODY
+# q-patch egcs.source 10 0  # ctors  (try 2)       APPLIED a/o 4/15
+# q-patch egcs.source 11 0  # stdbool.h, iso646.h, stdarg.h  APPLIED a/o 4/15
+# q-patch egcs.source 12 0  # declspec APPLIED a/o 4/15
+# q-patch egcs.source 13 0  # long double is 64 bits (to match MSVC)
+q-patch egcs.source 14 0  # .text-ish sections
+# q-patch egcs.source 15 0  # objective C pervasive failures. OBE
+# q-patch egcs.source 16 0  # symbols  OBE?
+q-patch egcs.source 51 0  # rearrange interix.h, fix .def problem
+#q-patch egcs.source 18 0  # --save-temps
+q-patch egcs.source 44 0  # more cleanup of packing: pack(1), inner struct.
+q-patch egcs.source 45 0  # fix some tests.
+# q-patch egcs.source 53 0  # done by RTH (another way).
+#q-patch egcs.source 54 0  # doesn't honor #defined pcc default any longer

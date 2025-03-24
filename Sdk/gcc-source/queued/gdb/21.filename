@@ -1,0 +1,101 @@
+C_FILE entries in MSVC are multiple AUX entries, rather than
+a string table entry.  Handle that.
+
+Note incidental fix of \ file separators.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* coffread.c(coff_symfile_read):  Add AUX count, use to get
+	filename. (read_one_sym): Use aux count for C_FILE.  
+	(coff_get_filename): Use aux count, to get to filename in
+	AUX entries.  Also recognize \ separators.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.6
+diff -p -u -r1.6 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:15:46	1.6
++++ src/gdb/coffread.c	2001/12/24 01:16:27
+@@ -207,7 +207,7 @@ static int init_lineno (bfd *, long, int
+ 
+ static char *getsymname (struct internal_syment *);
+ 
+-static char *coff_getfilename (union internal_auxent *);
++static char *coff_getfilename (union internal_auxent *, int);
+ 
+ static void free_stringtab (void);
+ 
+@@ -612,8 +612,9 @@ coff_symfile_read (struct objfile *objfi
+ 
+   /* Allocate space for raw symbol and aux entries, based on their
+      space requirements as reported by BFD.  */
++  /* allocate BUFSIZ worth more entries... see C_FILE for why */
+   temp_sym = (char *) xmalloc
+-    (cdata->local_symesz + cdata->local_auxesz);
++	 (cdata->local_symesz + local_auxesz*(BUFSIZ/local_auxesz+1));
+   temp_aux = temp_sym + cdata->local_symesz;
+   back_to = make_cleanup (free_current_contents, &temp_sym);
+ 
+@@ -852,7 +853,7 @@ coff_symtab_read (long symtab_offset, un
+ 	     or symnum of first global after last .file.  */
+ 	  next_file_symnum = cs->c_value;
+ 	  if (cs->c_naux > 0)
+-	    filestring = coff_getfilename (&main_aux);
++	      filestring = coff_getfilename (&main_aux, cs->c_naux);
+ 	  else
+ 	    filestring = "";
+ 
+@@ -1189,8 +1190,10 @@ read_one_sym (register struct coff_symbo
+ 			    0, cs->c_naux, (char *) aux);
+       /* If more than one aux entry, read past it (only the first aux
+          is important). */
++      /* not really... put the rest where we can find them for the moment,
++         see C_FILE */
+       for (i = 1; i < cs->c_naux; i++)
+-	bfd_bread (temp_aux, local_auxesz, nlist_bfd_global);
++	bfd_bread (&temp_aux[i*local_auxesz], local_auxesz, nlist_bfd_global);
+     }
+   cs->c_name = getsymname (sym);
+   cs->c_value = sym->n_value;
+@@ -1321,27 +1324,35 @@ getsymname (struct internal_syment *symb
+    only the last component of the name.  Result is in static storage and
+    is only good for temporary use.  */
+ 
++/* The MSVC C might choose to use more than one AUX entry ! */
++
+ static char *
+-coff_getfilename (union internal_auxent *aux_entry)
++coff_getfilename (union internal_auxent *aux_entry, int naux)
+ {
+   static char buffer[BUFSIZ];
+-  register char *temp;
++  char *temp1, *temp2;
+   char *result;
+ 
+   if (aux_entry->x_file.x_n.x_zeroes == 0)
+     strcpy (buffer, stringtab + aux_entry->x_file.x_n.x_offset);
+   else
+     {
+-      strncpy (buffer, aux_entry->x_file.x_fname, FILNMLEN);
+-      buffer[FILNMLEN] = '\0';
++      /* MS C stuffs multiple AUX entries rather than adding
++	 to the string table.  Fish it out of temp_aux */
++      strncpy (buffer, temp_aux, local_auxesz*naux);
++      buffer[local_auxesz*naux] = '\0';
+     }
+   result = buffer;
+ 
+   /* FIXME: We should not be throwing away the information about what
+      directory.  It should go into dirname of the symtab, or some such
+      place.  */
+-  if ((temp = strrchr (result, '/')) != NULL)
+-    result = temp + 1;
++  temp1 = strrchr (result, '/');
++  temp2 = strrchr (result, '\\');
++  if (temp2 != NULL && (temp1 == NULL || temp2 > temp1))
++    temp1 = temp2;
++  if (temp1 != NULL)
++    result = temp1 + 1;
+   return (result);
+ }
+ 

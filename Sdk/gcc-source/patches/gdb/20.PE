@@ -1,0 +1,75 @@
+PE format specific patches.
+
+THIS MAY BE A SEP PATCH:
+coffread.c/decode_function_type(): Always (why was this
+ever conditional?) step on the aux symbols when decoding
+the return type of a function; the aux entry always refers
+to the function itself.  (Interaction with the above fix; with
+the aux entries present, the function type was being decoded as
+a pointer to an undefined structure!)
+
+If PE is done correctly, there is no need to handle a special case
+for offsets.  (This interacts with the Ian patch.)
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* coffread.c(coff_symtab_read): PE doesn't co C_LINE, C_ALIAS,
+	Add C_SECTION for DLLs.
+	(enter_linenos): MS Line numbers are off by one.
+	(decode_function_type): don't mis-decode function types.
+	(read_one_sym): Remove special case for PE
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.5
+diff -p -u -r1.5 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:13:11	1.5
++++ src/gdb/coffread.c	2001/12/24 01:13:39
+@@ -839,8 +839,10 @@ coff_symtab_read (long symtab_offset, un
+ 	case C_EXTDEF:
+ 	case C_ULABEL:
+ 	case C_USTATIC:
++#ifndef COFF_IMAGE_WITH_PE
+ 	case C_LINE:
+ 	case C_ALIAS:
++#endif
+ 	case C_HIDDEN:
+ 	  complain (&bad_sclass_complaint, cs->c_name);
+ 	  break;
+@@ -872,6 +874,9 @@ coff_symtab_read (long symtab_offset, un
+ 	     so filter them out (from phdm@macqel.be). */
+ 	  if (within_function)
+ 	    break;
++#ifdef COFF_IMAGE_WITH_PE
++	case C_SECTION:  /* found in some DLL libs */
++#endif
+ 	case C_STAT:
+ 	case C_THUMBLABEL:
+ 	case C_THUMBSTAT:
+@@ -1416,8 +1423,14 @@ enter_linenos (long file_offset, registe
+ 
+   /* skip first line entry for each function */
+   rawptr += local_linesz;
++#ifdef COFF_IMAGE_WITH_PE
++  /* MS PE format has the last line (in .ef) as a file line number, not
++     a relative one; compensate.  Also, the start is 0 based already. */
++  last_line = (last_line - first_line) + 1;
++#else
+   /* line numbers start at one for the first line of the function */
+   first_line--;
++#endif
+ 
+   for (;;)
+     {
+@@ -1840,8 +1853,9 @@ static struct type *
+ decode_function_type (register struct coff_symbol *cs, unsigned int c_type,
+ 		      register union internal_auxent *aux)
+ {
+-  if (aux->x_sym.x_tagndx.l == 0)
+-    cs->c_naux = 0;		/* auxent refers to function, not base type */
++  /* if (aux->x_sym.x_tagndx.l == 0) */
++  cs->c_naux = 0;	/* auxent refers to function, not base type;
++     don't get confused by the line numbers, etc. */
+ 
+   return decode_type (cs, DECREF (c_type), aux);
+ }

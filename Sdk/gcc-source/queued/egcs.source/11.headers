@@ -1,0 +1,11 @@
+We need the usual headers.  -- it seems the meaning of this has changed
+since 2.7.2, so it should change as well.
+
+--- gcc/config/i386/t-interix.saved	Fri Feb 15 16:17:27 2002
++++ gcc/config/i386/t-interix	Fri Feb 15 16:17:48 2002
+@@ -5,5 +5,3 @@ interix.o: $(srcdir)/config/i386/interix
+ 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/i386/interix.c
+ 
+-# System headers will track gcc's needs.
+-USER_H=
+ EXTRA_PARTS=crtbegin.o crtend.o

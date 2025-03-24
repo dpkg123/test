@@ -1,0 +1,63 @@
+#!/bin/ksh
+
+# file:   nm.Interix
+#
+# description:
+#    We need a version of 'nm' that understands and can handle
+#    .so files that are not symlinks, but text files.
+#    We need this in order to build PERL because it wants to look
+#    up api names using the libc.so's symbols table.
+#
+#    libc.so happens to be a regular file, that is not an actual
+#    .so file, but rather a script that is interpretable by
+#    gnu ld(1) utility.
+#    
+#
+# Usage:  
+#    nm.Interix filename ....
+#
+#
+# assume no options, just file arguments.
+
+for i in $*
+do
+    # check existance of 'filename'
+    if [ ! -f $i ]; then
+	echo $i not found
+	exit 1
+    fi
+
+    #
+    # determine what type of file this is.
+    # If it is a text file, then we need to parse it.
+    # Otherwise, we assume its a real archive, 
+    # so we just call 'nm'
+    #
+    filetype=$(file $i)
+    filetype=${filetype##*: }
+
+    case "$filetype" in
+
+      "ascii text"|"c program text")
+
+	    # find the INPUT line, and then strip off
+	    # the prefix and suffix to leave just the list
+	    # of filenames that ld(1) would look at.
+	    # note: skip any lines that don't have INPUT in it
+	    #
+
+	    list=$(sed -e '/^INPUT/!d' -e 's/^INPUT *( *//' -e 's/ *)//' $i)
+
+	    # for each file in this list, run nm(1) on it.
+	    #
+	    for j in $list;  do
+		nm "$j"
+	    done
+	    ;;
+
+        *)
+	    # assume file is a real archive, so just nm(1) it
+	    nm "$i"
+	    ;;
+     esac
+done

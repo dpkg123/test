@@ -1,0 +1,70 @@
+MSVC can't handle really long single strings.
+
+Doug's alternate version; the insertion of a blank near the ned of the first
+-+ pair (and similarly later) seems unneeded.  (Try without, sometime.)
+
+diff -u egcs.source/gcc/gcc/config/i386/i386.h.bak egcs.source/gcc/gcc/config/i386/i386.h
+--- egcs.source/gcc/gcc/config/i386/i386.h	Thu Dec 20 11:41:28 2001
++++ egcs.source/gcc/gcc/config/i386/i386.h	Fri Dec 21 15:05:02 2001
+@@ -588,9 +588,10 @@ extern int ix86_arch;
+   %{!mcpu*:-D__tune_i686__ -D__tune_pentiumpro__ }}\
+ %{march=k6:-D__k6 -D__k6__ %{!mcpu*:-D__tune_k6__ }}\
+ %{march=k6-2:-D__k6 -D__k6__ -D__k6_2__ \
+-  %{!mcpu*:-D__tune_k6__ -D__tune_k6_2__ }}\
++  %{!mcpu*:-D__tune_k6__ -D__tune_k6_2__ }} \
+ %{march=k6-3:-D__k6 -D__k6__ -D__k6_3__ \
+-  %{!mcpu*:-D__tune_k6__ -D__tune_k6_3__ }}\
++  %{!mcpu*:-D__tune_k6__ -D__tune_k6_3__ }}"
++#define CPP_CPUCOMMON_SPEC_1 "\
+ %{march=athlon|march=athlon-tbird:-D__athlon -D__athlon__ \
+   %{!mcpu*:-D__tune_athlon__ }}\
+ %{march=athlon-4|march=athlon-xp|march=athlon-mp:-D__athlon -D__athlon__ \
+@@ -601,12 +602,13 @@ extern int ix86_arch;
+ %{m486|mcpu=i486:-D__tune_i486__ }\
+ %{mpentium|mcpu=pentium|mcpu=i586|mcpu=pentium-mmx:-D__tune_i586__ -D__tune_pentium__ }\
+ %{mpentiumpro|mcpu=pentiumpro|mcpu=i686|cpu=pentium2|cpu=pentium3:-D__tune_i686__ \
+--D__tune_pentiumpro__ }\
++-D__tune_pentiumpro__ } \
+ %{mcpu=k6|mcpu=k6-2|mcpu=k6-3:-D__tune_k6__ }\
+ %{mcpu=athlon|mcpu=athlon-tbird|mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
+ -D__tune_athlon__ }\
+ %{mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
+--D__tune_athlon_sse__ }\
++-D__tune_athlon_sse__ }"
++#define CPP_CPUCOMMON_SPEC_2 "\
+ %{mcpu=pentium4:-D__tune_pentium4__ }\
+ %{march=athlon-tbird|march=athlon-xp|march=athlon-mp|march=pentium3|march=pentium4:\
+ -D__SSE__ }\
+@@ -594,15 +594,19 @@ extern int x86_prefetch_sse;
+ #ifndef CPP_CPU_SPEC
+ #ifdef TARGET_BI_ARCH
+ #if TARGET_64BIT_DEFAULT
+-#define CPP_CPU_SPEC "%{m32:%(cpp_cpu32)}%{!m32:%(cpp_cpu64)} %(cpp_cpucommon)"
++#define CPP_CPU_SPEC "%{m32:%(cpp_cpu32)}%{!m32:%(cpp_cpu64)} \
++%(cpp_cpucommon) %(cpp_cpucommon_1) %(cpp_cpucommon_2)"
+ #else
+-#define CPP_CPU_SPEC "%{m64:%(cpp_cpu64)}%{!m64:%(cpp_cpu32)} %(cpp_cpucommon)"
++#define CPP_CPU_SPEC "%{m64:%(cpp_cpu64)}%{!m64:%(cpp_cpu32)} \
++%(cpp_cpucommon) %(cpp_cpucommon_1) %(cpp_cpucommon_2)"
+ #endif
+ #else
+ #if TARGET_64BIT_DEFAULT
+-#define CPP_CPU_SPEC "%(cpp_cpu64) %(cpp_cpucommon)"
++#define CPP_CPU_SPEC "%(cpp_cpu64) \
++%(cpp_cpucommon) %(cpp_cpucommon_1) %(cpp_cpucommon_2)"
+ #else
+-#define CPP_CPU_SPEC "%(cpp_cpu32) %(cpp_cpucommon)"
++#define CPP_CPU_SPEC "%(cpp_cpu32) \
++%(cpp_cpucommon) %(cpp_cpucommon_1) %(cpp_cpucommon_2)"
+ #endif
+ #endif
+ #endif
+@@ -663,6 +669,8 @@ extern int ix86_arch;
+   { "cpp_cpu32sizet", CPP_CPU32_SIZE_TYPE_SPEC },			\
+   { "cpp_cpu64sizet", CPP_CPU64_SIZE_TYPE_SPEC },			\
+   { "cpp_cpucommon", CPP_CPUCOMMON_SPEC },				\
++  { "cpp_cpucommon_1", CPP_CPUCOMMON_SPEC_1 },				\
++  { "cpp_cpucommon_2", CPP_CPUCOMMON_SPEC_2 },				\
+   { "cc1_cpu",  CC1_CPU_SPEC },						\
+   SUBTARGET_EXTRA_SPECS
+ 

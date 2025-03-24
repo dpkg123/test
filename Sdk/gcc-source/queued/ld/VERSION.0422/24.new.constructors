@@ -1,0 +1,57 @@
+This patch does the constructors stuff "really right", but needs a sell
+in lots of places.  The other constructors patch just "sort of" fixes it.
+Hold until ready to do the whole thing.
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc
+--- //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc	Thu Mar 25 02:15:29 1999
++++ //D/home/donn.intel/gnu.intel/ld/scripttempl/pe.sc	Mon Mar 29 11:22:54 1999
+@@ -26,13 +26,6 @@
+     SORT(*)(.idata$7)'
+   R_CRT='*(SORT(.CRT$*))'
+   R_RSRC='*(SORT(.rsrc$*))'
+-  # If this is a link -rU, we need to force the constructor list to exist;
+-  # give the customer what he asked for.
+-  CONSTRUCTOR_FORMAT="
+-      ___CTOR_LIST__ = .; __CTOR_LIST__ = . ; 
+-		LONG (-1); *(.ctors); *(.ctor); LONG (0);
+-      ___DTOR_LIST__ = .; __DTOR_LIST__ = . ; 
+-		LONG (-1); *(.dtors); *(.dtor);  LONG (0);"
+ else
+   R_TEXT=
+   R_DATA=
+@@ -40,13 +33,6 @@
+   R_IDATA=
+   R_CRT=
+   R_RSRC=
+-  # If this is a final link, we want to PROVIDE the constructor list symbols;
+-  # it might be the case that a prior link -rU already provided values.
+-  CONSTRUCTOR_FORMAT="
+-      PROVIDE(___CTOR_LIST__ = .); PROVIDE(__CTOR_LIST__ = .); 
+-		LONG (-1); *(.ctors); *(.ctor); LONG (0);
+-      PROVIDE(___DTOR_LIST__ = .); PROVIDE(__DTOR_LIST__ = .); 
+-		LONG (-1); *(.dtors); *(.dtor);  LONG (0);"
+ fi
+ 
+ cat <<EOF
+@@ -66,7 +52,20 @@
+     ${R_TEXT}
+     *(.glue_7t)
+     *(.glue_7)
+-    ${CONSTRUCTING+$CONSTRUCTOR_FORMAT}
++    ${RELOCATING+. = ALIGN(4);}
++
++    /* collect constructors only for final links */
++    ${RELOCATING+
++        *(.ctor_head);
++        *(.ctors);
++        *(.ctor);
++        LONG (0);
++
++        *(.dtor_head);
++        *(.dtors);
++        *(.dtor);
++        LONG (0);
++    }
+ 
+     ${RELOCATING+ *(.fini)}
+     /* ??? Why is .gcc_exc here?  */

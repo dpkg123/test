@@ -1,0 +1,40 @@
+Gdb wasn't searching the STATIC_BLOCK symtab, causing it not to
+find some static functions (reporting "no linenumbers known" when
+there were perfectly good line numbers in the a.out file.)  The
+bulk of the change is indentation changes.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* symtab.c(find_pc_sect_symtab): search STATIC_BLOCK, too,
+	for static functions.
+
+Index: src/gdb/symtab.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/symtab.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 symtab.c
+--- src/gdb/symtab.c	2001/12/23 00:34:56	1.1.1.1
++++ src/gdb/symtab.c	2001/12/24 02:07:12
+@@ -1403,9 +1403,14 @@ find_pc_sect_symtab (CORE_ADDR pc, asect
+ 
+   ALL_SYMTABS (objfile, s)
+   {
++    int blocknum;
++
+     bv = BLOCKVECTOR (s);
+-    b = BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK);
+ 
++    for (blocknum = GLOBAL_BLOCK; blocknum <= STATIC_BLOCK; blocknum++)
++    {
++// INDENTATION FIX DELAYED (until final merge).
++    b = BLOCKVECTOR_BLOCK (bv, blocknum);
+     if (BLOCK_START (b) <= pc
+ 	&& BLOCK_END (b) > pc
+ 	&& (distance == 0
+@@ -1439,6 +1444,7 @@ find_pc_sect_symtab (CORE_ADDR pc, asect
+ 	distance = BLOCK_END (b) - BLOCK_START (b);
+ 	best_s = s;
+       }
++    }
+   }
+ 
+   if (best_s != NULL)

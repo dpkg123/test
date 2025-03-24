@@ -1,0 +1,214 @@
+Note the if (0 &&...  there was a reason for this, but I can't remember
+it, and it breaks setting breakpoints on shared lib entry points; probably
+the test is too weak to filter the exact reason for the problem, whatever
+it was.
+
+This probably should be applied before dynsyms, but the patches collide
+at one point, so for now...
+
+NT weak symbols are really an alias; ld handles those properly but
+gdb must also deal with them.
+
+Just keep a list of the symbols so we can look up the direct symbol
+and load it into the indirect one.
+
+RECHECK THIS...
+Weak symbols report as t, not T, confusing the tests.  Allow either.
+(Or is that static?)
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.before/coffread.c gdb/coffread.c
+--- gdb.before/coffread.c	Sun Mar  3 10:31:51 2002
++++ gdb/coffread.c	Mon Mar  4 19:41:36 2002
+@@ -489,18 +489,19 @@ coff_end_symtab (struct objfile *objfile
+   last_source_file = NULL;
+ }
+ 
+-static void
++static struct minimal_symbol *
+ record_minimal_symbol (char *name, CORE_ADDR address,
+ 		       enum minimal_symbol_type type, struct objfile *objfile,
+ 		       asection *bfd_section)
+ {
+   /* We don't want TDESC entry points in the minimal symbol table */
+   if (name[0] == '@')
+-    return;
+-
+-  prim_record_minimal_symbol (name, address, type, objfile, bfd_section);
+-}
+-
++    return NULL;
++
++  return prim_record_minimal_symbol (name, address, type,
++				     objfile, bfd_section);
++}
++
+ /* coff_symfile_init ()
+    is the coff-specific initialization routine for reading symbols.
+    It is passed a struct objfile which contains, among other things,
+@@ -763,7 +785,9 @@ coff_symtab_read (long symtab_offset, un
+   long fcn_line_ptr = 0;
+   int val;
+   CORE_ADDR tmpaddr;
+-
++  struct minimal_symbol **msyms;   /* A temporary array of the results,
++				       see C_NT_WEAK. */
++
+   /* On the use of the following symbols:  Earlier versions of this routine
+      tried to key off .text entries to determine the size of a "file"
+      (an original source file).  This implied that there were as many
+@@ -836,6 +860,9 @@ coff_symtab_read (long symtab_offset, un
+   first_function_last_file = ANOFFSET (objfile->section_offsets, SECT_OFF_TEXT(objfile));
+ 
+   symnum = 0;
++  msyms = xmalloc (sizeof(struct msymbol *) * nsyms);
++  memset(msyms, 0, sizeof(struct msymbol *) * nsyms);
++
+   while (symnum < nsyms)
+     {
+       QUIT;			/* Make this command interruptable.  */
+@@ -870,12 +897,13 @@ coff_symtab_read (long symtab_offset, un
+       /* Typedefs should not be treated as symbol definitions.  */
+       if (ISFCN (cs->c_type) && cs->c_sclass != C_TPDEF)
+ 	{
+-
++	  struct minimal_symbol *msym;
++
+ 	  if (first_function_this_file == 0)
+ 	     first_function_this_file = cs->c_value;
+ 	  else 
+ 	    {
+-	      /* most_recent_function _nd should be AT LEAST the beginning
++	      /* most_recent_function_end should be AT LEAST the beginning
+ 		 of the current function if we're on other than the first
+ 		 function in the file.  We'll try to do better below. */
+ 	     most_recent_function_end = cs->c_value;
+@@ -887,10 +915,11 @@ coff_symtab_read (long symtab_offset, un
+ 	     functions (usually) so that the special handling of them
+ 	     works correctly.  At this point, dynamic == undefined;
+ 	     if it's really undefined, we deal with that later. */
+- 	  record_minimal_symbol (cs->c_name, tmpaddr, 
++ 	  msym = record_minimal_symbol (cs->c_name, tmpaddr, 
+ 	     cs->c_secnum == 0 ? mst_solib_trampoline : mst_text, objfile,
+   	     coff_section_from_bfd_index(objfile->obfd, cs->c_secnum));
+-
++	  msyms[cs->c_symnum] = msym;
++
+ 	  if (cs->c_naux > 0) 
+ 	    {
+ 	      fcn_line_ptr = main_aux.x_sym.x_fcnary.x_fcn.x_lnnoptr;
+@@ -1048,6 +1077,7 @@ coff_symtab_read (long symtab_offset, un
+ 		if (target_lookup_symbol (cs->c_name, &reladdr))
+ 		  {
+ 		    /* Error in lookup; ignore symbol.  */
++                    msyms[cs->c_symnum] = (struct minimal_symbol *)-1;
+ 		    break;
+ 		  }
+ 		tmpaddr = reladdr;
+@@ -1116,6 +1146,7 @@ coff_symtab_read (long symtab_offset, un
+ 		 (cs->c_name, tmpaddr, ms_type, (void *) (long) cs->c_sclass,
+ 	         sec, coff_section_from_bfd_index (objfile->obfd, cs->c_secnum),
+ 	         objfile);
++		msyms[cs->c_symnum] = msym;
+ 		if (msym)
+ 		  COFF_MAKE_MSYMBOL_SPECIAL (cs->c_sclass, msym);
+ 	      }
+@@ -1256,12 +1287,52 @@ coff_symtab_read (long symtab_offset, un
+ 	    }
+ 	  break;
+ 
++	case C_NT_WEAK:
++	  {
++	    /* NT Weaks are really indirect symbols; aux contains the target. */
++	    int realsym;
++	    struct minimal_symbol *msym;
++
++	    realsym = main_aux.x_sym.x_tagndx.l;
++	    if (0 && cs->c_secnum == 0)  // breaks b printf; absence breaks ?
++	      {
++		 /* nothing; ignore it (it's an undefined weak; the definition
++		    will take care of things later.) */
++	      }
++	    else if (realsym < 0 || realsym >= nsyms || msyms[realsym] == NULL)
++	      {
++		warning ("\"%s\": indirect symbol does not have real one (%d)\n", 
++		  cs->c_name, realsym);
++	      }
++	    else if (msyms[realsym] == (struct minimal_symbol *)-1)
++	      {
++		/* nothing; just ignore it. (We discarded the undefined
++		   real symbol, so do the same with this.) */
++	      }
++	    else
++	      {
++		msym = prim_record_minimal_symbol_and_info
++		  (cs->c_name, 
++		  SYMBOL_VALUE_ADDRESS(msyms[realsym]),
++		  MSYMBOL_TYPE (msyms[realsym]),
++		  MSYMBOL_INFO (msyms[realsym]),  /* c_sclass for us. */
++		  SYMBOL_SECTION (msyms[realsym]),
++		  SYMBOL_BFD_SECTION (msyms[realsym]),
++		  objfile);
++		msyms[cs->c_symnum] = msym;
++	      }
++	    break;
++	  }
++
+ 	default:
+ 	  process_coff_symbol (cs, &main_aux, objfile);
+ 	  break;
+ 	}
+     }
+ 
++    /* All we needed these for was a lookup, we're done now. */
++    xfree (msyms);
++
+     if (first_function_this_file != 0)
+ 	  complete_symtab (filestring,
+ 	     first_function_this_file
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.saved/minsyms.c gdb/minsyms.c
+--- gdb.saved/minsyms.c	Thu Mar 14 10:33:08 2002
++++ gdb/minsyms.c	Thu Mar 14 17:47:22 2002
+@@ -593,7 +593,7 @@ init_minimal_symbol_collection (void)
+   msym_bunch_index = BUNCH_SIZE;
+ }
+ 
+-void
++struct minimal_symbol *
+ prim_record_minimal_symbol (const char *name, CORE_ADDR address,
+ 			    enum minimal_symbol_type ms_type,
+ 			    struct objfile *objfile, asection *bfd_section)
+@@ -619,7 +619,7 @@ prim_record_minimal_symbol (const char *
+       section = -1;
+     }
+ 
+-  prim_record_minimal_symbol_and_info (name, address, ms_type,
++  return prim_record_minimal_symbol_and_info (name, address, ms_type,
+ 				       NULL, section, bfd_section, objfile);
+ }
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.saved/symtab.h gdb/symtab.h
+--- gdb.saved/symtab.h	Thu Mar 14 10:33:10 2002
++++ gdb/symtab.h	Thu Mar 14 17:48:26 2002
+@@ -1187,7 +1187,9 @@ extern struct type *lookup_transparent_t
+ /* Functions for dealing with the minimal symbol table, really a misc
+    address<->symbol mapping for things we don't have debug symbols for.  */
+ 
+-extern void prim_record_minimal_symbol (const char *, CORE_ADDR,
++extern struct minimal_symbol * prim_record_minimal_symbol (
++                                        const char *, 
++					CORE_ADDR,
+ 					enum minimal_symbol_type,
+ 					struct objfile *,
+ 					asection *);
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.saved/testsuite/gdb.base/maint.exp gdb/testsuite/gdb.base/maint.exp
+--- gdb.saved/testsuite/gdb.base/maint.exp	Tue Mar  5 14:56:07 2002
++++ gdb/testsuite/gdb.base/maint.exp	Tue Mar  5 22:33:16 2002
+@@ -284,7 +284,7 @@ gdb_expect  {
+                  {
+                   send_gdb "shell grep factorial msymbols_output\n"
+                   gdb_expect {
+-                        -re "\\\[ *$decimal\\\] T\[ \t\]+$hex factorial.*$gdb_prompt $"\
++                        -re "\\\[ *$decimal\\\] \[Tt\]\[ \t\]+$hex factorial.*$gdb_prompt $"\
+                                                { pass "maint print msymbols" }
+                         -re ".*$gdb_prompt $"       { fail "maint print msymbols" }
+                          timeout         { fail "(timeout) maint print msymbols" }

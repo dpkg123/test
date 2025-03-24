@@ -1,0 +1,57 @@
+Make the meaning of long double be 64 bits, that way the native libc works
+correctly.
+
+Corresponding changes to both libstdc++ and gcc.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files libstdc++-v3.saved/config/os/interix/bits/cpu_limits.h libstdc++-v3/config/os/interix/bits/cpu_limits.h
+--- libstdc++-v3.saved/config/os/interix/bits/cpu_limits.h	Wed Dec 31 16:00:00 1969
++++ libstdc++-v3/config/os/interix/bits/cpu_limits.h	Mon Feb 18 17:02:12 2002
+@@ -0,0 +1,35 @@
++// Copyright (C) 2001 Free Software Foundation, Inc.
++//
++// This file is part of the GNU ISO C++ Library.  This library is free
++// software; you can redistribute it and/or modify it under the
++// terms of the GNU General Public License as published by the
++// Free Software Foundation; either version 2, or (at your option)
++// any later version.
++
++// This library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License along
++// with this library; see the file COPYING.  If not, write to the Free
++// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
++// USA.
++
++// As a special exception, you may use this file as part of a free software
++// library without restriction.  Specifically, if other files instantiate
++// templates or use macros or inline functions from this file, or you compile
++// this file and link it with other files to produce an executable, this
++// file does not by itself cause the resulting executable to be covered by
++// the GNU General Public License.  This exception does not however
++// invalidate any other reasons why the executable file might be covered by
++// the GNU General Public License.
++
++// For Interix: 64 bit long doubles.
++
++#ifndef _GLIBCPP_CPU_LIMITS
++#define _GLIBCPP_CPU_LIMITS 1
++
++#define __glibcpp_long_double_bits 64
++
++#endif
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files libstdc++-v3.saved/configure.target libstdc++-v3/configure.target
+--- libstdc++-v3.saved/configure.target	Mon Feb 18 16:35:31 2002
++++ libstdc++-v3/configure.target	Mon Feb 18 16:37:40 2002
+@@ -154,6 +154,9 @@ case "${target}" in
+    ia64-*-*)
+      CPULIMITSH=config/cpu/ia64
+      ;;
++   i?86-*-interix*)
++     CPULIMITSH=config/os/interix
++     ;;
+    i?86-*-*)
+      CPULIMITSH=config/cpu/i386
+      ;;

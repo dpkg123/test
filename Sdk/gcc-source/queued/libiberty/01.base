@@ -1,0 +1,23 @@
+ChangeLog:
+	* xmalloc.c (sbrk): provide stub on Interix.
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/libiberty/xmalloc.c //D/home/donn.intel/gnu.intel/libiberty/xmalloc.c
+--- //Q/Gnusrc/cygwin.0325/libiberty/xmalloc.c	Thu Mar 25 02:12:47 1999
++++ //D/home/donn.intel/gnu.intel/libiberty/xmalloc.c	Mon Mar 29 09:56:58 1999
+@@ -167,3 +167,16 @@ xrealloc (oldmem, size)
+     }
+   return (newmem);
+ }
++
++#ifdef __INTERIX
++/* Temporary until we get one; it's only used here and a few other places;
++ * each needs to be responsible for its own solution to the problem because
++ * they're (often) different.  It'd be nice to avoid the static, but we
++ * don't want configure to think it's really there.
++ */
++static PTR sbrk(size)
++ptrdiff_t size;
++{
++   return (PTR)0;
++}
++#endif /* __INTERIX */

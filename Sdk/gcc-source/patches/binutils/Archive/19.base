@@ -1,0 +1,123 @@
+For objdump: 
+
+    The translation of flags can be occasionally obscure: print the section
+    flags in hex, too.
+
+    Print the comdat symbol name for PE style common.  This requires that
+    dumping of the section headers be deferred until the symbol table is
+    read, to have the name available.
+
+    bfd_get_dynamic_symtab_upper_bound isn't guaranteed to do anything
+    sensibile if the file isn't dynamic.  Don't ask it to.
+
+ChangeLog:
+
+
+
+	* objdump.c (dump_section_header): print flags in hex.
+
+	* objdump.c (dump_section_header): print comdat sym if present.
+
+	* objdump.c (slurp_dynamic_symtab): look for DYNAMIC earlier.
+
+	* objdump.c (disassemble_bytes): print a message when giving up.
+
+	* objdump.c (display_bfd): delay dump_section_headers call.
+
+	* objdump.c (dump_dynamic_relocs): bail out if not DYNAMIC.
+
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/objdump.c binutils/objdump.c
+--- binutils.nil/objdump.c	Wed Jul  7 16:58:52 1999
++++ binutils/objdump.c	Wed Jul  7 17:01:10 1999
+@@ -356,6 +357,13 @@ dump_section_header (abfd, section, igno
+     }
+ 
+   printf ("\n");
++
++  if ((section->flags & SEC_LINK_ONCE) != 0 &&
++       section->comdat != NULL)  
++    {
++      printf(_("                  COMDAT Symbol Index: %d %s\n"), section->comdat->symbol, section->comdat->name);
++    }
++
+ #undef PF
+ }
+ 
+@@ -365,9 +373,9 @@ dump_headers (abfd)
+ {
+   printf (_("Sections:\n"));
+ #ifndef BFD64
+-  printf (_("Idx Name          Size      VMA       LMA       File off  Algn\n"));
++  printf (_("Idx Name          Size      VMA       LMA       File off  Algn  Flags\n"));
+ #else
+-  printf (_("Idx Name          Size      VMA               LMA               File off  Algn\n"));
++  printf (_("Idx Name          Size      VMA               LMA               File off  Algn  Flags\n"));
+ #endif
+   bfd_map_over_sections (abfd, dump_section_header, (PTR) NULL);
+ }
+@@ -411,17 +419,17 @@ slurp_dynamic_symtab (abfd)
+   asymbol **sy = (asymbol **) NULL;
+   long storage;
+ 
++  if (!(bfd_get_file_flags (abfd) & DYNAMIC))
++    {
++      fprintf (stderr, _("%s: %s: not a dynamic object\n"),
++	       program_name, bfd_get_filename (abfd));
++      dynsymcount = 0;
++      return NULL;
++    }
++
+   storage = bfd_get_dynamic_symtab_upper_bound (abfd);
+   if (storage < 0)
+     {
+-      if (!(bfd_get_file_flags (abfd) & DYNAMIC))
+-	{
+-	  fprintf (stderr, _("%s: %s: not a dynamic object\n"),
+-		   program_name, bfd_get_filename (abfd));
+-	  dynsymcount = 0;
+-	  return NULL;
+-	}
+-
+       bfd_fatal (bfd_get_filename (abfd));
+     }
+ 
+@@ -1314,6 +1322,7 @@ disassemble_bytes (info, disassemble_fn,
+ 		  if (sfile.current != sfile.buffer)
+ 		    printf ("%s\n", sfile.buffer);
+ 		  free (sfile.buffer);
++ 		  printf(_("... lost instruction sync; giving up on section\n"));
+ 		  break;
+ 		}
+ 	    }
+@@ -2048,12 +2057,13 @@ display_bfd (abfd)
+   if (dump_private_headers)
+     dump_bfd_private_header (abfd);
+   putchar ('\n');
+-  if (dump_section_headers)
+-    dump_headers (abfd);
+   if (dump_symtab || dump_reloc_info || disassemble || dump_debugging)
+     {
+       syms = slurp_symtab (abfd);
+     }
++  /* we might need the symbol table for dump_headers */
++  if (dump_section_headers)
++    dump_headers (abfd);
+   if (dump_dynamic_symtab || dump_dynamic_reloc_info)
+     {
+       dynsyms = slurp_dynamic_symtab (abfd);
+@@ -2363,6 +2373,14 @@ dump_dynamic_relocs (abfd)
+   long relsize;
+   arelent **relpp;
+   long relcount;
++
++  if (!(bfd_get_file_flags (abfd) & DYNAMIC))
++    {
++      fprintf (stderr, _("%s: %s: not a dynamic object\n"),
++	       program_name, bfd_get_filename (abfd));
++      dynsymcount = 0;
++      return;
++    }
+ 
+   relsize = bfd_get_dynamic_reloc_upper_bound (abfd);
+   if (relsize < 0)

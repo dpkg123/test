@@ -1,0 +1,21 @@
+Submitted, Applied.
+
+Ian: You were correct about this one; it belongs in te-interix.h 
+(at least unless/until someone else adopts it and wants it in a more
+general location, which won't happen until after I submit the dynamic
+linking patches.)
+
+	* config/tc-interix.h (GLOBAL_OFFSET_TABLE_NAME): #define
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/te-interix.h gas/config/te-interix.h
+--- gas.orig/config/te-interix.h	Fri Aug 20 14:00:41 1999
++++ gas/config/te-interix.h	Fri Aug 20 14:01:23 1999
+@@ -6,6 +6,8 @@
+ /* The PE format supports long section names.  */
+ #define COFF_LONG_SECTION_NAMES
+ 
++#define GLOBAL_OFFSET_TABLE_NAME "__GLOBAL_OFFSET_TABLE_"
++
+ /* Both architectures use these */
+ #ifndef LOCAL_LABELS_FB
+ #define LOCAL_LABELS_FB 1

@@ -1,0 +1,78 @@
+bfd adds more result types from bfd_get_symbol_info for nm to
+interpret; do so.
+
+	* nm.c (print_value): change arg to symbol
+	(print_symbol_info_bsd): Ditto,  handle 'w' type (from bfd change).
+	(print_symbol_info_sysv): Ditto
+	(print_symbol_info_posix): Ditto
+
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/nm.c binutils/nm.c
+--- binutils.nil/nm.c	Wed Jul  7 16:58:52 1999
++++ binutils/nm.c	Wed Jul  7 16:59:21 1999
+@@ -151,7 +151,7 @@ print_symbol_filename_posix PARAMS ((bfd
+ 
+ 
+ static void
+-print_value PARAMS ((bfd_vma));
++print_value PARAMS ((symbol_info *));
+ 
+ static void
+ print_symbol_info_bsd PARAMS ((symbol_info * info, bfd * abfd));
+@@ -1392,9 +1451,10 @@ print_symbol_filename_posix (archive_bfd
+ /* Print a symbol value.  */
+ 
+ static void
+-print_value (val)
+-     bfd_vma val;
++print_value (info)
++     symbol_info *info;
+ {
++  bfd_vma val = info->value;
+ #if ! defined (BFD64) || BFD_HOST_64BIT_LONG
+   printf (value_format, val);
+ #else
+@@ -1427,7 +1487,7 @@ print_symbol_info_bsd (info, abfd)
+      symbol_info *info;
+      bfd *abfd;
+ {
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     {
+       printf ("%*s",
+ #ifdef BFD64
+@@ -1438,7 +1498,7 @@ print_symbol_info_bsd (info, abfd)
+ 	      "");
+     }
+   else
+-    print_value (info->value);
++    print_value (info);
+   printf (" %c", info->type);
+   if (info->type == '-')
+     {
+@@ -1458,10 +1518,10 @@ print_symbol_info_sysv (info, abfd)
+      bfd *abfd;
+ {
+   print_symname ("%-20s|", info->name, abfd);	/* Name */
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     printf ("        ");	/* Value */
+   else
+-    print_value (info->value);
++    print_value (info);
+   printf ("|   %c  |", info->type);	/* Class */
+   if (info->type == '-')
+     {
+@@ -1481,10 +1541,10 @@ print_symbol_info_posix (info, abfd)
+ {
+   print_symname ("%s ", info->name, abfd);
+   printf ("%c ", info->type);
+-  if (info->type == 'U')
++  if (info->type == 'U' || info->type == 'w')
+     printf ("        ");
+   else
+-    print_value (info->value);
++    print_value (info);
+   /* POSIX.2 wants the symbol size printed here, when applicable;
+      BFD currently doesn't provide it, so we take the easy way out by
+      considering it to never be applicable.  */

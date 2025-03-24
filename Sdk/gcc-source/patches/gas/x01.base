@@ -1,0 +1,1463 @@
+FOR RESUBMIT: split out dynamic linking stuff; note // Comments.
+
+SUBMITTED 0408.
+The following group of patches, when applied along with the corresponding
+testsuite and bfd patch groups, cleans up the PE/i386 interface so it passes 
+all regressions(*), and is more compatible with MSVC-generated .obj files.
+
+(*) One test fails because my compiler does not yet have the option,
+and one test (3Dnow) has an as yet (to my knowledge) unapplied fix to
+be submitted.  In the latter case, the test passes, but there are
+some (irrelevant) alignment differences (after the code being tested)
+that cause a failure to be reported.
+
+These notes are in no particular order, and cover only things that
+aren't immediately obvious (to me!) from either the patch itself or
+the ChangeLog entry.
+
+The section flags did not match MSVC, and were in general incomplete.
+Added code to generate them correctly (c.f. corresponding code in bfd.)
+
+atof_ieee() was declared (in as.h) inconsistently with its definition
+(in atof-ieee.c).  Fix declaration, fix warnings in other places.
+
+Because a line-number of 0 is special, it cannot be allowed as input.
+(Crashes gas if it happens and isn't rejected.)
+
+Add obj_coff_loc() (the Alpha uses .loc).  (There's more coming here.)
+
+The .bf, .ef, and .lf operators are somewhat different from each other,
+and need to be handled separately.  Change the test to be more thorough,
+and do slightly different things.
+
+The merging of symbols needs to be more sophisticated than it was.
+
+BFD_RELOC_RVA needs to be handled in more places.
+
+MSVC generates symbols with @ in them; to be able to access them from 
+gas, the parser should not trip over the special assembler notations for
+such as @GOT if LEX_AT is turned on.  This is done by:
+1) Moving/modifing the LEX_AT test in i386_displacement to new function
+i386_parse_name (and deferring seting of disp_reloc until answer is known).
+2) Making that be md_parse_name.
+3) Return whether @<stuff> is a PIC relocation properly, and know
+when it's just an ordinary @.  
+4) Set appropriate machine-dependent macros so expr uses this stuff.
+More details there.
+
+This has the side-effect of allowing @GOT (etc.) in immediate expressions,
+but a change must be made to be sure the relocations are handled correctly.
+
+See the comments about PUSHMI_PULLU in bfd; tc-i386.c is affected in 2
+places here.
+
+flag_16bit_code: as an extern in tc-i386.h it conflicts with static
+in tc-i386.c
+
+The section reloc count needs to be exact in PE (else it occasionlly 
+runs off the end into trash space, if I remember correctly).  Once
+all the deleted relocations are recognized, reset the value to the precise
+one required.
+
+In a future change, GLOBAL_OFFSET_TABLE will have its spelling changed
+slightly.  Here, allow it to be #defined, and handle a special case which
+checks for it.
+
+Add .loc, .ident pseudos for consistency.
+
+ChangeLog
+	* .gdbinit: New (restored) file.
+
+	* as.c (dump_statistics): Prototype.
+	* config/obj-coff.c (obj_coff_ln): Prototype.
+	* config/obj-coff.c (obj_coff_dim): Prototype.
+	* config/obj-coff.c (obj_coff_line): Prototype.
+	* config/obj-coff.c (obj_coff_size): Prototype.
+	* config/obj-coff.c (obj_coff_scl): Prototype.
+	* config/obj-coff.c (obj_coff_tag): Prototype.
+	* config/obj-coff.c (obj_coff_val): Prototype.
+	* config/obj-coff.c (obj_coff_read_begin_hook): Prototype.
+	* config/obj-coff.c (coff_from_file_after_relocs): Prototype.
+	* config/obj-coff.c (obj_coff_section): Prototype.
+	* config/obj-coff.c (obj_coff_def): Prototype.
+	* config/obj-coff.c (obj_coff_type): Prototype.
+	* config/obj-coff.c (obj_coff_pop_insert): Prototype.
+	* write.c (chain_frchains_together): Prototype.
+	* write.c (relax_and_size_seg): Prototype.
+	* write.c (adjust_reloc_syms): Prototype.
+	* write.c (write_relocs): Prototype.
+	* write.c (write_contents): Prototype.
+
+	* as.c (perform_an_assembly_pass): More general flag bits allowed.
+	* config/obj-coff.c (obj_coff_section): Use them.
+
+	* as.h (atof_ieee): Make prototype match actual function (char arg).
+	* config/tc-i386.c (md_atof): Shut up warning.
+	* config/atof-vax.c (atof_vas): Ditto.
+	* config/tc-i386.c (md_atof): Ditto.
+
+	* config/atof-vax.c (md_atof): Shut up warning.
+
+	* config/obj-coff.c (BFD_ASSEMBLER): Add comments (several places).
+
+	* config/obj-coff.c (S_GET_DATA_TYPE): Array/pointer clarity change.
+	* config/obj-coff.c (S_SET_DATA_TYPE): Ditto.
+	* config/obj-coff.c (S_GET_STORAGE_CLASS): Ditto.
+	* config/obj-coff.c (S_SET_STORAGE_CLASS): Ditto.
+
+	* config/obj-coff.c (c_dot_file_symbol): Comment.
+	* config/obj-coff.c (c_dot_file_symbol): Use function instead 
+	of assignment.
+
+	* config/obj-coff.c (add_lineno): Check for 0 lineno.
+
+	* config/obj-coff.c (obj_coff_loc): add (from non-bfd side).
+
+	* config/obj-coff.c (obj_coff_endef): more thorough 
+	parsing of .bf,.ef,.lf.
+
+	* config/obj-coff.c (obj_coff_endef): refine merging of debug symbols.
+
+	* config/obj-coff.c (obj_coff_line): .ef, .lf not same as .bf.
+
+	* config/obj-coff.c (obj_coff_val): Comments.
+
+	* config/obj-coff.c (obj_coff_read_begin_hook): 
+	Macro instead of direct assignment.
+
+	* config/obj-coff.c (coff_frob_symbol): Check for both weak and common.
+
+        * config/tc-i386.c (SET_SECTION_RELOC_COUNT): Put in exact value.
+	* config/obj-coff.c (coff_adjust_section_syms): Comment about this.
+	* write.c (write_relocs): use.
+
+	* config/obj-coff.c (obj_coff_ident): New.
+
+	* config/obj-coff.c (obj_coff_begin_hook): Shut up warnings.
+
+	* config/obj-coff.c (obj_pseudo_table): add loc, ident, 
+
+	* config/tc-i386.c (tc_i386_fix_adjustable): add RVA to test.
+
+	* config/tc-i386.c (md_assemble): use actual insn length, not constant;
+	clarify with (no-op) assignment.
+
+	* config/tc-i386.c (special_reloc): declare.  (Allow @ in symbols w/o
+	breaking PIC special operators.)
+	* config/tc-i386.c (i386_parse_name): new function.
+	* config/tc-i386.c (i386_displacement): move LEX_AT logic 
+	to i386_parse_name.  Move a few lines around to match.
+	* config/tc-i386.c (i386_parse_cons_expression): Init special_reloc. 
+	* config/tc-i386.c (i386_cons_fix_new): New; track special_reloc.
+	* config/tc-i386.c (i386_immediate): delete LEX_AT code, rely
+	on expr and code above to do same.
+	* config/tc-i386.h (md_parse_name): Define as i386_parse_name.
+	* config/tc-i386.h (TC_PARSE_CONS_EXPRESSION): Define as 
+	i386_parse_cons_expression.
+	* config/tc-i386.h (TC_CONS_FIX_NEW): Define as i386_cons_fix_new.
+
+	* config/tc-i386.c (md_apply_fix): add PUSHMI_PULLU (see bfd).
+	* config/tc-i386.c (tc_gen_reloc): add PUSHMI_PULLU (see bfd).
+
+	* config/tc-i386.c (md_apply_fix): Refine test to handle PIC.
+
+	* config/tc-i386.h (GLOBAL_OFFSET_TABLE_NAME): #define
+	* config/tc-i386.c (md_undefined_symbol): Respect it for optimization.
+
+	* config/tc-i386.h (flag_16bit_code): delete extern.
+
+	* config/te-interix.h: New file.
+
+        * configure.in (interix): Add.
+
+	* expr.c (integer_constant): calculation was off by one.
+
+	* expr.h (expr): use enum arg in prototype.
+
+	* symbols.c (exit_dont_set_value): eliminate dup. message text.
+	* write.c (write_contents): eliminate dup. message text.
+
+	* write.c (dump_section_relocs): avoid coredump if section unnamed.
+
+	* write.c (adjust_reloc_syms): New DEBUG, print result of adjust.
+
+	* write.c (fixup_segment): handle section symbols specially (see bfd).
+
+
+
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/as.c //D/home/donn.intel/be.build/gas/as.c
+--- //Q/Gnusrc/cygwin.0420/gas/as.c	Tue Apr 20 02:10:32 1999
++++ //D/home/donn.intel/be.build/gas/as.c	Tue Apr 20 14:07:46 1999
+@@ -678,6 +678,7 @@ the GNU General Public License.  This pr
+   *pargv = new_argv;
+ }
+ 
++static void dump_statistics PARAMS((void));
+ static long start_time;
+ 
+ int 
+@@ -939,11 +940,15 @@ perform_an_assembly_pass (argc, argv)
+   applicable = bfd_applicable_section_flags (stdoutput);
+   bfd_set_section_flags (stdoutput, text_section,
+ 			 applicable & (SEC_ALLOC | SEC_LOAD | SEC_RELOC
+-				       | SEC_CODE | SEC_READONLY));
++				       | SEC_CODE | SEC_READONLY | SEC_EXEC
++			               | SEC_HAS_CONTENTS | SEC_READ));
+   /* @@ FIXME -- SEC_CODE seems to mean code only, rather than code possibly.*/
+   bfd_set_section_flags (stdoutput, data_section,
+-			 applicable & (SEC_ALLOC | SEC_LOAD | SEC_RELOC));
+-  bfd_set_section_flags (stdoutput, bss_section, applicable & SEC_ALLOC);
++			 applicable & 
++			     (SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_WRITE
++			      | SEC_DATA | SEC_HAS_CONTENTS | SEC_READ));
++  bfd_set_section_flags (stdoutput, bss_section, 
++			 applicable & (SEC_ALLOC | SEC_WRITE | SEC_READ));
+   seg_info (bss_section)->bss = 1;
+   subseg_new (BFD_ABS_SECTION_NAME, 0);
+   subseg_new (BFD_UND_SECTION_NAME, 0);
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/as.h //D/home/donn.intel/be.build/gas/as.h
+--- //Q/Gnusrc/cygwin.0420/gas/as.h	Tue Apr 20 02:10:32 1999
++++ //D/home/donn.intel/be.build/gas/as.h	Tue Apr 20 14:07:46 1999
+@@ -555,7 +555,7 @@ int had_warnings PARAMS ((void));
+ 
+ void print_version_id PARAMS ((void));
+ char *app_push PARAMS ((void));
+-char *atof_ieee PARAMS ((char *str, int what_kind, LITTLENUM_TYPE * words));
++char *atof_ieee PARAMS ((char *str, char what_kind, LITTLENUM_TYPE * words));
+ char *input_scrub_include_file PARAMS ((char *filename, char *position));
+ char *input_scrub_new_file PARAMS ((char *filename));
+ char *input_scrub_next_buffer PARAMS ((char **bufp));
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/config/atof-vax.c //D/home/donn.intel/be.build/gas/config/atof-vax.c
+--- //Q/Gnusrc/cygwin.0420/gas/config/atof-vax.c	Tue Apr 20 02:10:42 1999
++++ //D/home/donn.intel/be.build/gas/config/atof-vax.c	Tue Apr 20 14:07:46 1999
+@@ -260,7 +260,7 @@ atof_vax (str, what_kind, words)
+ 
+ int				/* 0: OK. */
+ flonum_gen2vax (format_letter, f, words)
+-     char format_letter;	/* One of 'd' 'f' 'g' 'h'. */
++     int format_letter;	/* One of 'd' 'f' 'g' 'h'. */
+      FLONUM_TYPE *f;
+      LITTLENUM_TYPE *words;	/* Deliver answer here. */
+ {
+@@ -511,7 +511,7 @@ md_atof (what_statement_type, literalP, 
+     };
+ 
+   *sizeP = number_of_chars;
+-  return kind_of_float ? 0 : _("Bad call to md_atof()");
++  return kind_of_float ? (char *)0 : _("Bad call to md_atof()");
+ }
+ 
+ /* end of atof-vax.c */
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/config/obj-coff.c //D/home/donn.intel/be.build/gas/config/obj-coff.c
+--- //Q/Gnusrc/cygwin.0420/gas/config/obj-coff.c	Tue Apr 20 02:10:44 1999
++++ //D/home/donn.intel/be.build/gas/config/obj-coff.c	Tue Apr 20 14:40:12 1999
+@@ -220,7 +220,7 @@ obj_coff_weak (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
+-#ifdef BFD_ASSEMBLER
++#ifdef BFD_ASSEMBLER /* [ */
+ 
+ static void SA_SET_SYM_TAGNDX PARAMS ((symbolS *, symbolS *));
+ 
+@@ -272,7 +272,7 @@ static int
+ S_GET_DATA_TYPE (sym)
+      symbolS *sym;
+ {
+-  return coffsymbol (sym->bsym)->native->u.syment.n_type;
++  return coffsymbol (sym->bsym)->native[0].u.syment.n_type;
+ }
+ 
+ int
+@@ -280,7 +280,7 @@ S_SET_DATA_TYPE (sym, val)
+      symbolS *sym;
+      int val;
+ {
+-  coffsymbol (sym->bsym)->native->u.syment.n_type = val;
++  coffsymbol (sym->bsym)->native[0].u.syment.n_type = val;
+   return val;
+ }
+ 
+@@ -288,7 +288,7 @@ int
+ S_GET_STORAGE_CLASS (sym)
+      symbolS *sym;
+ {
+-  return coffsymbol (sym->bsym)->native->u.syment.n_sclass;
++  return coffsymbol (sym->bsym)->native[0].u.syment.n_sclass;
+ }
+ 
+ int
+@@ -296,7 +296,7 @@ S_SET_STORAGE_CLASS (sym, val)
+      symbolS *sym;
+      int val;
+ {
+-  coffsymbol (sym->bsym)->native->u.syment.n_sclass = val;
++  coffsymbol (sym->bsym)->native[0].u.syment.n_sclass = val;
+   return val;
+ }
+ 
+@@ -333,13 +333,14 @@ c_dot_file_symbol (filename)
+      char *filename;
+ {
+   symbolS *symbolP;
+-
++  /* bfd converts filename to a .file + aux entry; it also
++     handles chaining */
+   symbolP = symbol_new (filename, bfd_abs_section_ptr, 0, &zero_address_frag);
+ 
+   S_SET_STORAGE_CLASS (symbolP, C_FILE);
+   S_SET_NUMBER_AUXILIARY (symbolP, 1);
+ 
+-  symbolP->bsym->flags = BSF_DEBUGGING;
++  SF_SET_DEBUG (symbolP);
+ 
+ #ifndef NO_LISTING
+   {
+@@ -420,6 +421,12 @@ add_lineno (frag, offset, num)
+     {
+       abort ();
+     }
++  if (num <= 0) 
++    {
++      /* allowing zero (because it's used as an end marker) wreaks
++	 havoc later */
++      as_fatal(_("Line numbers must be positive integers\n"));
++    }
+   new_line->next = line_nos;
+   new_line->frag = frag;
+   new_line->l.line_number = num;
+@@ -441,6 +448,7 @@ coff_add_linesym (sym)
+   current_lineno_sym = sym;
+ }
+ 
++static void obj_coff_ln PARAMS((int));
+ static void
+ obj_coff_ln (appline)
+      int appline;
+@@ -479,6 +487,68 @@ obj_coff_ln (appline)
+   demand_empty_rest_of_line ();
+ }
+ 
++/* .loc is essentially the same as .ln; parse it for assembler
++   compatibility */
++
++static void obj_coff_loc PARAMS((int));
++void
++obj_coff_loc (ignore)
++     int ignore;
++{
++  int lineno;
++
++  if (now_seg != text_section)
++    {
++      as_warn (_(".loc outside of .text"));
++      demand_empty_rest_of_line ();
++      return;
++    }
++
++  if (def_symbol_in_progress != NULL)
++    {
++      as_warn (_(".loc pseudo-op inside .def/.endef: ignored."));
++      demand_empty_rest_of_line ();
++      return;
++    }
++
++  /* Skip the file number.  */
++  SKIP_WHITESPACE ();
++  get_absolute_expression ();
++  SKIP_WHITESPACE ();
++
++  lineno = get_absolute_expression ();
++
++#ifndef NO_LISTING
++  {
++    extern int listing;
++
++    if (listing)
++      {
++        lineno += coff_line_base - 1;
++	listing_source_line (lineno);
++      }
++  }
++#endif
++
++#if 0
++  /* If we're building stabs, then output a special label rather than
++     COFF line number info.  */
++  if (stabs_seen)
++    {
++      (void) add_ecoff_symbol ((char *) NULL, st_Label, sc_Text,
++			       symbol_new ("L0\001", now_seg,
++					   (valueT) frag_now_fix (),
++					   frag_now),
++			       (bfd_vma) 0, 0, lineno);
++      return;
++    }
++#endif
++  demand_empty_rest_of_line ();  /* this seems reasonable, but... */
++
++  add_lineno (frag_now, frag_now_fix (), lineno);
++
++}
++
+ /*
+  *			def()
+  *
+@@ -498,6 +568,7 @@ obj_coff_ln (appline)
+ 				       *input_line_pointer == '\t') \
+     input_line_pointer++;
+ 
++static void obj_coff_def PARAMS((int));
+ static void
+ obj_coff_def (what)
+      int what;
+@@ -545,6 +616,7 @@ obj_coff_def (what)
+ 
+ unsigned int dim_index;
+ 
++static void obj_coff_endef PARAMS((int));
+ static void
+ obj_coff_endef (ignore)
+      int ignore;
+@@ -586,15 +658,31 @@ obj_coff_endef (ignore)
+ 	S_SET_SEGMENT (def_symbol_in_progress, text_section);
+ 
+ 	name = bfd_asymbol_name (def_symbol_in_progress->bsym);
+-	if (name[1] == 'b' && name[2] == 'f')
+-	  {
++	if (name[0] == '.' && name[2] == 'f' && name[3] == '\0')
++  	  {
++	  switch (name[1])
++	    {
++	  case 'b':  
++	    /* .bf */
+ 	    if (! in_function ())
+ 	      as_warn (_("`%s' symbol without preceding function"), name);
+ /*	    SA_SET_SYM_LNNO (def_symbol_in_progress, 12345);*/
+ 	    /* Will need relocating */
+ 	    SF_SET_PROCESS (def_symbol_in_progress);
+ 	    clear_function ();
+-	  }
++	    break;
++#ifdef TE_PE
++	  case 'e':  
++	    /* .ef */
++	    /* The MS compilers output the actual endline, not the function-
++	       relative one... we want to match without changing
++	       the assembler input */
++	       SA_SET_SYM_LNNO (def_symbol_in_progress, 
++	       SA_GET_SYM_LNNO(def_symbol_in_progress) + coff_line_base);
++	    break;
++#endif
++	    }
++	 }
+       }
+       break;
+ 
+@@ -638,7 +726,10 @@ obj_coff_endef (ignore)
+ 
+   /* Now that we have built a debug symbol, try to find if we should
+      merge with an existing symbol or not.  If a symbol is C_EFCN or
+-     SEG_ABSOLUTE or untagged SEG_DEBUG it never merges. */
++     absolute_section or untagged SEG_DEBUG it never merges.  We also
++     don't merge labels, which are in a different namespace, nor
++     symbols which have not yet been defined since they are typically
++     unique, nor do we merge tags with non-tags.  */
+ 
+   /* Two cases for functions.  Either debug followed by definition or
+      definition followed by debug.  For definition first, we will
+@@ -653,16 +744,24 @@ obj_coff_endef (ignore)
+      time. */
+ 
+   if (S_GET_STORAGE_CLASS (def_symbol_in_progress) == C_EFCN
++      || S_GET_STORAGE_CLASS (def_symbol_in_progress) == C_LABEL
+       || (!strcmp (bfd_get_section_name (stdoutput,
+-					 S_GET_SEGMENT (def_symbol_in_progress)),
++			 S_GET_SEGMENT (def_symbol_in_progress)),
+ 		   "*DEBUG*")
+ 	  && !SF_GET_TAG (def_symbol_in_progress))
+       || S_GET_SEGMENT (def_symbol_in_progress) == absolute_section
+-      || (symbolP = symbol_find_base (S_GET_NAME (def_symbol_in_progress), DO_NOT_STRIP)) == NULL)
++      || def_symbol_in_progress->sy_value.X_op != O_constant
++      || (symbolP = symbol_find_base (S_GET_NAME (def_symbol_in_progress),
++                                      DO_NOT_STRIP)) == NULL
++      || (SF_GET_TAG (def_symbol_in_progress) != SF_GET_TAG (symbolP)))
+     {
++      /* If it already is at the end of the symbol list, do nothing */
+       if (def_symbol_in_progress != symbol_lastP)
+-	symbol_append (def_symbol_in_progress, symbol_lastP, &symbol_rootP,
+-		       &symbol_lastP);
++        {
++	  symbol_remove (def_symbol_in_progress, &symbol_rootP, &symbol_lastP);
++	  symbol_append (def_symbol_in_progress, symbol_lastP, &symbol_rootP,
++  		       &symbol_lastP);
++        }
+     }
+   else
+     {
+@@ -725,6 +824,7 @@ obj_coff_endef (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_dim PARAMS((int));
+ static void
+ obj_coff_dim (ignore)
+      int ignore;
+@@ -765,6 +865,7 @@ obj_coff_dim (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_line PARAMS((int));
+ static void
+ obj_coff_line (ignore)
+      int ignore;
+@@ -783,7 +884,7 @@ obj_coff_line (ignore)
+     coff_line_base = this_base;
+ 
+   S_SET_NUMBER_AUXILIARY (def_symbol_in_progress, 1);
+-  SA_SET_SYM_LNNO (def_symbol_in_progress, coff_line_base);
++  SA_SET_SYM_LNNO (def_symbol_in_progress, this_base);
+ 
+   demand_empty_rest_of_line ();
+ 
+@@ -793,11 +894,12 @@ obj_coff_line (ignore)
+       extern int listing;
+ 
+       if (listing)
+-	listing_source_line ((unsigned int) coff_line_base);
++	listing_source_line ((unsigned int) this_base);
+     }
+ #endif
+ }
+ 
++static void obj_coff_size PARAMS((int));
+ static void
+ obj_coff_size (ignore)
+      int ignore;
+@@ -814,6 +916,7 @@ obj_coff_size (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_scl PARAMS((int));
+ static void
+ obj_coff_scl (ignore)
+      int ignore;
+@@ -829,6 +932,7 @@ obj_coff_scl (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_tag PARAMS((int));
+ static void
+ obj_coff_tag (ignore)
+      int ignore;
+@@ -888,6 +992,7 @@ obj_coff_type (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_val PARAMS((int));
+ static void
+ obj_coff_val (ignore)
+      int ignore;
+@@ -925,8 +1030,15 @@ obj_coff_val (ignore)
+ 	     resolved, then copy the segment id from the forward
+ 	     symbol.  */
+ 	  SF_SET_GET_SEGMENT (def_symbol_in_progress);
++          /* FIXME: gcc can generate address expressions
++             here in unusual cases (search for "obscure"
++             in sdbout.c).  We just ignore the offset
++             here, thus generating incorrect debugging
++             information.  We ignore the rest of the
++             line just below.  */
+ 	}
+-      /* Otherwise, it is the name of a non debug symbol and its value will be calculated later. */
++      /* Otherwise, it is the name of a non debug symbol and 
++	 its value will be calculated later. */
+       *input_line_pointer = name_end;
+     }
+   else
+@@ -937,6 +1049,7 @@ obj_coff_val (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++void coff_obj_read_begin_hook PARAMS((void));
+ void
+ coff_obj_read_begin_hook ()
+ {
+@@ -1034,7 +1147,7 @@ coff_frob_symbol (symp, punt)
+ 	      coff_last_function = symp;
+ 	      if (S_GET_NUMBER_AUXILIARY (symp) < 1)
+ 		S_SET_NUMBER_AUXILIARY (symp, 1);
+-	      auxp = &coffsymbol (symp->bsym)->native[1].u.auxent;
++	      auxp = SYM_AUXENT(symp);
+ 	      memset (auxp->x_sym.x_fcnary.x_ary.x_dimen, 0,
+ 		      sizeof (auxp->x_sym.x_fcnary.x_ary.x_dimen));
+ 	    }
+@@ -1126,6 +1239,16 @@ coff_frob_symbol (symp, punt)
+ 	  lptr = lptr->next;
+ 	}
+     }
++    
++#ifdef TE_PE
++    /* Double check weak symbols.  */
++    if (symp->bsym->flags & BSF_WEAK)
++      {
++	if (S_IS_COMMON (symp))
++	  as_bad (_("Symbol `%s' can not be both weak and common"),
++		  S_GET_NAME (symp));
++      }
++#endif
+ }
+ 
+ void
+@@ -1166,10 +1289,13 @@ coff_adjust_section_syms (abfd, sec, x)
+       && sec != bss_section)
+     return;
+   secsym = section_symbol (sec);
++  /* This is an estimate; we'll plug in the real value using 
++     SET_SECTION_RELOC_COUNT later */
+   SA_SET_SCN_NRELOC (secsym, nrelocs);
+   SA_SET_SCN_NLINNO (secsym, nlnno);
+ }
+ 
++void coff_frob_file_after_relocs PARAMS((void));
+ void
+ coff_frob_file_after_relocs ()
+ {
+@@ -1193,6 +1319,7 @@ coff_frob_file_after_relocs ()
+  * subsegment number.
+  */
+ 
++void obj_coff_section PARAMS((int));
+ void
+ obj_coff_section (ignore)
+      int ignore;
+@@ -1224,7 +1351,7 @@ obj_coff_section (ignore)
+   SKIP_WHITESPACE ();
+ 
+   exp = 0;
+-  flags = SEC_NO_FLAGS;
++  flags = SEC_READ | SEC_LOAD;
+ 
+   if (*input_line_pointer == ',')
+     {
+@@ -1235,6 +1362,7 @@ obj_coff_section (ignore)
+       else
+ 	{
+ 	  ++input_line_pointer;
++	  flags = SEC_READ | SEC_LOAD;
+ 	  while (*input_line_pointer != '"'
+ 		 && ! is_end_of_line[(unsigned char) *input_line_pointer])
+ 	    {
+@@ -1242,11 +1370,15 @@ obj_coff_section (ignore)
+ 		{
+ 		case 'b': flags |= SEC_ALLOC; flags &=~ SEC_LOAD; break;
+ 		case 'n': flags &=~ SEC_LOAD; break;
+-		case 'd':
+-		case 'w': flags &=~ SEC_READONLY; break;
+-		case 'x': flags |= SEC_CODE; break;
+-		case 'r': flags |= SEC_READONLY; break;
+-
++		case 'd': flags |= SEC_DATA;
++			  flags |= SEC_LOAD; /* drop thru */
++		case 'w': flags &=~ SEC_READONLY;
++			  flags |= SEC_WRITE; break;
++		case 'x': flags |= SEC_CODE; 
++			  flags |= SEC_LOAD;
++			  flags |= SEC_EXEC; break;
++		case 'r': flags |= SEC_READONLY;
++			  flags &= ~ SEC_WRITE; break;
+ 		case 'i': /* STYP_INFO */
+ 		case 'l': /* STYP_LIB */
+ 		case 'o': /* STYP_OVER */
+@@ -1285,6 +1417,25 @@ obj_coff_section (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_ident PARAMS ((int));
++static void
++obj_coff_ident (ignore)
++     int ignore;
++{
++  asection *sec;
++
++  segT current_seg = now_seg;		/* save current seg	*/
++  subsegT current_subseg = now_subseg;
++  /* we could put it in .comment, but that creates an extra section
++     that shouldn't be loaded into memory, which requires linker changes...
++     For now, until proven otherwise, use .rdata */
++  sec = subseg_new (".rdata$zzz", 0);
++  bfd_set_section_flags (stdoutput, sec, 
++	 (SEC_READ|SEC_ALLOC|SEC_LOAD|SEC_READONLY|SEC_DATA) & bfd_applicable_section_flags (stdoutput));
++  stringer (1);				/* read string		*/
++  subseg_set (current_seg, current_subseg);	/* restore current seg	*/
++}
++
+ void
+ coff_adjust_symtab ()
+ {
+@@ -1407,7 +1558,7 @@ symbol_dump ()
+ 
+ #endif /* DEBUG */
+ 
+-#else /* not BFD_ASSEMBLER */
++#else /* ][ not BFD_ASSEMBLER */
+ 
+ #include "frags.h"
+ /* This is needed because we include internal bfd things. */
+@@ -2156,6 +2307,7 @@ obj_coff_ln (appline)
+ 				      *input_line_pointer == '\t') \
+                                          input_line_pointer++;
+ 
++static void obj_coff_def PARAMS((int));
+ static void
+ obj_coff_def (what)
+      int what;
+@@ -2546,6 +2698,7 @@ obj_coff_tag (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_type PARAMS((int));
+ static void
+ obj_coff_type (ignore)
+      int ignore;
+@@ -2651,7 +2804,7 @@ obj_coff_pe_handle_link_once (type)
+ #endif /* TE_PE */
+ 
+ void
+-coff_obj_read_begin_hook ()
++coff_obj_read_begin_hook PARAMS((void))
+ {
+   /* These had better be the same.  Usually 18 bytes. */
+ #ifndef BFD_HEADERS
+@@ -4381,7 +4534,7 @@ adjust_stab_section(abfd, seg)
+   bfd_h_put_32 (abfd, (bfd_vma) strsz, (bfd_byte *) p + 8);
+ }
+ 
+-#endif /* not BFD_ASSEMBLER */
++#endif /* not BFD_ASSEMBLER ] */
+ 
+ const pseudo_typeS obj_pseudo_table[] =
+ {
+@@ -4390,6 +4543,9 @@ const pseudo_typeS obj_pseudo_table[] =
+   {"endef", obj_coff_endef, 0},
+   {"line", obj_coff_line, 0},
+   {"ln", obj_coff_ln, 0},
++#if defined(OBJ_COFF) && defined(BFD_ASSEMBLER)
++  {"loc", obj_coff_loc, 0},
++#endif
+   {"appline", obj_coff_ln, 1},
+   {"scl", obj_coff_scl, 0},
+   {"size", obj_coff_size, 0},
+@@ -4413,7 +4569,7 @@ const pseudo_typeS obj_pseudo_table[] =
+   {"ident", obj_coff_ident, 0},
+ #else
+   {"optim", s_ignore, 0},	/* For sun386i cc (?) */
+-  {"ident", s_ignore, 0},	/* we don't yet handle this. */
++  {"ident", obj_coff_ident, 0},
+ #endif
+   {"version", s_ignore, 0},
+   {"ABORT", s_abort, 0},
+@@ -4428,12 +4584,14 @@ const pseudo_typeS obj_pseudo_table[] =
+ 
+ /* Support for a COFF emulation.  */
+ 
++static void coff_pop_insert PARAMS((void));
+ static void
+-coff_pop_insert ()
++coff_pop_insert PARAMS((void))
+ {
+   pop_insert (obj_pseudo_table);
+ }
+ 
++static int coff_sec_sym_ok_for_reloc PARAMS((asection*));
+ static int
+ coff_sec_sym_ok_for_reloc (sec)
+      asection *sec;
+@@ -4441,8 +4599,9 @@ coff_sec_sym_ok_for_reloc (sec)
+   return 0;
+ }
+ 
++static void no_func PARAMS((void));
+ static void
+-no_func ()
++no_func PARAMS((void))
+ {
+   abort ();
+ }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/config/obj-coff.h //D/home/donn.intel/be.build/gas/config/obj-coff.h
+--- //Q/Gnusrc/cygwin.0420/gas/config/obj-coff.h	Tue Apr 20 02:10:44 1999
++++ //D/home/donn.intel/be.build/gas/config/obj-coff.h	Tue Apr 20 14:07:46 1999
+@@ -838,4 +838,20 @@ extern void obj_coff_pe_handle_link_once
+ extern void obj_coff_init_stab_section PARAMS ((segT));
+ #define INIT_STAB_SECTION(seg) obj_coff_init_stab_section (seg)
+ 
++/* we'd plugged in an estimate of the reloction count into the symbol
++   table before.  Now we'll plug in an exact value, as well as doing
++   what write.c needs to have done with the final exact value. */
++
++#define SET_SECTION_RELOC_COUNT(stdoutput, abfd, sec, relocs, n) \
++{ symbolS *secsym;						\
++  secsym = section_symbol (sec);				\
++  SA_SET_SCN_NRELOC (secsym, n);				\
++  if (n) 							\
++    bfd_set_reloc (stdoutput, sec, relocs, n);			\
++  else								\
++    bfd_set_section_flags (abfd, sec,				\
++			   (bfd_get_section_flags (abfd, sec)	\
++			    & (flagword) ~SEC_RELOC));		\
++}
++
+ #endif /* OBJ_FORMAT_H */
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/config/tc-i386.c //D/home/donn.intel/be.build/gas/config/tc-i386.c
+--- //Q/Gnusrc/cygwin.0420/gas/config/tc-i386.c	Tue Apr 20 02:10:52 1999
++++ //D/home/donn.intel/be.build/gas/config/tc-i386.c	Tue Apr 20 14:07:46 1999
+@@ -921,8 +921,10 @@ int
+ tc_i386_fix_adjustable(fixP)
+      fixS * fixP;
+ {
+-#ifdef OBJ_ELF
++#if defined(OBJ_ELF) || defined(TE_PE)
+   /* Prevent all adjustments to global symbols. */
++  /* PE doesn't make everything section relative, and it really botches
++     up dynamic linking to do so! */
+   if (S_IS_EXTERN (fixP->fx_addsy))
+     return 0;
+   if (S_IS_WEAK (fixP->fx_addsy))
+@@ -932,6 +932,7 @@ tc_i386_fix_adjustable(fixP)
+   if (fixP->fx_r_type == BFD_RELOC_386_GOTOFF
+       || fixP->fx_r_type == BFD_RELOC_386_PLT32
+       || fixP->fx_r_type == BFD_RELOC_386_GOT32
++      || fixP->fx_r_type == BFD_RELOC_RVA
+       || fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
+       || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
+     return 0;
+@@ -2478,7 +2479,8 @@ md_assemble (line)
+ 					== O_subtract))))
+ 			  {
+ 			    r_type = BFD_RELOC_386_GOTPC;
+-			    i.imms[n]->X_add_number += 3;
++			    i.imms[n]->X_add_number += insn_size;  // DYNLINK
++			    pcrel = true; // benign
+ 			  }
+ #endif
+ 			fix_new_exp (frag_now, p - frag_now->fr_literal, size,
+@@ -2522,6 +2524,8 @@ i386_is_reg (reg_string)
+     return 1;
+ }
+  
++enum bfd_reloc_code_real special_reloc;
++
+ static int i386_immediate PARAMS ((char *));
+ 
+ static int
+@@ -2547,60 +2551,9 @@ i386_immediate (imm_start)
+   save_input_line_pointer = input_line_pointer;
+   input_line_pointer = imm_start;
+ 
+-#ifndef LEX_AT
+-    {
+-      /*
+-       * We can have operands of the form
+-       *   <symbol>@GOTOFF+<nnn>
+-       * Take the easy way out here and copy everything
+-       * into a temporary buffer...
+-       */
+-      register char *cp;
+-
+-      cp = strchr (input_line_pointer, '@');
+-      if (cp != NULL)
+-        {
+-	  char *tmpbuf;
+-	  int len, first;
+-
+-	  /* GOT relocations are not supported in 16 bit mode */
+-	  if (flag_16bit_code)
+-	    as_bad (_("GOT relocations not supported in 16 bit mode"));
+-
+-	  if (GOT_symbol == NULL)
+-	    GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+-
+-	  if (strncmp (cp + 1, "PLT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
+-	      len = 3;
+-	    }
+-	  else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
+-	      len = 6;
+-	    }
+-	  else if (strncmp (cp + 1, "GOT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
+-	      len = 3;
+-	    }
+-	  else
+-	    as_bad (_("Bad reloc specifier in expression"));
+-
+-	  /* Replace the relocation token with ' ', so that errors like
+-	     foo@GOTOFF1 will be detected.  */
+-	  first = cp - input_line_pointer;
+-	  tmpbuf = (char *) alloca (strlen(input_line_pointer));
+-	  memcpy (tmpbuf, input_line_pointer, first);
+-	  tmpbuf[first] = ' ';
+-	  strcpy (tmpbuf + first + 1, cp + 1 + len);
+-	  input_line_pointer = tmpbuf;
+-	}
+-    }
+-#endif
+-
++  special_reloc = NO_RELOC;
+   exp_seg = expression (exp);
++  i.disp_reloc[this_operand] = special_reloc;
+ 
+   if (*input_line_pointer)
+     as_bad (_("Ignoring junk `%s' after expression"), input_line_pointer);
+@@ -2725,7 +2678,6 @@ i386_displacement (disp_start, disp_end)
+ 
+   exp = &disp_expressions[i.disp_operands];
+   i.disps[this_operand] = exp;
+-  i.disp_reloc[this_operand] = NO_RELOC;
+   i.disp_operands++;
+   save_input_line_pointer = input_line_pointer;
+   input_line_pointer = disp_start;
+@@ -2776,60 +2728,10 @@ i386_displacement (disp_start, disp_end)
+     *displacement_string_end = '0';
+     }
+ #endif
+-#ifndef LEX_AT
+-    {
+-      /*
+-       * We can have operands of the form
+-       *   <symbol>@GOTOFF+<nnn>
+-       * Take the easy way out here and copy everything
+-       * into a temporary buffer...
+-       */
+-      register char *cp;
+-
+-      cp = strchr (input_line_pointer, '@');
+-      if (cp != NULL)
+-        {
+-	  char *tmpbuf;
+-	  int len, first;
+-
+-	 /* GOT relocations are not supported in 16 bit mode */
+-	 if (flag_16bit_code)
+-	   as_bad (_("GOT relocations not supported in 16 bit mode"));
+-
+-	  if (GOT_symbol == NULL)
+-	    GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+-
+-	  if (strncmp (cp + 1, "PLT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_PLT32;
+-	      len = 3;
+-	    }
+-	  else if (strncmp (cp + 1, "GOTOFF", 6) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOTOFF;
+-	      len = 6;
+-	    }
+-	  else if (strncmp (cp + 1, "GOT", 3) == 0)
+-	    {
+-	      i.disp_reloc[this_operand] = BFD_RELOC_386_GOT32;
+-	      len = 3;
+-	    }
+-	  else
+-	    as_bad (_("Bad reloc specifier in expression"));
+-
+-	  /* Replace the relocation token with ' ', so that errors like
+-	     foo@GOTOFF1 will be detected.  */
+-	  first = cp - input_line_pointer;
+-	  tmpbuf = (char *) alloca (strlen(input_line_pointer));
+-	  memcpy (tmpbuf, input_line_pointer, first);
+-	  tmpbuf[first] = ' ';
+-	  strcpy (tmpbuf + first + 1, cp + 1 + len);
+-	  input_line_pointer = tmpbuf;
+-	}
+-    }
+-#endif
+ 
++    special_reloc = NO_RELOC;
+     exp_seg = expression (exp);
++    i.disp_reloc[this_operand] = special_reloc;
+ 
+ #ifdef BFD_ASSEMBLER
+     /* We do this to make sure that the section symbol is in
+@@ -3355,6 +3257,64 @@ i386_intel_operand (operand_string, got_
+   return 1;
+ }
+ 
++#ifdef LEX_AT
++/*
++ * We can have a name of the form
++ *   <symbol>@GOTOFF
++ * Strip off the @GOTOFF (or whatever) and set a global giving the
++ * relocation type.  This is called from within expr(), and we
++ * don't have access to the per-operand relocations there, so we use
++ * (yetch) a global to pass it back.  (If expr() is ever rewritten...)
++ *
++ * Note: @ can be an ordinary identifier character; only if the name is
++ * suffixed by EXACTLY one of the reserved operators do we recognize
++ * it.  In any other case, it's just passed thru like an ordinary 
++ * identifier.
++ */
++
++int
++i386_parse_name (name, expressionP)
++  char *name;
++  expressionS *expressionP;
++{
++    register char *cp;
++
++    if ((cp = strrchr (name,'@')) == NULL)
++       return 0;
++
++    if (strcmp(cp+1, "PLT") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_PLT32;
++      } 
++    else if (strcmp(cp+1, "GOTOFF") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_GOTOFF;
++      }
++    else if (strcmp(cp+1, "GOT") == 0) 
++      {
++	special_reloc = BFD_RELOC_386_GOT32;
++      } 
++    else if (strcmp(cp+1, "IMAGEBASE") == 0) 
++      {
++	special_reloc = BFD_RELOC_RVA;
++      } 
++    else
++      return 0;
++
++    /* GOT relocations are not supported in 16 bit mode */
++    if (flag_16bit_code)
++      as_bad (_("GOT relocations not supported in 16 bit mode"));
++
++    if(special_reloc != BFD_RELOC_RVA && !GOT_symbol)
++      GOT_symbol = symbol_find_or_make(GLOBAL_OFFSET_TABLE_NAME);
++
++    *cp = '\0';
++
++    return 0;
++}
++#endif
++ 
++
+ /* Parse OPERAND_STRING into the i386_insn structure I.  Returns non-zero
+    on error. */
+ 
+@@ -3689,6 +3649,58 @@ i386_operand (operand_string)
+     }
+   return 1;			/* normal return */
+ }
++
++void
++i386_parse_cons_expression (exp)
++     expressionS *exp;
++{
++  /* All we do different here from the normal is initialize special_reloc,
++     so we can pick it up below in i386_cons_fix_new. */
++  special_reloc = NO_RELOC;
++  expression(exp);
++}
++
++void
++i386_cons_fix_new (frag, where, size, exp)
++     fragS *frag;
++     int where;
++     int size;
++     expressionS *exp;
++{
++  unsigned int rel_type;
++
++  bfd_reloc_code_real_type r;
++
++  /* now that we know that special_reloc is properly initialized, we check
++     it; if it got set we have a foo@PLT type relocation.  Else, just like
++     the generic stuff (BFD style) */
++  if (special_reloc != NO_RELOC)
++    {
++       r = special_reloc;
++       if (size != 4)
++          as_bad (_("unsupported PIC BFD relocation size %u"), size);
++    }
++  else switch (size)
++    {
++    case 1:
++      r = BFD_RELOC_8;
++      break;
++    case 2:
++      r = BFD_RELOC_16;
++      break;
++    case 4:
++      r = BFD_RELOC_32;
++      break;
++    case 8:
++      r = BFD_RELOC_64;
++      break;
++    default:
++      as_bad (_("unsupported BFD relocation size %u"), size);
++      r = BFD_RELOC_32;
++      break;
++    }
++  fix_new_exp (frag, where, size, exp, 0, r);
++}
+ 
+ /*
+  *			md_estimate_size_before_relax()
+@@ -3918,12 +3930,20 @@ md_apply_fix3 (fixP, valp, seg)
+   if (fixP->fx_r_type == BFD_RELOC_32 && fixP->fx_pcrel)
+      fixP->fx_r_type = BFD_RELOC_32_PCREL;
+ 
+-#if defined (BFD_ASSEMBLER) && !defined (TE_Mach)
++#if defined (BFD_ASSEMBLER) && !defined (TE_Mach) && !defined(PUSHMI_PULLU)
+   /*
+    * This is a hack.  There should be a better way to
+-   * handle this.
++   * handle this.  This covers for the fact that bfd_install_reloc
++   * will subtract the current location; see more below.
++   * The last clause is in case it'll be transformed to a GOTPC later.
++   * This is another "pushme-pullyou bandaid.
+    */
+-  if (fixP->fx_r_type == BFD_RELOC_32_PCREL && fixP->fx_addsy)
++  if ((fixP->fx_r_type == BFD_RELOC_32_PCREL
++        || fixP->fx_r_type == BFD_RELOC_386_GOTPC
++        || fixP->fx_r_type == BFD_RELOC_386_PLT32
++	|| (fixP->fx_r_type == BFD_RELOC_32
++	    && GOT_symbol && fixP->fx_addsy == GOT_symbol)
++    ) && fixP->fx_addsy)
+     {
+ #ifndef OBJ_AOUT
+       if (OUTPUT_FLAVOR == bfd_target_elf_flavour
+@@ -3946,6 +3966,10 @@ md_apply_fix3 (fixP, valp, seg)
+ 	     bfd_perform_relocation subtracts them out again.  I think
+ 	     bfd_perform_relocation is broken, but I don't dare change
+ 	     it.  FIXME.  */
++	  /* I think this is fixed now with a change to
++           * bfd:coff_i386_reloc that looks safe.  See also
++	   * the "ugly" change to tc_gen_reloc below.
++	   */
+ 	  value += fixP->fx_where + fixP->fx_frag->fr_address;
+ 	}
+ #endif
+@@ -3973,12 +3974,15 @@ md_apply_fix3 (fixP, valp, seg)
+ 	  value += fixP->fx_where + fixP->fx_frag->fr_address;
+ 	}
+ #endif
++
++#ifdef PUSHMI_PULLU
+ #if defined (OBJ_COFF) && defined (TE_PE)
+       /* For some reason, the PE format does not store a section
+          address offset for a PC relative symbol.  */
+       if (S_GET_SEGMENT (fixP->fx_addsy) != seg)
+ 	value += md_pcrel_from (fixP);
+ #endif
++#endif
+     }
+ 
+   /* Fix a few things - the dynamic linker expects certain values here,
+@@ -4056,7 +4080,7 @@ md_chars_to_number (con, nbytes)
+    is stored in *sizeP .  An error message is returned, or NULL on OK.  */
+ char *
+ md_atof (type, litP, sizeP)
+-     char type;
++     int type;
+      char *litP;
+      int *sizeP;
+ {
+@@ -4086,7 +4110,7 @@ md_atof (type, litP, sizeP)
+       *sizeP = 0;
+       return _("Bad call to md_atof ()");
+     }
+-  t = atof_ieee (input_line_pointer, type, words);
++  t = atof_ieee (input_line_pointer, (char)type, words);
+   if (t)
+     input_line_pointer = t;
+ 
+@@ -4246,7 +4270,11 @@ symbolS *
+ md_undefined_symbol (name)
+      char *name;
+ {
+-	if (*name == '_' && *(name+1) == 'G'
++	/* slightly strange coding, but this makes changing the string
++	   constant work right. */
++	if (name[0] == GLOBAL_OFFSET_TABLE_NAME[0]
++	 && name[1] == GLOBAL_OFFSET_TABLE_NAME[1]
++	 && name[2] == GLOBAL_OFFSET_TABLE_NAME[2]
+ 	    && strcmp(name, GLOBAL_OFFSET_TABLE_NAME) == 0)
+ 	  {
+ 	    if (!GOT_symbol)
+@@ -4399,6 +4427,20 @@ tc_gen_reloc (section, fixp)
+       assert (rel->howto != NULL);
+     }
+ 
++#ifndef PUSHMI_PULLU
++  /*
++   * Ohhh, this is ugly.  The problem is that if this is a local global
++   * symbol, the relocation will entirely be performed at link time, not
++   * at assembly time.  bfd_install_reloc doesn't know about this sort
++   * of thing, and as a result we need to fake it out here.
++   *
++   * Note that if you change this as part of cleaning up the apalling
++   * mess of complementary adds/subtracts of which this is part, that
++   * bfd:coff_i386_reloc may need attention too.
++   */
++  if (S_IS_EXTERN (fixp->fx_addsy) && !S_IS_COMMON(fixp->fx_addsy))
++    rel->addend -= fixp->fx_addsy->bsym->value;
++#endif
+   return rel;
+ }
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/config/tc-i386.h //D/home/donn.intel/be.build/gas/config/tc-i386.h
+--- //Q/Gnusrc/cygwin.0420/gas/config/tc-i386.h	Tue Apr 20 02:10:52 1999
++++ //D/home/donn.intel/be.build/gas/config/tc-i386.h	Tue Apr 20 14:07:46 1999
+@@ -105,6 +105,29 @@ extern const char *i386_target_format PA
+ #endif
+ #endif
+ 
++#define GLOBAL_OFFSET_TABLE_NAME "__GLOBAL_OFFSET_TABLE_"
++
++#ifdef LEX_AT
++/* Parse names from inside expr; allows @ to be an ordinary character
++   except in very narrow contexts. */
++#define md_parse_name(n, e) i386_parse_name(n,e)
++extern int i386_parse_name PARAMS((char *, expressionS *));
++
++/* The above has the mostly desireable side-effect of allowing @PLT (etc.)
++   in immediate constants and in .long (et al.).  However, the relocations 
++   won't work right for .long unless we also grab it here (in a fairly trivial 
++   fashion, but ...).  Mostly this prevents mysterious bugs, as the
++   compiler currently doesn't use such constructs (but it certainly
++   could to avoid that awfulness with __GOT__-[Lnn-.] ) */
++#define TC_PARSE_CONS_EXPRESSION(e,n) i386_parse_cons_expression(e,n)
++extern void i386_cons_expression PARAMS((expressionS *, int));
++
++/* And to hook the relocation back into everything right */
++#define TC_CONS_FIX_NEW i386_cons_fix_new
++extern void i386_cons_fix_new PARAMS((fragS *, int, int, expressionS *));
++
++#endif /* LEX_AT */
++
+ #else /* ! BFD_ASSEMBLER */
+ 
+ /* COFF STUFF */
+@@ -423,7 +446,6 @@ extern const struct relax_type md_relax_
+ #define TC_GENERIC_RELAX_TABLE md_relax_table
+ 
+ 
+-extern int flag_16bit_code;
+ 
+ #ifdef BFD_ASSEMBLER
+ #define md_maybe_text() \
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/config/te-interix.h //D/home/donn.intel/be.build/gas/config/te-interix.h
+--- //Q/Gnusrc/cygwin.0420/gas/config/te-interix.h	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/gas/config/te-interix.h	Tue Apr 20 14:07:46 1999
+@@ -0,0 +1,14 @@
++#define TE_INTERIX
++#define TE_PE
++#define LEX_AT 1 /* can have @'s inside labels */
++#define LEX_QM 3 /* can have ?'s in or begin labels */
++
++/* The PE format supports long section names.  */
++#define COFF_LONG_SECTION_NAMES
++
++/* Both architectures use these */
++#ifndef LOCAL_LABELS_FB
++#define LOCAL_LABELS_FB 1
++#endif
++
++#include "obj-format.h"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/configure.in //D/home/donn.intel/be.build/gas/configure.in
+--- //Q/Gnusrc/cygwin.0420/gas/configure.in	Tue Apr 20 02:27:07 1999
++++ //D/home/donn.intel/be.build/gas/configure.in	Tue Apr 20 14:07:46 1999
+@@ -199,6 +199,7 @@ changequote([,])dnl
+       i386-*-pe)            fmt=coff em=pe ;;
+       i386-*-cygwin*)       fmt=coff em=pe bfd_gas=yes ;;
+       i386-*-mingw32*)      fmt=coff em=pe bfd_gas=yes ;;
++      i386-*-interix)       fmt=coff em=interix bfd_gas=yes ;;
+       i386-*-*nt*)          fmt=coff em=pe ;;
+       i960-*-bout)          fmt=bout ;;
+       i960-*-coff)          fmt=coff em=ic960 ;;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/doc/internals.texi //D/home/donn.intel/be.build/gas/doc/internals.texi
+--- //Q/Gnusrc/cygwin.0420/gas/doc/internals.texi	Tue Apr 20 02:11:06 1999
++++ //D/home/donn.intel/be.build/gas/doc/internals.texi	Tue Apr 20 14:07:46 1999
+@@ -961,6 +961,13 @@ fixup @var{fixp} to @var{stream}.  This 
+ A C statement to initialize the target specific fields of frag @var{fragp}.
+ These fields are defined with the @code{TC_FRAG_TYPE} macro.
+ 
++@item SET_SECTION_RELOC_COUNT (@var{stdoutput}, @var{abfd}, @var{sec}, @var{relocs}, @var{m})
++@cindex SET_SECTION_RELOC_COUNT
++You may define this to set the final relocation count (on final output).
++This is important on some systems because otherwise the count may be
++slightly too large (because the assembler itself resolves some relocations
++after arriving at the initial count).  It is called from @code{write_relocs}.
++
+ @item md_number_to_chars
+ @cindex md_number_to_chars
+ This should just call either @code{number_to_chars_bigendian} or
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/expr.c //D/home/donn.intel/be.build/gas/expr.c
+--- //Q/Gnusrc/cygwin.0420/gas/expr.c	Tue Apr 20 02:10:35 1999
++++ //D/home/donn.intel/be.build/gas/expr.c	Tue Apr 20 14:07:46 1999
+@@ -385,7 +385,7 @@ integer_constant (radix, expressionP)
+       break;
+     case 10:
+       maxdig = radix = 10;
+-      too_many_digits = (valuesize + 12) / 4; /* very rough */
++      too_many_digits = (valuesize + 11) / 4; /* very rough */
+     }
+ #undef valuesize
+   start = input_line_pointer;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/expr.h //D/home/donn.intel/be.build/gas/expr.h
+--- //Q/Gnusrc/cygwin.0420/gas/expr.h	Tue Apr 20 02:10:35 1999
++++ //D/home/donn.intel/be.build/gas/expr.h	Tue Apr 20 14:07:46 1999
+@@ -147,7 +147,7 @@ typedef char operator_rankT;
+ extern char get_symbol_end PARAMS ((void));
+ extern void expr_begin PARAMS ((void));
+ extern void expr_set_precedence PARAMS ((void));
+-extern segT expr PARAMS ((int rank, expressionS * resultP));
++extern segT expr PARAMS ((operator_rankT rank, expressionS * resultP));
+ extern unsigned int get_single_number PARAMS ((void));
+ extern struct symbol *make_expr_symbol PARAMS ((expressionS * expressionP));
+ extern int expr_symbol_where
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/symbols.c //D/home/donn.intel/be.build/gas/symbols.c
+--- //Q/Gnusrc/cygwin.0420/gas/symbols.c	Tue Apr 20 02:10:40 1999
++++ //D/home/donn.intel/be.build/gas/symbols.c	Tue Apr 20 14:07:46 1999
+@@ -942,7 +942,7 @@ exit_dont_set_value:
+ 	symp->sy_resolved = 1;
+       else if (S_GET_SEGMENT (symp) != expr_section)
+ 	{
+-	  as_bad (_("can't resolve value for symbol \"%s\""), S_GET_NAME (symp));
++	  as_bad (_("symbols can't resolve value for symbol \"%s\""), S_GET_NAME (symp));
+ 	  symp->sy_resolved = 1;
+ 	}
+     }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0420/gas/write.c //D/home/donn.intel/be.build/gas/write.c
+--- //Q/Gnusrc/cygwin.0420/gas/write.c	Tue Apr 20 02:10:41 1999
++++ //D/home/donn.intel/be.build/gas/write.c	Tue Apr 20 14:07:46 1999
+@@ -426,6 +426,8 @@ chain_frchains_together_1 (section, frch
+ 
+ #ifdef BFD_ASSEMBLER
+ 
++static void chain_frchains_together PARAMS((bfd *, asection *, PTR));
++
+ static void
+ chain_frchains_together (abfd, section, xxx)
+      bfd *abfd;			/* unused */
+@@ -569,6 +571,8 @@ cvt_frag_to_fill (headersP, sec, fragP)
+ #endif /* defined (BFD_ASSEMBLER) || !defined (BFD) */
+ 
+ #ifdef BFD_ASSEMBLER
++static void relax_and_size_seg PARAMS((bfd *, asection *, PTR));
++
+ static void
+ relax_and_size_seg (abfd, sec, xxx)
+      bfd *abfd;
+@@ -656,8 +660,17 @@ dump_section_relocs (abfd, sec, stream_)
+       symbolS *s = fixp->fx_addsy;
+       if (s)
+ 	{
++	  const char *secname;
++	  if (s->bsym->section == NULL) 
++	    {
++	       secname = "*unknown*";
++	    }
++	  else
++	    {
++	       secname = s->bsym->section->name;
++	    }
+ 	  fprintf (stream, "  %08x: %s(%s", fixp, S_GET_NAME (s),
+-		   s->bsym->section->name);
++		   secname);
+ 	  if (s->bsym->flags & BSF_SECTION_SYM)
+ 	    {
+ 	      fprintf (stream, " section sym");
+@@ -681,6 +694,8 @@ dump_section_relocs (abfd, sec, stream_)
+ #define EMIT_SECTION_SYMBOLS 1
+ #endif
+ 
++static void adjust_reloc_syms PARAMS((bfd *, asection *, PTR));
++
+ static void
+ adjust_reloc_syms (abfd, sec, xxx)
+      bfd *abfd;
+@@ -860,6 +875,10 @@ adjust_reloc_syms (abfd, sec, xxx)
+ 	fixp->fx_offset += S_GET_VALUE (sym);
+ 	fixp->fx_addsy = section_symbol (S_GET_SEGMENT (sym));
+ 	fixp->fx_addsy->sy_used_in_reloc = 1;
++#ifdef DEBUG5
++	fprintf (stderr, "\nadjusted fixup:\n");
++	print_fixup (fixp);
++#endif
+ 
+       done:
+ 	;
+@@ -880,6 +899,8 @@ adjust_reloc_syms (abfd, sec, xxx)
+   dump_section_relocs (abfd, sec, stderr);
+ }
+ 
++static void write_relocs PARAMS((bfd *, asection *, PTR));
++
+ static void
+ write_relocs (abfd, sec, xxx)
+      bfd *abfd;
+@@ -1057,12 +1078,16 @@ write_relocs (abfd, sec, xxx)
+   }
+ #endif
+ 
++#ifdef SET_SECTION_RELOC_COUNT
++  SET_SECTION_RELOC_COUNT (stdoutput, abfd, sec, relocs, n);
++#else
+   if (n)
+     bfd_set_reloc (stdoutput, sec, relocs, n);
+   else
+     bfd_set_section_flags (abfd, sec,
+ 			   (bfd_get_section_flags (abfd, sec)
+ 			    & (flagword) ~SEC_RELOC));
++#endif
+ 
+ #ifdef DEBUG3
+   {
+@@ -1081,6 +1106,8 @@ write_relocs (abfd, sec, xxx)
+ #endif
+ }
+ 
++static void write_contents PARAMS((bfd *, asection *, PTR));
++
+ static void
+ write_contents (abfd, sec, xxx)
+      bfd *abfd;
+@@ -1881,7 +1908,7 @@ write_object_file ()
+ 	  /* Make sure we really got a value for the symbol.  */
+ 	  if (! symp->sy_resolved)
+ 	    {
+-	      as_bad (_("can't resolve value for symbol \"%s\""),
++	      as_bad (_("write can't resolve value for symbol \"%s\""),
+ 		      S_GET_NAME (symp));
+ 	      symp->sy_resolved = 1;
+ 	    }
+@@ -2704,7 +2704,7 @@ fixup_segment (fixP, this_segment_type)
+ #if !(defined (TC_V850) && defined (OBJ_ELF))
+ #if !(defined (TC_M68K) && defined (OBJ_ELF))
+ #if !(defined (TC_ARM)  && defined (OBJ_ELF))
+-#if !defined (TC_I386) || !(defined (OBJ_ELF) || defined (OBJ_COFF)) || defined (TE_PE)
++#if !defined (TC_I386) || !(defined (OBJ_ELF) || defined (OBJ_COFF)) || (defined (TE_PE) && defined(TE_INTERIX))
+ 		  add_number += S_GET_VALUE (add_symbolP);
+ #endif
+ #endif
+@@ -2687,7 +2714,11 @@ fixup_segment (fixP, this_segment_type)
+ 	    }
+ 	}
+ 
+-      if (pcrel)
++      /* if the relocation is against a section symbol, then 
++	 we need to adjust it for that.  However, if something
++	 prevented it from becoming a relocation against a section
++	 symbol, it's a Bad Thing to do this. */
++      if (pcrel && (fixP->fx_addsy->bsym->flags & BSF_SECTION_SYM))
+ 	{
+ 	  add_number -= MD_PCREL_FROM_SECTION (fixP, this_segment_type);
+ 	  if (add_symbolP == 0)

@@ -1,0 +1,691 @@
+ST0 patch should be cross-applied.
+
+This patch contains the "basic, obvious" stuff necessary to support
+gdb on interix, given a /proc filesystem interface for debugging.
+It alone is not sufficient, but the pieces herein do not affect
+anything else.  To compile successfully for interix, the /proc
+patch is needed as well.  (And then, it probably won't run very
+well.)
+
+Some compilers don't permit filenames before -D options; reorder.
+
+Some versions of make set -e when they arguably shouldn't; if grep
+exits 1 (no match) it will exit the make if init.c too early.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* Makefile.in: add interix case.  Put -D before filenames.
+	  Be more robust w.r.t. shell -e option.
+	* interix.mh: New file.
+	* interix.mt: New file.
+	* nm-interix.h: New file.
+	* tm-i386interix.h: New file.
+	* xm-interix.h: New file.
+	* configure.host: add interix case.
+	* configure.in: add interix procfs case.
+	* configure.tgt: add interix case.
+	* i386-tdep.c(get_longjmp_target): turn off in favor of one
+	in i386interix-nat.c when on Interix.
+	* i386interix-nat.c: New file.
+
+Index: src/gdb/Makefile.in
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/Makefile.in,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 Makefile.in
+--- src/gdb/Makefile.in	2001/12/23 00:34:50	1.1.1.1
++++ src/gdb/Makefile.in	2001/12/23 20:34:46
+@@ -882,7 +882,7 @@ init.c: $(INIT_FILES)
+ 	    -e 's/\.o/.c/' \
+ 	    -e 's,signals\.c,signals/signals\.c,' \
+ 	    -e 's|\([^  ][^     ]*\)|$(srcdir)/\1|g' | \
+-	while read f; do grep '^_initialize_[a-z_0-9A-Z]* *(' $$f 2>/dev/null; done | \
++	while read f; do ( grep '^_initialize_[a-z_0-9A-Z]* *(' $$f 2>/dev/null || exit 0) ; done | \
+ 	sed -e 's/^.*://' -e 's/^\([a-z_0-9A-Z]*\).*/\1/' | \
+ 	( echo _initialize_gdbtypes ; grep -v '^_initialize_gdbtypes$$' ) > init.l-tmp
+ 	@echo '/* Do not modify this file.  */' >>init.c-tmp
+@@ -1764,6 +1764,9 @@ i386obsd-tdep.o: i386obsd-tdep.c $(defs_
+ 	$(regcache_h) $(i386_tdep_h) $(i387_tdep_h)
+ i386v-nat.o: i386v-nat.c $(defs_h) $(frame_h) $(inferior_h) $(language_h) \
+ 	$(gdbcore_h) $(gdb_stat_h) $(floatformat_h) $(target_h) $(i386_tdep_h)
++i386interix-nat.o: i386interix-nat.c $(defs_h) $(frame_h) $(inferior_h) \
++	$(i386_tdep_h) $(gregset_h) $(symfile_h) $(gdbcore_h) $(objfiles_h) \
++	$(gdb_stabs_h)
+ i386v4-nat.o: i386v4-nat.c $(defs_h) $(value_h) $(inferior_h) $(regcache_h) \
+ 	$(i386_tdep_h) $(i387_tdep_h) $(gregset_h)
+ i387-tdep.o: i387-tdep.c $(defs_h) $(frame_h) $(inferior_h) $(language_h) \
+diff -p -u -r1.1.1.1 configure.host
+--- src/gdb/configure.host	2001/12/23 00:34:44	1.1.1.1
++++ src/gdb/configure.host	2001/12/23 20:34:46
+@@ -80,6 +80,7 @@ i[3456]86-*-unixware*)	gdb_host=i386v4 ;
+ i[3456]86-*-sysv*)	gdb_host=i386v ;;
+ i[3456]86-*-isc*)	gdb_host=i386v32 ;;
+ i[3456]86-*-cygwin*)	gdb_host=cygwin ;;
++i[3456]86-*-interix*)	gdb_host=interix ;;
+ 
+ ia64-*-aix*)		gdb_host=aix ;;
+ ia64-*-linux*)		gdb_host=linux ;;
+Index: src/gdb/configure.tgt
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/configure.tgt,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 configure.tgt
+--- src/gdb/configure.tgt	2001/12/23 00:34:44	1.1.1.1
++++ src/gdb/configure.tgt	2001/12/23 20:34:46
+@@ -113,6 +113,7 @@ i[3456]86-*-sco3.2v4*)	gdb_target=i386sc
+ i[3456]86-*-sco3.2v5*)	gdb_target=i386sco5 ;;
+ i[3456]86-*-sco*)	gdb_target=i386v ;;
+ i[3456]86-*-sysv*)	gdb_target=i386v ;;
++i[3456]86-*-interix*)	gdb_target=interix ;;
+ i[3456]86-*-linux*)	gdb_target=linux
+ 		configdirs="${configdirs} gdbserver" ;;
+ i[3456]86-pc-linux-gnu)	gdb_target=linux
+Index: src/gdb/i386-tdep.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/i386-tdep.c,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 i386-tdep.c
+--- src/gdb/i386-tdep.c	2001/12/23 00:34:48	1.1.1.1
++++ src/gdb/i386-tdep.c	2001/12/23 20:34:46
+@@ -928,6 +928,7 @@ i386_pop_frame (void)
+   generic_pop_current_frame (i386_do_pop_frame);
+ }
+ 
++#ifndef __INTERIX
+ 
+ /* Figure out where the longjmp will land.  Slurp the args out of the
+    stack.  We expect the first arg to be a pointer to the jmp_buf
+@@ -969,6 +975,10 @@ i386_get_longjmp_target (CORE_ADDR *pc)
+   *pc = extract_address (buf, 4);
+   return 1;
+ }
++#else  //Hackery until multiarch completes.
++#define i386_get_longjmp_target get_longjmp_target
++#endif /* INTERIX */
++
+ 
+ 
+ static CORE_ADDR
+Index: src/gdb/i386interix-nat.c
+===================================================================
+RCS file: i386interix-nat.c
+diff -N i386interix-nat.c
+--- /dev/null	Sun Dec 23 12:43:22 2001
++++ src/gdb/i386interix-nat.c	Sun Dec 23 12:34:46 2001
+@@ -0,0 +1,414 @@
++/* Native-dependent code for Interix running on i386's, for GDB.
++   Copyright 1988, 1989, 1991, 1992, 1996 Free Software Foundation, Inc.
++
++This file is part of GDB.
++
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; either version 2 of the License, or
++(at your option) any later version.
++
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
++
++#include "defs.h"
++
++#include <sys/procfs.h>
++#include <ucontext.h>
++#include <frame.h>
++#include <inferior.h>
++
++#include <i386-tdep.h>
++#include <regcache.h>
++
++typedef unsigned long greg_t;  /* Where should this be defined? */
++
++/* See procfs.c and *interix*.h in config/[alpha,i386] */
++CORE_ADDR tramp_start;
++CORE_ADDR tramp_end;
++CORE_ADDR null_start;
++CORE_ADDR null_end;
++
++/*  The /proc interface traditionally divides the target machine's register 
++    set up into two different sets, the general register set (gregset) 
++    and the floating point register set (fpregset).   This is reflected
++    in the data structures in <sys/regset.h>.
++
++    However, the read/write /proc for interix treats them all as part
++    of the status subfile. 
++
++    These routines provide the packing and unpacking of gregset_t and
++    fpregset_t formatted data.
++
++ */
++
++/* This is a duplicate of the table in i386-xdep.c. */
++
++static int regmap[] = 
++{
++  EAX, ECX, EDX, EBX,
++  UESP, EBP, ESI, EDI,
++  EIP, EFL, CS, SS,
++  DS, ES, FS, GS,
++};
++
++/*  Given a pointer to a general register set in /proc format (gregset_t *),
++    unpack the register contents and supply them as gdb's idea of the current
++    register values. */
++
++void
++supply_gregset (gregsetp)
++     gregset_t *gregsetp;
++{
++  register int regi;
++  register greg_t *regp = (greg_t *) &gregsetp->gregs;
++
++  for (regi = 0; regi < I386_NUM_GREGS; regi++)
++    {
++      supply_register (regi, (char *) (regp + regmap[regi]));
++    }
++}
++
++/* Fill in a gregset_t object with selected data from a gdb-format
++   register file.
++   - GREGSETP points to the gregset_t object to be filled.
++   - GDB_REGS points to the GDB-style register file providing the data.
++   - VALID is an array indicating which registers in GDB_REGS are
++     valid; the parts of *GREGSETP that would hold registers marked
++     invalid in GDB_REGS are left unchanged.  If VALID is zero, all
++     registers are assumed to be valid.  */
++void
++convert_to_gregset (gregset_t *gregsetp,
++		    char *gdb_regs,
++		    signed char *valid)
++{
++  int regi;
++  register greg_t *regp = (greg_t *) gregsetp->gregs;
++
++  for (regi = 0; regi < I386_NUM_GREGS; regi++)
++    if (! valid || valid[regi])
++      *(regp + regmap[regi]) = * (int *) &registers[REGISTER_BYTE (regi)];
++}
++
++
++/* Store GDB's value for REGNO in *GREGSETP.  If REGNO is -1, do all
++   of them.  */
++void
++fill_gregset (gregset_t *gregsetp,
++	      int regno)
++{
++  if (regno == -1)
++    convert_to_gregset (gregsetp, registers, 0);
++  else if (regno >= 0 && regno < I386_NUM_GREGS)
++    {
++      signed char valid[I386_NUM_GREGS];
++      memset (valid, 0, sizeof (valid));
++      valid[regno] = 1;
++      convert_to_gregset (gregsetp, registers, valid);
++    }
++}
++
++/*  Given a pointer to a floating point register set in /proc format
++    (fpregset_t *), unpack the register contents and supply them as gdb's
++    idea of the current floating point register values. */
++
++/* What is the address of st(N) within the fpregset_t structure F?  */
++#define FPREGSET_T_FPREG_ADDR(f, n) \
++  ((char *) &(f)->fpstate.fpregs + (n) * 10)
++
++/* Fill GDB's register file with the floating-point register values in
++   *FPREGSETP.  */
++void 
++supply_fpregset (fpregset_t *fpregsetp)
++{
++  int i;
++  long l;
++
++  /* Supply the floating-point registers.  */
++  for (i = 0; i < 8; i++)
++    supply_register (FP0_REGNUM + i, FPREGSET_T_FPREG_ADDR (fpregsetp, i));
++
++  l = fpregsetp->fpstate.control & 0xffff;
++  supply_register (FCTRL_REGNUM, (char *) &l);
++  l = fpregsetp->fpstate.status & 0xffff;
++  supply_register (FSTAT_REGNUM, (char *) &l);
++  l = fpregsetp->fpstate.tag & 0xffff;
++  supply_register (FTAG_REGNUM,  (char *) &l);
++  supply_register (FCOFF_REGNUM, (char *) &fpregsetp->fpstate.erroroffset);
++  l = fpregsetp->fpstate.dataselector & 0xffff;
++  supply_register (FDS_REGNUM,   (char *) &l);
++  supply_register (FDOFF_REGNUM, (char *) &fpregsetp->fpstate.dataoffset);
++  
++  /* Extract the code segment and opcode from the  "fcs" member.  */
++
++  l = fpregsetp->fpstate.errorselector & 0xffff;
++  supply_register (FCS_REGNUM, (char *) &l);
++
++  l = (fpregsetp->fpstate.errorselector >> 16) & ((1 << 11) - 1);
++  supply_register (FOP_REGNUM, (char *) &l);
++}
++
++
++/* Fill in an fpregset_t structure with selected data from a
++   gdb-format register file.
++   - FPREGSETP points to the structure to be filled. 
++   - GDB_REGS points to the GDB-style register file providing the data.
++   - VALID is an array indicating which registers in GDB_REGS are
++     valid; the parts of *FPREGSETP that would hold registers marked
++     invalid in GDB_REGS are left unchanged.  If VALID is zero, all
++     registers are assumed to be valid.  */
++void
++convert_to_fpregset (fpregset_t *fpregsetp,
++		     char *gdb_regs,
++		     signed char *valid)
++{
++  int i;
++
++  /* Fill in the floating-point registers.  */
++  for (i = 0; i < 8; i++)
++    if (!valid || valid[i])
++      memcpy (FPREGSET_T_FPREG_ADDR (fpregsetp, i),
++	      &registers[REGISTER_BYTE (FP0_REGNUM + i)],
++	      REGISTER_RAW_SIZE(FP0_REGNUM + i));
++
++#define fill(MEMBER, REGNO)						      \
++  if (! valid || valid[(REGNO)])					      \
++    memcpy (&fpregsetp->fpstate.MEMBER, &registers[REGISTER_BYTE (REGNO)],    \
++	    sizeof (fpregsetp->fpstate.MEMBER))
++
++  fill (control, FCTRL_REGNUM);
++  fill (status, FSTAT_REGNUM);
++  fill (tag, FTAG_REGNUM);
++  fill (erroroffset, FCOFF_REGNUM);
++  fill (dataoffset, FDOFF_REGNUM);
++  fill (dataselector, FDS_REGNUM);
++
++#undef fill
++
++  if (! valid || valid[FCS_REGNUM])
++    fpregsetp->fpstate.errorselector
++      = ((fpregsetp->fpstate.errorselector & ~0xffff)
++	 | (* (int *) &registers[REGISTER_BYTE (FCS_REGNUM)] & 0xffff));
++
++  if (! valid || valid[FOP_REGNUM])
++    fpregsetp->fpstate.errorselector
++      = ((fpregsetp->fpstate.errorselector & 0xffff)
++	 | ((*(int *) &registers[REGISTER_BYTE (FOP_REGNUM)] & ((1 << 11) - 1))
++	    << 16));
++}
++
++
++/* Given a pointer to a floating point register set in (fpregset_t *)
++   format, update all of the registers from gdb's idea of the current
++   floating point register set.  */
++
++void
++fill_fpregset (fpregset_t *fpregsetp,
++	       int regno)
++{
++  convert_to_fpregset (fpregsetp, registers, 0);
++}
++
++
++/* the name of the proc status struct depends on the implementation */
++#ifdef HAVE_PSTATUS_T
++  typedef pstatus_t gdb_prstatus_t;
++#else
++  typedef prstatus_t gdb_prstatus_t;
++#endif
++
++/* We want to find the previous frame, which on Interix is tricky when signals
++   are involved; set frame->frame appropriately, and also get the pc
++   and tweak signal_handler_caller; this replaces a boatload of nested
++   macros, as well. */
++void
++interix_back_one_frame (fromleaf, frame)
++     int fromleaf;
++     struct frame_info *frame;
++{
++  CORE_ADDR ra;
++  CORE_ADDR fm;
++  CORE_ADDR context;
++  long t;
++
++  if (frame == NULL)
++      abort();
++  
++  if (fromleaf)
++    {
++       frame->pc = SAVED_PC_AFTER_CALL (frame->next);
++       return;
++    }
++
++  if (!frame->next)
++    {
++       frame->pc = read_pc();
++
++       /* part of the signal stuff... see below */
++       if (stopped_by_random_signal)
++	 {
++	   /* we know we're in a system call mini-frame; was it
++	      NullApi or something else? */
++           ra = SAVED_PC_AFTER_CALL (frame);
++           if (ra >= null_start && ra < null_end)
++	      frame->signal_handler_caller = 1;
++	 }
++       return;
++    }
++
++  if (!frame->next->signal_handler_caller)
++    {
++      frame->pc = (CORE_ADDR)read_memory_integer (frame->next->frame + 4, 4);
++      return;
++    }
++
++  /* This is messy... (actually AWFUL) the "trampoline" might be 2, 3 
++     or all 5 entities on the frame. 
++
++     Chunk 1 will be present when we're actually in a signal handler.
++     Chunk 2 will be present when an asynchronous signal (one that
++	didn't come in with a system call) is present.
++	We may not (yet) be in the handler, if we're just returning
++	from the call.
++     When we're actually in a handler taken from an asynchronous
++     signal, both will be present.
++
++     Chunk 1:
++	PdxSignalDeliverer's frame 
++      + Context struct    -- not accounted for in any frame
++
++     Chunk 2:
++      + PdxNullPosixApi's frame 
++      + PdxNullApiCaller's frame
++      + Context struct = 0x230  not accounted for in any frame
++
++     The symbol names come from examining objdumps of psxdll.dll;
++     they don't appear in the runtime image.
++
++     For gdb's purposes, we can pile all this into one frame.
++  */
++
++  ra = frame->next->pc;
++  /* Are we already pointing at PdxNullPosixApi?  We are if
++     this is a signal frame, we're at next-to-top, and were stopped
++     by a random signal.  (If it wasn't the right address under
++     these circumstances, we wouldn't be here at all by tests above
++     on the prior frame.) */
++  if (frame->next->next == NULL && stopped_by_random_signal) 
++    {
++      /* We're pointing at the frame FOR PdxNullApi */
++      fm = frame->frame;
++    }
++  else
++    {
++      /* No... we must be pointing at the frame that
++	 was called by PdxSignalDeliverer; back up across the
++	 whole mess */
++
++      /* extract the frame for PdxSignalDeliverer; note...FRAME_CHAIN
++	 used the "old" frame pointer because we were a deliverer.
++	 Get the address of the context record that's on here frameless */
++      context = read_memory_integer (frame->frame, 4);  /* an Arg */
++
++      /* Now extract the frame pointer contained in the context */
++      fm = (CORE_ADDR)read_memory_integer 
++	 (context + offsetof(mcontext_t, gregs.gregs[EBP]), 4);
++
++      ra = (CORE_ADDR)read_memory_integer 
++	 (context + offsetof(mcontext_t, gregs.gregs[EIP]), 4);
++
++      /* We need to know if we're in a system call because we'll be
++	 in a syscall mini-frame, if so, and the rules are different;
++	 reserved[1] contains 0 if running free, 1 if blocked on a system
++	 call, and 2 if blocked on an exception message (e.g. a trap);
++	 we don't expect to get here with a 2. */
++      t = (long)read_memory_integer 
++	 (context + offsetof(mcontext_t, gregs.reserved[1]), 4);
++      if (t != 1)
++	{
++	   /* not at a system call, therefore it can't be NullApi */
++	   frame->pc = ra;
++	   frame->frame = fm;
++	   return;
++	}
++
++      /* It's a system call... mini frame, then look for NullApi */
++      /* Get the RA (on the stack) associated with this... it's
++	 a system call mini-frame */
++      ra = (CORE_ADDR)read_memory_integer 
++	 (context + offsetof(mcontext_t, gregs.gregs[UESP]), 4);
++      ra = (CORE_ADDR)read_memory_integer(ra,4);
++
++      /* We might be done (no Null API if so) */
++      if (!(ra >= null_start && ra < null_end))
++	{
++	   /* No Null API present; we're done */
++	   frame->pc = ra;
++	   frame->frame = fm;
++	   return;
++	}
++    }
++  /* At this point, we're looking at the frame for PdxNullPosixApi,
++     in either case. */
++
++  /* extract the frame for PdxNullPosixApi */
++  fm = read_memory_integer (fm, 4);
++
++  /* extract the frame for PdxNullApiCaller */
++  /* The saved frame register for PdxNullApiCaller skips us over the
++     saved context, which is the wrong thing to do, because it skips
++     the interrrupted routine!  Instead, get the arg that was passed
++     which has the address of the context (which is really in no frame) */
++
++  fm = (CORE_ADDR)read_memory_integer (fm + 8, 4);
++
++  /* THIS context is accounted for in a frame */
++  /* Extract the second context record */
++
++  ra = (CORE_ADDR)read_memory_integer 
++     (fm + offsetof(mcontext_t, gregs.gregs[EIP]), 4);
++  fm = (CORE_ADDR)read_memory_integer 
++     (fm + offsetof(mcontext_t, gregs.gregs[EBP]), 4);
++
++  frame->frame = fm;
++  frame->pc = ra;
++
++  return;
++}
++
++/* Figure out where the longjmp will land.
++   We expect the first arg to be a pointer to the jmp_buf structure from which
++   we extract the pc that we will land at.  The pc is copied into PC.
++   This routine returns true on success. */
++
++#include <setjmp.h>
++
++int
++get_longjmp_target (pc)
++     CORE_ADDR *pc;
++{
++  CORE_ADDR sp, jb_addr;
++  char raw_buffer[MAX_REGISTER_RAW_SIZE];
++
++  sp = read_register (SP_REGNUM);
++
++  if (target_read_memory (sp + 4, /* Offset of first arg on stack */
++			  raw_buffer,
++			  TARGET_PTR_BIT / TARGET_CHAR_BIT))
++    return 0;
++
++  jb_addr = extract_address (raw_buffer, TARGET_PTR_BIT / TARGET_CHAR_BIT);
++
++  if (target_read_memory(jb_addr + offsetof(_JUMP_BUFFER,Eip), raw_buffer,
++			 sizeof(CORE_ADDR)))
++    return 0;
++
++  *pc = extract_address (raw_buffer, sizeof(CORE_ADDR));
++  return 1;
++}
+Index: src/gdb/config/i386/tm-i386interix.h
+===================================================================
+RCS file: tm-i386interix.h
+diff -N tm-i386interix.h
+--- /dev/null	Sun Dec 23 12:45:17 2001
++++ src/gdb/config/i386/tm-i386interix.h	Sun Dec 23 12:34:46 2001
+@@ -0,0 +1,127 @@
++/* Macro definitions for i386 running under Interix
++   Copyright 1998 Free Software Foundation, Inc.
++
++This file is part of GDB.
++
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; either version 2 of the License, or
++(at your option) any later version.
++
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
++
++#ifndef TM_INTERIX_H
++#define TM_INTERIX_H
++
++#define HAVE_I387_REGS
++#include "i386/tm-i386.h"
++
++#undef TARGET_LONG_BIT
++#define TARGET_LONG_BIT 32
++
++/* this is a no-op change, but for the record... */
++#undef TARGET_LONG_LONG_BIT
++#define TARGET_LONG_LONG_BIT 64
++
++/* configure can't be expected to noodle out MS's alternate spelling for
++   64-bit integers, so we'll tell it. */
++#define PRINTF_HAS_LONG_LONG 1
++#ifdef __GNUC__
++#define BFD_HOST_64_BIT long long
++#define BFD_HOST_U_64_BIT unsigned long long
++#elif defined(_MSC_VER)
++#define BFD_HOST_64_BIT __int64
++#define BFD_HOST_U_64_BIT unsigned __int64
++#else
++#error... OK what compiler is this?
++#endif
++
++#undef LONGEST
++#undef ULONGEST
++
++#define LONGEST BFD_HOST_64_BIT
++#define ULONGEST BFD_HOST_U_64_BIT
++
++#undef TARGET_PTR_BIT
++#define TARGET_PTR_BIT 32
++
++/* Amount PC must be decremented by after a breakpoint.  This is often the
++   number of bytes in BREAKPOINT but not always (such as now). */
++
++
++#undef DECR_PC_AFTER_BREAK
++#define DECR_PC_AFTER_BREAK 0
++
++#undef IN_SIGTRAMP
++/* SIGTRAMP is in a DLL where we don't have any symbols. However,
++   procfs tells us where it is. */
++
++extern CORE_ADDR tramp_start;
++extern CORE_ADDR tramp_end;
++extern CORE_ADDR null_start;
++extern CORE_ADDR null_end;
++
++/* This is sufficient, where used, but is NOT a complete test; there's more
++   in INIT_EXTRA_FRAME_INFO (a.k.a. interix_back_one_frame) */
++#define IN_SIGTRAMP(p,f) ((((p)>=tramp_start && (p)<tramp_end)) \
++		|| (((p)>=null_start && (p)<null_end)))
++
++#define IN_SOLIB_CALL_TRAMPOLINE(pc, name) i386_pe_skip_trampoline_code (pc, name)
++#define SKIP_TRAMPOLINE_CODE(pc)           i386_pe_skip_trampoline_code (pc, 0)
++extern CORE_ADDR i386_pe_skip_trampoline_code PARAMS ((CORE_ADDR pc, char *name));
++
++void interix_back_one_frame (int fromleaf, struct frame_info *frame);
++/* Actually... do a full unwind */
++#define INIT_EXTRA_FRAME_INFO(fromleaf, prev) \
++	interix_back_one_frame(fromleaf, prev);
++
++/* This becomes a no-op because of the above */
++#define INIT_FRAME_PC(a,b)
++
++/* In the context where this is used, we get the saved PC before we've
++   successfully unwound far enough to be sure what we've got (it may
++   be a signal handler caller).  If we're dealing with a signal
++   handler caller, this will return valid, which is fine.  If not,
++   it'll make the correct test. */
++
++#undef FRAME_CHAIN_VALID
++#define FRAME_CHAIN_VALID(CHAIN, FRAME) \
++  ((FRAME)->signal_handler_caller ||\
++  ((CHAIN) != 0  \
++  && !inside_entry_file (read_memory_integer ((FRAME)->frame + 4, 4))))
++
++/* Assume that we've already unwound enough to have the caller's address
++   if we're dealing with a signal handler caller.  (And if that fails,
++   return 0.)  */
++#undef FRAME_SAVED_PC
++#define FRAME_SAVED_PC(FRAME) \
++  (((FRAME)->signal_handler_caller) \
++      ? ((FRAME)->next ? (FRAME)->next->pc : 0) \
++      : (CORE_ADDR)read_memory_integer ((FRAME)->frame + 4, 4))
++
++#define I386_FLOATS_RETURN_IN_ST0
++
++/* Interix has a minimal sbrk() (but not what's wanted for this usage),
++   and it's relationship to environ[] is not what's usually expected
++   (as in, there is no specific relationship at all).  Just pretend we don't
++   have an sbrk(). */
++#undef HAVE_SBRK
++
++/* Figure out where the longjmp will land.  Slurp the args out of the stack.
++   We expect the first arg to be a pointer to the jmp_buf structure from which
++   we extract the pc  that we will land at.  The pc is copied into ADDR.
++   This routine returns true on success */
++
++extern int
++get_longjmp_target PARAMS ((CORE_ADDR *));
++
++#define GET_LONGJMP_TARGET(ADDR) get_longjmp_target(ADDR)
++
++#endif /* TM_INTERIX_H */
+Index: src/gdb/config/i386/xm-interix.h
+===================================================================
+RCS file: xm-interix.h
+diff -N xm-interix.h
+--- /dev/null	Sun Dec 23 12:45:17 2001
++++ src/gdb/config/i386/xm-interix.h	Sun Dec 23 12:34:46 2001
+@@ -0,0 +1,22 @@
++/* Host-dependent definitions for Intel 386 running Interix, for GDB.
++   Copyright 1986, 1987, 1989, 1992 Free Software Foundation, Inc.
++
++This file is part of GDB.
++
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; either version 2 of the License, or
++(at your option) any later version.
++
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
++
++#define HOST_BYTE_ORDER LITTLE_ENDIAN
++
++#include <limits.h>		/* for INT_MIN */

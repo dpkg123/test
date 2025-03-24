@@ -1,0 +1,53 @@
+The regressions won't run if doing a "split" build (source
+and object in separate trees, like gcc).  Fix that.
+
+	* tests/all: Use srcdir to find tests.
+	* tests/autoMkindex: Likewise.
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files tests/all //S/CVS/binutils.baseline/tcl/tests/all
+--- tests/all	Wed Feb 23 11:38:05 2000
++++ //S/CVS/binutils.baseline/tcl/tests/all	Mon Nov  8 17:28:44 1999
+@@ -5,13 +5,13 @@
+ # RCS: @(#) $Id: all,v 1.2 1998/09/14 18:40:07 stanton Exp $
+ 
+ if {$tcl_platform(os) == "Win32s"} {
+-    set files [glob *.tes]
++    set files [glob $srcdir/*.tes]
+ } else {
+-    set files [glob *.test]
++    set files [glob $srcdir/*.test]
+ }
+ 
+ foreach i [lsort $files] {
+-    if [string match l.*.test $i] {
++    if [string match l\[^/\]*\.test $i] {
+ 	# This is an SCCS lockfile
+ 	continue
+     }
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files tests/autoMkindex.test //S/CVS/binutils.baseline/tcl/tests/autoMkindex.test
+--- tests/autoMkindex.test	Wed Feb 23 11:40:14 2000
++++ //S/CVS/binutils.baseline/tcl/tests/autoMkindex.test	Mon Nov  8 17:28:44 1999
+@@ -50,19 +50,19 @@ test autoMkindex-1.1 {remove any existin
+ } {0}
+ 
+ test autoMkindex-1.2 {build tclIndex based on a test file} {
+-    auto_mkindex . autoMkindex.tcl
++    auto_mkindex $srcdir autoMkindex.tcl
+     file exists tclIndex
+ } {1}
+ 
+-set element "{source [file join . autoMkindex.tcl]}"
+-
++set element "{source [file join $srcdir autoMkindex.tcl]}"
++
+ test autoMkindex-1.3 {examine tclIndex} {
+     file delete tclIndex
+     auto_mkindex . autoMkindex.tcl
+     namespace eval tcl_autoMkindex_tmp {
+         set dir "."
+         variable auto_index
+-        source tclIndex
++        source $srcdir/tclIndex
+         set ::result ""
+         foreach elem [lsort [array names auto_index]] {
+             lappend ::result [list $elem $auto_index($elem)]

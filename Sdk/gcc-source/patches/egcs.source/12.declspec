@@ -1,0 +1,12 @@
+Support for declspec, et al.
+
+--- gcc/config/i386/i386-interix.h.orig	Wed Feb 13 18:54:54 2002
++++ gcc/config/i386/i386-interix.h	Thu Feb 14 14:46:17 2002
+@@ -67,6 +71,7 @@ Boston, MA 02111-1307, USA.  */
+   -D_M_IX86=300 -D_X86_=1 \
+   -D__stdcall=__attribute__((__stdcall__)) \
+   -D__cdecl=__attribute__((__cdecl__)) \
++  -D__declspec(x)=__attribute__((x)) \
+   -Asystem=unix -Asystem=interix"
+ 
+ #undef CPP_SPEC

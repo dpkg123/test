@@ -1,0 +1,24 @@
+The code here assumes that DO_GLOBAL... applies only to svr3; interix
+needs it too.
+
+
+--- /C/CVS/egcs.baseline/gcc/gcc/config/i386/i386.c	Wed Feb  6 20:54:36 2002
++++ config/i386/i386.c	Thu Feb  7 16:39:39 2002
+@@ -724,7 +724,7 @@ const struct attribute_spec ix86_attribu
+ static tree ix86_handle_cdecl_attribute PARAMS ((tree *, tree, tree, int, bool *));
+ static tree ix86_handle_regparm_attribute PARAMS ((tree *, tree, tree, int, bool *));
+ 
+-#ifdef DO_GLOBAL_CTORS_BODY
++#if defined(DO_GLOBAL_CTORS_BODY) && !defined(__INTERIX)
+ static void ix86_svr3_asm_out_constructor PARAMS ((rtx, int));
+ #endif
+ 
+@@ -12300,7 +12300,7 @@ ix86_memory_move_cost (mode, class, in)
+     }
+ }
+ 
+-#ifdef DO_GLOBAL_CTORS_BODY
++#if defined(DO_GLOBAL_CTORS_BODY) && !defined(__INTERIX)
+ static void
+ ix86_svr3_asm_out_constructor (symbol, priority)
+      rtx symbol;

@@ -1,0 +1,75 @@
+Alpha patches; see the corresponding patches to bfd.  Have not
+been applied for some time.
+
+
+diff -urpPd --exclude-from=exclude.files //D/donn.intel/gnu.intel/ld/Makefile.am //D/donn.intel/gnu.intel/ld.0325.fullpatch/Makefile.am
+--- //D/donn.intel/gnu.intel/ld/Makefile.am	Fri Apr  2 19:00:42 1999
++++ //D/donn.intel/gnu.intel/ld.0325.fullpatch/Makefile.am	Mon Mar 29 15:46:20 1999
+@@ -265,6 +265,9 @@ eaixrs6.c: $(srcdir)/emulparams/aixrs6.s
+ ealpha.c: $(srcdir)/emulparams/alpha.sh \
+   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/alpha.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} alpha "$(tdir_alpha)"
++ealphapei.c: $(srcdir)/emulparams/alphapei.sh \
++  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
++	${GENSCRIPTS} alphapei "$(tdir_alphapei)"
+ earcelf.c: $(srcdir)/emulparams/arcelf.sh \
+   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} arcelf "$(tdir_arcelf)"
+diff -urpPd --exclude-from=exclude.files //D/donn.intel/gnu.intel/ld/configure.host //D/donn.intel/gnu.intel/ld.0325.fullpatch/configure.host
+--- //D/donn.intel/gnu.intel/ld/configure.host	Fri Apr  2 19:00:42 1999
++++ //D/donn.intel/gnu.intel/ld.0325.fullpatch/configure.host	Mon Mar 29 12:19:22 1999
+@@ -30,6 +30,12 @@ alpha*-*-netbsd*)
+   HOSTING_CRT0=/usr/lib/crt0.o
+   ;;
+ 
++alpha-pc-interix)
++  HOSTING_CRT0='$$INTERIX_ROOT/usr/lib/crt0.o'
++  NATIVE_LIB_DIRS='$$INTERIX_ROOT/usr/lib/'
++  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -L $$INTERIX_ROOT/usr/lib -lc -lcpsx -lc -lcpsx $$INTERIX_ROOT/usr/lib/psxdll.a $$INTERIX_ROOT/usr/lib/psxdll2.a'
++  ;;
++
+ alpha*-*-*)
+   HOSTING_CRT0=/usr/ccs/lib/crt0.o
+   NATIVE_LIB_DIRS=/usr/ccs/lib
+diff -urpPd --exclude-from=exclude.files //D/donn.intel/gnu.intel/ld/configure.tgt //D/donn.intel/gnu.intel/ld.0325.fullpatch/configure.tgt
+--- //D/donn.intel/gnu.intel/ld/configure.tgt	Fri Apr  2 19:00:42 1999
++++ //D/donn.intel/gnu.intel/ld.0325.fullpatch/configure.tgt	Mon Mar 29 11:51:45 1999
+@@ -197,6 +197,8 @@ alpha*-*-linux-gnu*)	targ_emul=elf64alph
+ alpha*-*-osf*)		targ_emul=alpha ;;
+ alpha*-*-gnu*)		targ_emul=elf64alpha ;;
+ alpha*-*-netware*)	targ_emul=alpha ;;
++alpha-*-interix)	targ_emul=alphapei ;
++			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
+ alpha*-*-netbsd*)	targ_emul=elf64alpha ;;
+ z8k-*-coff) 		targ_emul=z8002; targ_extra_emuls=z8001 ;;
+ ns32k-pc532-mach* | ns32k-pc532-ux*)	targ_emul=pc532macha ;;
+diff -urpPd --exclude-from=exclude.files //D/donn.intel/gnu.intel/ld/emulparams/alphapei.sh //D/donn.intel/gnu.intel/ld.0325.fullpatch/emulparams/alphapei.sh
+--- //D/donn.intel/gnu.intel/ld/emulparams/alphapei.sh	Wed Dec 31 17:00:00 1969
++++ //D/donn.intel/gnu.intel/ld.0325.fullpatch/emulparams/alphapei.sh	Mon Mar 29 11:22:54 1999
+@@ -0,0 +1,10 @@
++ARCH=alpha32
++SCRIPT_NAME=pe
++OUTPUT_FORMAT="pei-alpha"
++RELOCATEABLE_OUTPUT_FORMAT="pe-i386"
++TEMPLATE_NAME=pe
++ENTRY="__PosixProcessStartup"
++SUBSYSTEM=7
++EXECUTABLE_NAME=a.out
++INITIAL_SYMBOL_CHAR=
++OVERRIDE_SECTION_ALIGNMENT=0x2000
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc //D/donn.intel/gnu.intel/ld/scripttempl/pe.sc
+--- //Q/Gnusrc/cygwin.0325/ld/scripttempl/pe.sc	Thu Mar 25 02:15:29 1999
++++ //D/donn.intel/gnu.intel/ld/scripttempl/pe.sc	Mon Mar 29 11:22:54 1999
+@@ -94,6 +97,12 @@ SECTIONS
+     *(.eh_frame)
+   }
+ 
++  .pdata ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    *(.pdata)
++    ;
++  }
++
+   .edata ${RELOCATING+BLOCK(__section_alignment__)} :
+   {
+     *(.edata)

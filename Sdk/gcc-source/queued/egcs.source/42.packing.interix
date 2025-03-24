@@ -1,0 +1,135 @@
+This is the Interix-specific set of changes needed to turn on MS style bitfield
+packing.  I have included at the end the changes needed to i386.c that
+are required if the changes being made for Cygwin/Mingw have not yet
+been made.  (Otherwise the other changes here are useless.)
+
+Since MS bitfield packing is "native", I have made that the default.
+This presents a problem with Objective C, which has runtime code in
+libobjc/encoding.c that tries to emulate the size and alignment
+calculations in stor-layout.c.  It doesn't have access to the flag
+about packing rules, and since there is no issue of binary compatability
+for Objective C in any case, it simply overrides that default and yields
+an error if the user tries to set the flag.  To make it possible to override
+the default, the initialization of target_flags was moved earlier
+in toplev.c.  (Speculation: this is not the only instance of such a
+problem for Objective C, but it may be the only one where the default is
+wrong.)
+
+Other than that, this is essentially an adaptation of Danny Smith's changes
+to apply to Interix.
+
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/i386-interix.h gcc/config/i386-interix.h 
+--- gcc.back/config/i386/i386-interix.h	Wed Apr  3 10:13:20 2002
++++ gcc/config/i386/i386-interix.h	Thu Apr  4 10:53:57 2002
+@@ -33,14 +33,29 @@ Boston, MA 02111-1307, USA.  */
+ #define HANDLE_SYSV_PRAGMA
+ #undef HANDLE_PRAGMA_WEAK  /* until the link format can handle it */
+ 
++/* Masks for subtarget switches used by other files.  */
++#define MASK_MS_BITFIELD_LAYOUT 0x10000000 /* Use native (MS) bitfield layout */
++
++/* Tell i386.c to put a target-specific specialization of
++   ms_bitfield_layout_p in struct gcc_target targetm.  */
++#define TARGET_USE_MS_BITFIELD_LAYOUT  \
++  (target_flags & MASK_MS_BITFIELD_LAYOUT)
++
++#undef  SUBTARGET_SWITCHES
++#define SUBTARGET_SWITCHES \
++{ "ms-bitfields", MASK_MS_BITFIELD_LAYOUT, N_("Use native (MS) bitfield layout") }, \
++{ "no-ms-bitfields", -MASK_MS_BITFIELD_LAYOUT, N_("Use gcc default bitfield layout") },
++
++
+ /* By default, target has a 80387, uses IEEE compatible arithmetic,
+    and returns float values in the 387 and needs stack probes
+-   We also align doubles to 64-bits for MSVC default compatibility */
++   We also align doubles to 64-bits for MSVC default compatibility
++   We do bitfields MSVC-compatably by default, too. */
+ #undef TARGET_SUBTARGET_DEFAULT
+ #define TARGET_SUBTARGET_DEFAULT \
+    (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_STACK_PROBE | \
+-    MASK_ALIGN_DOUBLE)
+-
++    MASK_ALIGN_DOUBLE | MASK_MS_BITFIELD_LAYOUT)
++
+ #undef TARGET_CPU_DEFAULT
+ #define TARGET_CPU_DEFAULT 2 /* 486 */
+ 
+@@ -273,9 +288,7 @@ while (0)
+ #define HOST_PTR_AS_INT unsigned long
+ 
+ #define PCC_BITFIELD_TYPE_MATTERS 1
+-#define PCC_BITFIELD_TYPE_TEST TYPE_NATIVE(rec)
+-#define GROUP_BITFIELDS_BY_ALIGN TYPE_NATIVE(rec)
+-
++
+ /* The following two flags are usually "off" for i386, because some non-gnu
+    tools (for the i386) don't handle them.  However, we don't have that
+    problem, so....  */
+@@ -351,3 +364,27 @@ extern void i386_pe_unique_section PARAM
+ #define RETURN_IN_MEMORY(TYPE) \
+   (TYPE_MODE (TYPE) == BLKmode || \
+      (AGGREGATE_TYPE_P (TYPE) && int_size_in_bytes(TYPE) > 8 ))
++
++
++/* Objective C has its own packing rules...
++   Objc tries to parallel the code in stor-layout.c at runtime	
++   (see libobjc/encoding.c).  This (compile-time) packing info isn't 
++   available at runtime, so it's hopeless to try.
++
++   And if the user tries to set the flag for objc, give an error
++   so he has some clue. */
++
++#undef  SUBTARGET_OVERRIDE_OPTIONS
++#define SUBTARGET_OVERRIDE_OPTIONS					\
++do {									\
++  if (strcmp (lang_hooks.name, "GNU Objective-C") == 0)			\
++    {									\
++      if ((target_flags & MASK_MS_BITFIELD_LAYOUT) != 0			\
++	  && (target_flags_explicit & MASK_MS_BITFIELD_LAYOUT) != 0)	\
++	{								\
++	   error ("ms-bitfields not supported for objc");		\
++	}								\
++      target_flags &= ~MASK_MS_BITFIELD_LAYOUT;				\
++    }									\
++} while (0)
++
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/i386/i386.c gcc/config/i386/i386.c 
+--- gcc.save/config/i386/i386.c	Wed Apr  3 10:21:37 2002
++++ gcc/config/i386/i386.c	Wed Apr  3 10:24:48 2002
+@@ -799,6 +799,7 @@ const struct attribute_spec ix86_attribu
+ static tree ix86_handle_cdecl_attribute PARAMS ((tree *, tree, tree, int, bool*));
+ static tree ix86_handle_regparm_attribute PARAMS ((tree *, tree, tree, int, bool *));
+ static int ix86_value_regno PARAMS ((enum machine_mode));
++static bool ix86_ms_bitfield_layout_p PARAMS ((tree));
+ static bool contains_128bit_aligned_vector_p PARAMS ((tree));
+
+ #if defined (DO_GLOBAL_CTORS_BODY) && defined (HAS_INIT_SECTION)
+@@ -848,6 +849,9 @@ static enum x86_64_reg_class merge_class
+ #define TARGET_HAVE_TLS true
+ #endif
+ 
++#undef TARGET_MS_BITFIELD_LAYOUT_P
++#define TARGET_MS_BITFIELD_LAYOUT_P ix86_ms_bitfield_layout_p
++
+ struct gcc_target targetm = TARGET_INITIALIZER;
+ 
+ /* Sometimes certain combinations of command options do not make
+@@ -13744,6 +13748,17 @@ x86_order_regs_for_local_alloc ()
+       at all.  */
+    while (pos < FIRST_PSEUDO_REGISTER)
+      reg_alloc_order [pos++] = 0;
++}
++
++#ifndef TARGET_USE_MS_BITFIELD_LAYOUT
++#define TARGET_USE_MS_BITFIELD_LAYOUT 0
++#endif
++
++static bool
++ix86_ms_bitfield_layout_p (record_type)
++     tree record_type ATTRIBUTE_UNUSED;
++{
++  return TYPE_NATIVE(record_type);
+ }
+ 
+ void

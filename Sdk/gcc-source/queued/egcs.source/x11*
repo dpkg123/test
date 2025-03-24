@@ -1,0 +1,12 @@
+We need these headers, both to install them, and so they can be found
+by the regressions.
+
+--- gcc/config/i386/t-interix.saved	Fri Feb 15 16:17:27 2002
++++ gcc/config/i386/t-interix	Fri Feb 15 16:17:48 2002
+@@ -5,4 +5,4 @@ interix.o: $(srcdir)/config/i386/interix
+ 	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/config/i386/interix.c
+ 
+-# System headers will track gcc's needs.
++# Most system headers will track gcc's needs, but there are a few...
+-USER_H=
++USER_H= $(srcdir)/ginclude/stdbool.h $(srcdir)/ginclude/iso646.h $(srcdir)/ginclude/stdarg.h

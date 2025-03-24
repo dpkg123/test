@@ -1,0 +1,16 @@
+Enable lookup of the name the program was started with.
+
+--- procfs.c.saved	Mon Apr  8 18:18:19 2002
++++ procfs.c	Sat Apr  6 12:50:10 2002
+@@ -185,8 +185,9 @@ init_procfs_ops (void)
+   procfs_ops.to_find_memory_regions = proc_find_memory_regions;
+   procfs_ops.to_make_corefile_notes = procfs_make_note_section;
+   procfs_ops.to_magic               = OPS_MAGIC;
+-}
+-
++  procfs_ops.to_pid_to_exec_file    = child_pid_to_exec_file;
++}
++
+ /* =================== END, TARGET_OPS "MODULE" =================== */
+ 
+ /*

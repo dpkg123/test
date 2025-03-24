@@ -1,0 +1,31 @@
+We let ld itself handle constructors, but to do so it needs to be able
+to put them in .ctors (or destructors in .dtors).  (That is, we don't
+set up to use, or rely upon, collect2 when using g++.)
+
+But we don't have a .init section (that actually does anything.)
+
+--- gcc/config/i386/i386-interix.h.orig	Wed Feb 13 18:54:54 2002
++++ gcc/config/i386/i386-interix.h	Thu Feb 14 14:46:17 2002
+@@ -239,7 +240,8 @@ Boston, MA 02111-1307, USA.  */
+ #undef LD_INIT_SWITCH
+ #undef LD_FINI_SWITCH
+ 
+-
++#define EH_FRAME_IN_DATA_SECTION
++
+ /* Note that there appears to be two different ways to support const
+    sections at the moment.  You can either #define the symbol
+    READONLY_DATA_SECTION (giving it some code which switches to the
+@@ -415,10 +434,10 @@ extern void i386_pe_unique_section ();
+ #define UNIQUE_SECTION(DECL,RELOC) i386_pe_unique_section (DECL, RELOC)
+ 
+ #define SUPPORTS_ONE_ONLY 1
+-
++#endif /* 0 */
++
+ /* Switch into a generic section.  */
+ #define TARGET_ASM_NAMED_SECTION  default_pe_asm_named_section
+-#endif /* 0 */
+ 
+ /* DWARF2 Unwinding doesn't work with exception handling yet.  */
+ #define DWARF2_UNWIND_INFO 0

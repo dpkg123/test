@@ -1,0 +1,26 @@
+q-patch gas 13 1   # lex_at; required only for dyn link.
+# q-patch gas 14 0   # Patch to 13; should combine into single patch (combined!)
+q-patch gas 17 1   # Alan M's variant.
+q-patch gas 18 1   # Undoes Ian's (bad?) change.; Now has DJ reversion
+                   # Try and test without ANY of this and see what happens.
+# q-patch gas 20 1   # See comments in file.
+q-patch gas 21 1   # Ian wants to wait for 39.
+# q-patch gas 22 1   # PUSHMI ...  hold them
+# q-patch gas 23 1   # .edata for Mumit  APPLY!?!?!
+# q-patch gas 32 1   # Testcases   No longer needed?  (They fixed).
+q-patch gas 33 0   # NO read section flag.
+q-patch gas 34 1   # .alias
+###  q-patch gas 35 0   # strict pe format  UNSURE WITH ALAN's fix
+q-patch gas 36 1   # fix autoconf
+q-patch gas 37 0   # func order
+
+if [ "$ALPHA" = 1 ]
+then
+    q-patch gas 50 5
+fi
+
+exit
+
+Notes:
+02: Ian is probably right (SEC_HAS_CONTENTS) so let it go for now.
+12: make sure his comment is honored.

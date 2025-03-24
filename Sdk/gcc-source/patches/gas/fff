@@ -1,0 +1,142 @@
+1,18c1,3
+< MSVC generates symbols with @ in them; to be able to access them from 
+< gas, the parser should not trip over the special assembler notations for
+< such as @GOT if LEX_AT is turned on.
+< 
+< It turns out that this is easy: if LEX_AT is turned on (by itself),
+< a lot of code is turned off.  If that code is turned back on, it
+< so happens that it does exactly the right thing.  LEX_AT still causes
+< the right thing anyway.
+< 
+<    * Test and use RECOGNIZE_AT_GOT_ANYWAY.
+< 
+<    * Add @IMAGEBASE as an additional relocation type to be recognized,
+<      to allow the generation of the RVA relocation.
+< 
+< diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+< --- gas.orig/config/tc-i386.c	Tue May 28 15:26:03 2002
+< +++ gas/config/tc-i386.c	Tue May 28 15:34:04 2002
+< @@ -3361,9 +3361,42 @@ output_imm ()
+---
+> --- tc-i386.c.orig	Mon Sep 23 15:12:13 2002
+> +++ tc-i386.c	Mon Sep 23 15:54:26 2002
+> @@ -3458,9 +3458,46 @@ output_imm (insn_start_frag, insn_start_
+49a35,38
+> +  { "GOTNTPOFF",sizeof("GOTNTPOFF")-1,  true,
+> +		{ BFD_RELOC_386_TLS_GOTIE,  0, 0                         } },
+> +  { "INDNTPOFF",sizeof("INDNTPOFF"_-1,  true,
+> +		{ BFD_RELOC_386_TLS_IE,     0, 0                         } },
+63c52
+< @@ -3378,35 +3411,32 @@ lex_got (reloc, adjust)
+---
+> @@ -3475,37 +3512,32 @@ lex_got (reloc, adjust)
+80a70,71
+> -    { "GOTNTPOFF",{ BFD_RELOC_386_TLS_GOTIE,  0, 0                         } },
+> -    { "INDNTPOFF",{ BFD_RELOC_386_TLS_IE,     0, 0                         } },
+91a83
+> +
+94,108c86,99
+< + 
+< +  for (cp2 = input_line_pointer; ;cp2++) {
+< +    if (*cp2 == '@') 
+< +      {
+< +        cp = cp2;
+< +      }
+< +    if (!is_part_of_name((unsigned char) *cp2))
+< +      {
+< +	if (cp == NULL)
+< + 	   return NULL;
+< + 	else
+< + 	   break;
+< +       }
+< +  }
+< +
+---
+> +  for (cp2 = input_line_pointer; ;cp2++)
+> +    {
+> +      if (*cp2 == '@') 
+> +	{
+> +	  cp = cp2;
+> +	}
+> +      if (!is_part_of_name((unsigned char) *cp2))
+> +	{
+> +	  if (cp == NULL)
+> +	     return NULL;
+> +	  else
+> +	     break;
+> +	 }
+> +    }
+121c112
+< @@ -3415,9 +3445,9 @@ lex_got (reloc, adjust)
+---
+> @@ -3514,9 +3546,9 @@ lex_got (reloc, adjust)
+134c125
+< @@ -3429,7 +3459,7 @@ lex_got (reloc, adjust)
+---
+> @@ -3528,7 +3560,7 @@ lex_got (reloc, adjust)
+143c134
+< @@ -3454,6 +3484,137 @@ lex_got (reloc, adjust)
+---
+> @@ -3553,6 +3585,137 @@ lex_got (reloc, adjust)
+281c272
+< @@ -3512,7 +3673,7 @@ i386_immediate (imm_start)
+---
+> @@ -3611,7 +3774,7 @@ i386_immediate (imm_start)
+290c281
+< @@ -3533,7 +3694,7 @@ i386_immediate (imm_start)
+---
+> @@ -3632,7 +3795,7 @@ i386_immediate (imm_start)
+299c290
+< @@ -3546,7 +3707,7 @@ i386_immediate (imm_start)
+---
+> @@ -3645,7 +3808,7 @@ i386_immediate (imm_start)
+308c299
+< @@ -3659,7 +3820,7 @@ i386_displacement (disp_start, disp_end)
+---
+> @@ -3759,7 +3922,7 @@ i386_displacement (disp_start, disp_end)
+317c308
+< @@ -3724,7 +3885,7 @@ i386_displacement (disp_start, disp_end)
+---
+> @@ -3824,7 +3987,7 @@ i386_displacement (disp_start, disp_end)
+326c317
+< @@ -3740,7 +3901,7 @@ i386_displacement (disp_start, disp_end)
+---
+> @@ -3840,7 +4003,7 @@ i386_displacement (disp_start, disp_end)
+335,371d325
+< diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gas.orig/config/tc-i386.h gas/config/tc-i386.h
+< --- gas.orig/config/tc-i386.h	Tue May 28 15:26:03 2002
+< +++ gas/config/tc-i386.h	Tue May 28 13:44:09 2002
+< @@ -162,13 +162,21 @@ extern int tc_coff_sizemachdep PARAMS ((
+<  
+<  #endif /* ! BFD_ASSEMBLER */
+<  
+< -#ifndef LEX_AT
+< +#if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+<  #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
+<  extern void x86_cons PARAMS ((expressionS *, int));
+<  
+<  #define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
+<  extern void x86_cons_fix_new
+<    PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
+< +
+< +#ifdef RECOGNIZE_AT_GOT_ANYWAY
+< +#define md_parse_name(name, exprP, nextcharP) \
+< +  i386_parse_name ((name), (exprP), (nextcharP))
+< +int i386_parse_name PARAMS ((char *name,
+< +			   expressionS *exprP,
+< +			   char *nextchar));
+< +#endif
+<  #endif
+<  
+<  #define TC_FORCE_RELOCATION(fixp) tc_i386_force_relocation(fixp)
+< diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gas.orig/config/te-interix.h gas/config/te-interix.h
+< --- gas.orig/config/te-interix.h	Tue May 28 15:26:03 2002
+< +++ gas/config/te-interix.h	Tue May 28 13:44:03 2002
+< @@ -1,6 +1,7 @@
+<  #define TE_PE_DYN /* PE with dynamic linking (UNIX shared lib) support */
+<  #define TE_PE
+<  #define LEX_AT 1 /* can have @'s inside labels */
+< +#define RECOGNIZE_AT_GOT_ANYWAY   /* @GOTOFF, etc, still apply! */
+<  #define LEX_QM 3 /* can have ?'s in or begin labels */
+<  
+<  /* The PE format supports long section names.  */

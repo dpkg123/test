@@ -1,0 +1,17 @@
+POSIX.2 is explicit that -p -v output should be "<NAME>", not
+"<member NAME>".  (See POSIX.2, 6.1.6.1, line 111.)
+
+	* ar.c (print_contents): POSIX conformance; change format.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/ar.c binutils/ar.c
+--- binutils.nil/ar.c	Wed Jul  7 16:58:49 1999
++++ binutils/ar.c	Wed Jul  7 16:59:21 1999
+@@ -737,7 +803,7 @@ print_contents (abfd)
+ 
+   if (verbose)
+     /* xgettext:c-format */
+-    printf (_("\n<member %s>\n\n"), bfd_get_filename (abfd));
++    printf (_("\n<%s>\n\n"), bfd_get_filename (abfd));
+ 
+   bfd_seek (abfd, 0, SEEK_SET);
+ 

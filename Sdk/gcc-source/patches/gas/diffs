@@ -1,0 +1,30 @@
+--- obj-coff.c.orig	Mon Nov  4 10:36:26 2002
++++ obj-coff.c	Mon Nov  4 10:59:07 2002
+@@ -1230,7 +1230,8 @@ coff_frob_symbol (symp, punt)
+ 		}
+ 	    }
+ 
+-	  if (coff_last_function == 0 && SF_GET_FUNCTION (symp))
++	  if (coff_last_function == 0 && SF_GET_FUNCTION (symp) 
++	      && S_IS_DEFINED (symp))
+ 	    {
+ 	      union internal_auxent *auxp;
+ 
+@@ -1242,7 +1243,8 @@ coff_frob_symbol (symp, punt)
+ 		      sizeof (auxp->x_sym.x_fcnary.x_ary.x_dimen));
+ 	    }
+ 
+-	  if (S_GET_STORAGE_CLASS (symp) == C_EFCN)
++	  if (S_GET_STORAGE_CLASS (symp) == C_EFCN
++	      && S_IS_DEFINED (symp))
+ 	    {
+ 	      if (coff_last_function == 0)
+ 		as_fatal (_("C_EFCN symbol out of scope"));
+@@ -1474,6 +1476,7 @@ obj_coff_section (ignore)
+ 		case 'a': break; /* For compatability with ELF.  */
+ 		case 'x': flags |= SEC_CODE | SEC_LOAD; break;
+ 		case 'r': flags |= SEC_READONLY; break;
++ 		case 'y': set_flags[sec_flag_NOREAD] = true; break;
+ 
+ 		case 'i': /* STYP_INFO */
+ 		case 'l': /* STYP_LIB */

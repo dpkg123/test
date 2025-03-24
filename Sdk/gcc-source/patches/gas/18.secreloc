@@ -1,0 +1,84 @@
+The first patch to tc-i386.c un-reverts a DJ removal.  This needs to
+be worked thru carefully.
+
+This is possibly (untested) "Mumit's bug".  In any case, if relocation
+is against a symbol, don't apply the section stuff, it's wrong.
+
+	* write.c (fixup_segment): Don't add value,
+	handle section symbols specially (see bfd),
+	* config/tc-i386.c (md_apply_fix3): no section special case for
+	MS conformant PE.  (Flagged by STRICT_PE_FORMAT).
+	(tc_gen_reloc): similarly.
+	* config/te-interix.h: add STRICT_PE_FORMAT.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -1212,7 +1212,17 @@ tc_i386_fix_adjustable (fixP)
+ #if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+   if (OUTPUT_FLAVOR != bfd_target_elf_flavour)
+     return 1;
+-
++#endif
++#ifdef TE_PE
++    /* External (and weak) symbols are always themselves in PE */
++    if (S_IS_EXTERNAL (fixP->fx_addsy)
++	|| S_IS_WEAK (fixP->fx_addsy))
++      {
++	return 0;
++      }
++#endif
++
++#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) || defined (TE_PE)
+   /* Don't adjust pc-relative references to merge sections in 64-bit
+      mode.  */
+   if (use_rela_relocations
+@@ -4481,8 +4483,12 @@ md_estimate_size_before_relax (fragP, se
+      an externally visible symbol, because it may be overridden by a
+      shared library.  */
+   if (S_GET_SEGMENT (fragP->fr_symbol) != segment
+-#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
++#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) || defined (TE_PE)
++#if defined (TE_PE)  /* Coded this way for patch maintainablity only! */
++      || (true
++#else
+       || (OUTPUT_FLAVOR == bfd_target_elf_flavour
++#endif
+ 	  && (S_IS_EXTERNAL (fragP->fr_symbol)
+ 	      || S_IS_WEAK (fragP->fr_symbol)))
+ #endif
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -5422,7 +5432,20 @@ tc_gen_reloc (section, fixp)
+       rel->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_32);
+       assert (rel->howto != NULL);
+     }
+-
++#ifdef STRICT_PE_FORMAT
++  /*
++   * Ohhh, this is ugly.  The problem is that if this is a local global
++   * symbol, the relocation will entirely be performed at link time, not
++   * at assembly time.  bfd_install_reloc doesn't know about this sort
++   * of thing, and as a result we need to fake it out here.
++   *
++   * Note that if you change this as part of cleaning up the apalling
++   * mess of complementary adds/subtracts of which this is part, that
++   * bfd:coff_i386_reloc may need attention too.
++   */
++  if (S_IS_EXTERN (fixp->fx_addsy) && !S_IS_COMMON(fixp->fx_addsy))
++    rel->addend -= symbol_get_bfdsym (fixp->fx_addsy)->value;
++#endif
+   return rel;
+ }
+ 
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/te-interix.c gas/config/te-interix.h
+--- gas.orig/config/te-interix.h	Fri Aug 20 14:00:41 1999
++++ gas/config/te-interix.c	Fri Aug 20 14:01:23 1999
+@@ -11,4 +11,6 @@
+ #define LOCAL_LABELS_FB 1
+ #endif
+ 
++#define STRICT_PE_FORMAT
++
+ #include "obj-format.h"

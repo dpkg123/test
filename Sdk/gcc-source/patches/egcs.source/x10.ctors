@@ -1,0 +1,33 @@
+It looks as if collect2 is a must.
+
+We let ld itself handle constructors, but to do so it needs to be able
+to put them in .ctors (or destructors in .dtors).  (That is, we don't
+set up to use, or rely upon, collect2 when using g++.)
+
+--- gcc/config/i386/i386-interix.h.orig	Wed Feb 13 18:54:54 2002
++++ gcc/config/i386/i386-interix.h	Thu Feb 14 14:46:17 2002
+@@ -250,6 +250,24 @@ Boston, MA 02111-1307, USA.  */
+ #define USE_CONST_SECTION	1
+ 
+ #define CONST_SECTION_ASM_OP	"\t.section\t.rdata,\"r\""
++
++/* Define the pseudo-ops used to switch to the .ctors and .dtors sections.
++
++   Note that we want to give these sections the SHF_WRITE attribute
++   because these sections will actually contain data (i.e. tables of
++   addresses of functions in the current root executable or shared library
++   file) and, in the case of a shared library, the relocatable addresses
++   will have to be properly resolved/relocated (and then written into) by
++   the dynamic linker when it actually attaches the given shared library
++   to the executing process.  (Note that on SVR4, you may wish to use the
++   `-z text' option to the ELF linker, when building a shared library, as
++   an additional check that you are doing everything right.  But if you do
++   use the `-z text' option when building a shared library, you will get
++   errors unless the .ctors and .dtors sections are marked as writable
++   via the SHF_WRITE attribute.)  */
++
++#define CTORS_SECTION_ASM_OP    ".section\t.ctors,\"x\""
++#define DTORS_SECTION_ASM_OP    ".section\t.dtors,\"x\""
+ 
+ /* A default list of other sections which we might be "in" at any given
+    time.  For targets that use additional sections (e.g. .tdesc) you

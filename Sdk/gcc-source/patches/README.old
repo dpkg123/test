@@ -1,0 +1,13 @@
+Numbered files are patches that have not yet been applied.  Some have
+been submitted.
+
+applyem is the current (as of 5/12/99) list of patches I'm actually
+applying that have not been applied to egcs.
+
+x.number files are false starts, work in progress, etc.
+
+p.* are potential groups of patches that haven't been vetted at all.
+
+Other files are leftovers
+
+Directories are self-explanatory.

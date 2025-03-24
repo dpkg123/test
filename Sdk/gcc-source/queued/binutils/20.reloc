@@ -1,0 +1,17 @@
+Coff dynamic relocs don't have an addend, but the structure field might
+be junk, so be sure not to print it.
+
+--- objdump.c.orig	Wed Mar 13 20:52:50 2002
++++ objdump.c	Thu Mar 14 16:18:06 2002
+@@ -2553,7 +2557,10 @@ dump_reloc_set (abfd, sec, relpp, relcou
+ 		  q->howto->name,
+ 		  section_name);
+ 	}
+-      if (q->addend)
++
++      /* for purposes of dumping, coff doesn't have an addend */
++      if (abfd->xvec->flavour != bfd_target_coff_flavour
++	  && q->addend != 0)
+ 	{
+ 	  printf ("+0x");
+ 	  bfd_printf_vma (abfd, q->addend);

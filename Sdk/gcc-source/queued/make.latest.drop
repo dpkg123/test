@@ -1,0 +1,54 @@
+#!/bin/ksh
+# Build an image of the patches currently being applied, along with some
+# assorted tools.
+
+# The list of files to be included, derived from the applyem files.
+# LASTTIME=update.2.29.tgz
+# f1=$(find . -type d -newer $LASTTIME)
+f1="./bfd ./binutils ./dejagnu ./expect ./gas ./gdb ./include ./intl ./libgui ././ld ./libiberty ./tcl ./tix ./tk ./opcodes ./readline ./libstdc++-v3 ./egcs.source ./toplevel"
+
+# Is there an applyem?
+alist=
+for i in $f1
+do
+    if [ -f $i/applyem ]
+    then
+	alist="$alist $i"
+    fi
+done
+
+blist=
+flist=
+
+# Extract the names of the files from the applyem files.
+for i in $alist
+do
+   xlist=$(echo $(cat $i/applyem | grep -v "^[ 	]*#" | grep q-patch | awk "{print \"$i/\" \$3 \"\\*\"}"))
+   echo "xlist: -${xlist}-"
+   if [ x"$xlist" != x ]
+   then
+       flist="$flist $xlist"
+       blist="$blist $i/applyem"
+   fi
+done
+
+# Collect some of the private tools together
+rm -rf tools
+mkdir -p tools
+cp $X/e.makeit tools
+cp $X/e.make.libc tools
+cp $X/e.make.image tools
+cp $X/gcc.script tools
+cp $X/e.executables tools
+cp ~/bin/q-patch tools
+
+# get the latest libexec sources
+rm -rf libexec.src
+cp -r $X/libexec libexec.src
+
+# get the latest othertests sources
+rm -rf othertests
+cp -r $X/othertests othertests
+rm -f othertests/*/*.o othertests/*/*.a othertests/*/*.so othertests/weak.d/res*
+
+tar -cvf - $blist $flist libexec.src tools othertests README | gzip >update.jun7.tgz

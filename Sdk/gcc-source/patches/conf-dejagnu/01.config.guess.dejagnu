@@ -1,0 +1,25 @@
+--- dejagnu/config.guess	Wed Jun 18 13:12:20 2003
++++ dejagnu/config.guess.new	Wed Jun 18 13:36:42 2003
+@@ -765,8 +765,8 @@ EOF
+     i*:PW*:*)
+ 	echo ${UNAME_MACHINE}-pc-pw32
+ 	exit 0 ;;
+-    x86:Interix*:3*)
+-	echo i386-pc-interix3
++    x86:Interix*:*)
++	echo i586-pc-interix3
+ 	exit 0 ;;
+     i*:Windows_NT*:* | Pentium*:Windows_NT*:*)
+ 	# How do we know it's Interix rather than the generic POSIX subsystem?
+--- dejagnu/contrib/bluegnu2.0.3/config.guess	Wed Jun 18 13:12:20 2003
++++ dejagnu/contrib/bluegnu2.0.3/config.guess.new	Wed Jun 18 13:37:44 2003
+@@ -330,6 +330,9 @@ EOF
+     p*:CYGWIN*:*)
+ 	echo powerpcle-unknown-cygwin32
+ 	exit 0 ;;
++    x86:Interix*:*)
++	echo i586-pc-interix3
++	exit 0 ;;
+     *:GNU:*:*)
+ 	echo `echo ${UNAME_MACHINE}|sed -e 's,/.*$,,'`-unknown-gnu`echo ${UNAME_RELEASE}|sed -e 's,/.*$,,'`
+ 	exit 0 ;;

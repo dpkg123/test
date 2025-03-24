@@ -1,0 +1,50 @@
+/nm-gnu.h/1.3/Wed Mar 14 23:23:07 2001/-ko/
+/nm-linux.h/1.12/Sun Feb 24 22:56:04 2002/-ko/
+/nm-lynx.h/1.5/Fri May  4 04:15:29 2001/-ko/
+/nm-m3.h/1.3/Wed Mar 14 23:23:07 2001/-ko/
+/nm-nbsd.h/1.3/Wed May 22 03:59:53 2002/-ko/
+/nm-nbsdaout.h/1.1/Wed May 22 03:59:53 2002//
+/nm-sysv4.h/1.2/Tue Mar  6 08:21:20 2001/-ko/
+/tm-linux.h/1.5/Wed Jun  5 19:18:15 2002/-ko/
+/tm-lynx.h/1.2/Tue Mar  6 08:21:20 2001/-ko/
+/tm-sunos.h/1.1.1.2/Wed Jul  7 20:11:35 1999/-ko/
+/tm-sysv4.h/1.4/Fri Oct 11 14:02:38 2002/-ko/
+/tm-vxworks.h/1.1.1.2/Wed Jul  7 20:11:37 1999/-ko/
+/xm-aix4.h/1.6/Sun Dec  2 02:57:13 2001/-ko/
+/xm-nbsd.h/1.4/Sun Dec  2 02:57:13 2001/-ko/
+/xm-sysv4.h/1.5/Fri Aug 24 12:19:54 2001/-ko/
+D/alpha////
+D/arc////
+D/arm////
+D/avr////
+D/cris////
+D/d10v////
+D/d30v////
+D/djgpp////
+D/fr30////
+D/frv////
+D/h8300////
+D/h8500////
+D/i386////
+D/i960////
+D/ia64////
+D/m32r////
+D/m68hc11////
+D/m68k////
+D/m88k////
+D/mcore////
+D/mips////
+D/mn10200////
+D/mn10300////
+D/none////
+D/ns32k////
+D/pa////
+D/powerpc////
+D/rs6000////
+D/s390////
+D/sh////
+D/sparc////
+D/v850////
+D/vax////
+D/xstormy16////
+D/z8k////

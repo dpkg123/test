@@ -1,0 +1,11 @@
+--- gcc/config/i386/i386.c.bak	Wed Nov  6 14:50:59 2002
++++ gcc/config/i386/i386.c	Wed Nov  6 14:51:13 2002
+@@ -1022,7 +1022,7 @@ override_options ()
+       if (flag_asynchronous_unwind_tables == 2)
+ 	flag_asynchronous_unwind_tables = 0;
+       if (flag_pcc_struct_return == 2)
+-	flag_pcc_struct_return = 1;
++	flag_pcc_struct_return = DEFAULT_PCC_STRUCT_RETURN;
+     }
+ 
+ #ifdef SUBTARGET_OVERRIDE_OPTIONS

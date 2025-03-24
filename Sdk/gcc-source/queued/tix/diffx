@@ -1,0 +1,72 @@
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files //S/CVS/binutils.baseline/tix/library/Tix.tcl ./library/Tix.tcl
+--- //S/CVS/binutils.baseline/tix/library/Tix.tcl	Sun Feb  6 16:19:28 2000
++++ ./library/Tix.tcl	Wed Feb 23 14:36:45 2000
+@@ -184,6 +184,8 @@ proc tixAppContext:config-fontset {w val
+ 	    tixAppContext:StartupError \
+ 		"\aError: cannot use fontset \"$data(-fontset)\""
+ 	    tixAppContext:StartupError \
++		"\aError: cannot open file \"$data(-libdir)\""
++	    tixAppContext:StartupError \
+ 		"       Using default fontset "
+ 	    tixSetDefaultFontset
+ 	    tixAppContext:CheckFontSets $w
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files //S/CVS/binutils.baseline/tix/library/fs.tcl ./library/fs.tcl
+--- //S/CVS/binutils.baseline/tix/library/fs.tcl	Sun Feb  6 16:19:28 2000
++++ ./library/fs.tcl	Wed Feb 23 15:11:26 2000
+@@ -106,9 +106,9 @@ proc tixFSIsNorm {path} {
+ 	return 0
+     }
+ 
+-    # Double slashes
++    # Double slashes (but allow leading //)
+     #
+-    if [regexp {//} $path] {
++    if [regexp {.//} $path] {
+ 	return 0
+     }
+ 
+@@ -206,7 +206,17 @@ proc tixFSNorm {context text {defFile ""
+     }
+ 
+     set norm $dir/$tail
++    # Remember if it's a // special case.
++    if [ regexp {^//[^/]} $norm ] {
++      set slash "/"
++    } else {
++      set slash ""
++    }
++
+     regsub -all /+ $norm / norm
++
++    set norm $slash$norm
++
+     if ![tixStrEq $norm /] {
+ 	regsub {/$} $norm "" norm
+     }
+@@ -267,10 +277,18 @@ proc _tixNormalize {path} {
+ 	}
+     }
+ 
++    # Remember if it's a // special case.
++    if [ regexp {^//[^/]} $path ] {
++      set slash "/"
++    } else {
++      set slash ""
++    }
++
+     # Don't be fooled: $path doesn't need to be a directory. The following
+     # code just makes it easy to get rid of trailing . and ..
+     #
+     set path $path/
++
+     regsub -all /+ $path / path
+     while 1 {
+ 	if ![regsub {/\./} $path "/" path] break
+@@ -290,6 +308,7 @@ proc _tixNormalize {path} {
+     }
+ 
+     regsub {/$} $path "" path
++    set path $slash$path
+     if [tixStrEq $path ""] {
+ 	return /
+     } else {

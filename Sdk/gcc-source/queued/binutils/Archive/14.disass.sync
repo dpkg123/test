@@ -1,0 +1,21 @@
+Disass must have changed, cause can't happen now.
+
+Ian claims that disassembler should have printed message; need
+test case to prove.
+
+A couple of minor miscellaneous print improvements:
+
+	* objdump.c (disassemble_bytes): print a message when giving up.
+
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/objdump.c binutils/objdump.c
+--- binutils.nil/objdump.c	Wed Jul  7 16:58:52 1999
++++ binutils/objdump.c	Wed Jul  7 17:01:10 1999
+@@ -1314,6 +1322,7 @@ disassemble_bytes (info, disassemble_fn,
+ 		  if (sfile.current != sfile.buffer)
+ 		    printf ("%s\n", sfile.buffer);
+ 		  free (sfile.buffer);
++ 		  printf(_("... lost instruction sync; giving up on section\n"));
+ 		  break;
+ 		}
+ 	    }

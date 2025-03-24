@@ -1,0 +1,189 @@
+This is a patch for an additional feature.  It sets a bit in a 
+ld.so that says that linking against it is unsupported if the
+user tries to link against it.   This is to address some possible
+customer issues with not wanting to release code in ld.so form 
+because they don't want other programs but those they provide
+linking to it.  (The enforcement is not very strong, but it
+crosses the line into "you were warned, don't bother me".)
+
+Currently being applied.
+
+diff -drupP binutils.unmod/Makefile.am binutils/Makefile.am
+--- binutils.unmod/Makefile.am	Mon Jun 14 15:00:27 1999
++++ binutils/Makefile.am	Mon Jun 14 15:56:00 1999
+@@ -49,7 +49,8 @@ NLMCONV_PROG=nlmconv
+ DLLTOOL_PROG=dlltool
+ WINDRES_PROG=windres
+ DLLWRAP_PROG=dllwrap
+-
++LIBLOCK_PROG=liblock
++
+ SRCONV_PROG=srconv$(EXEEXT) sysdump$(EXEEXT) coffdump$(EXEEXT) 
+ 
+ MANCONF  = -Dman
+@@ -75,19 +76,19 @@ man_MANS = \
+ 	windres.1 \
+ 	$(DEMANGLER_NAME).1
+ 
+-PROGS = $(SIZE_PROG) $(OBJDUMP_PROG) $(NM_PROG) $(AR_PROG) $(STRINGS_PROG) $(STRIP_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@
+-
+-bin_PROGRAMS = $(SIZE_PROG) $(OBJDUMP_PROG) $(AR_PROG) $(STRINGS_PROG) $(RANLIB_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@
+-
++PROGS = $(SIZE_PROG) $(OBJDUMP_PROG) $(NM_PROG) $(AR_PROG) $(STRINGS_PROG) $(STRIP_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@ @BUILD_LIBLOCK@
++
++bin_PROGRAMS = $(SIZE_PROG) $(OBJDUMP_PROG) $(AR_PROG) $(STRINGS_PROG) $(RANLIB_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@ @BUILD_LIBLOCK@
++
+ ## We need a special rule to install the programs which are built with
+ ## -new, and to rename cxxfilt to c++filt.
+ noinst_PROGRAMS = $(NM_PROG) $(STRIP_PROG) $(DEMANGLER_PROG)
+ 
+-EXTRA_PROGRAMS = $(NLMCONV_PROG) srconv sysdump coffdump $(DLLTOOL_PROG) $(WINDRES_PROG) $(DLLWRAP_PROG)
+-
++EXTRA_PROGRAMS = $(NLMCONV_PROG) srconv sysdump coffdump $(DLLTOOL_PROG) $(WINDRES_PROG) $(DLLWRAP_PROG) $(LIBLOCK_PROG)
++
+ # Stuff that goes in tooldir/ if appropriate
+-TOOL_PROGS = nm-new strip-new ar ranlib dlltool
+-
++TOOL_PROGS = nm-new strip-new ar ranlib dlltool $(LIBLOCK_PROG)
++
+ BASEDIR = $(srcdir)/..
+ BFDDIR = $(BASEDIR)/bfd
+ INCDIR	= $(BASEDIR)/include
+@@ -107,8 +108,8 @@ CFILES = addr2line.c ar.c arsup.c bucomm
+ 	objcopy.c objdump.c prdbg.c rdcoff.c rddbg.c size.c srconv.c \
+ 	stabs.c strings.c sysdump.c version.c wrstabs.c \
+ 	windres.c resrc.c rescoff.c resbin.c winduni.c readelf.c \
+-	resres.c dllwrap.c rename.c
+-
++	resres.c dllwrap.c rename.c liblock.c
++
+ GENERATED_CFILES = \
+ 	underscore.c arparse.c arlex.c sysroff.c sysinfo.c syslex.c \
+ 	defparse.c deflex.c nlmheader.c rcparse.c rclex.c
+@@ -273,6 +274,12 @@ dlltool_LDADD = $(BFDLIB) $(LIBIBERTY) @
+ 
+ dlltool.o:dlltool.c
+ 	$(COMPILE) -c $(DLLTOOL_DEFS) $(srcdir)/dlltool.c
++
++liblock_SOURCES = liblock.c $(BULIBS)
++liblock_LDADD = $(BFDLIB) $(LIBIBERTY) @LEXLIB@ $(INTLLIBS)
++
++liblock.o:liblock.c
++	$(COMPILE) -c $(srcdir)/liblock.c
+ 
+ rescoff.o:rescoff.c
+ 	$(COMPILE) -c $(DLLTOOL_DEFS) $(srcdir)/rescoff.c
+diff -drupP binutils.unmod/configure.in binutils/configure.in
+--- binutils.unmod/configure.in	Mon Jun 14 15:00:26 1999
++++ binutils/configure.in	Mon Jun 14 15:55:02 1999
+@@ -132,6 +132,7 @@ BUILD_DLLTOOL=
+ DLLTOOL_DEFS=
+ BUILD_WINDRES=
+ BUILD_DLLWRAP=
++BUILD_LIBLOCK=
+ BUILD_MISC=
+ 
+ for targ in $target $canon_targets
+@@ -176,9 +177,12 @@ changequote([,])dnl
+ 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
+ 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+ 	 ;;
++changequote(,)dnl
+-  	i[3-6]86-*-interix)
++ 	i[3-6]86-*-interix*)
++changequote([,])dnl
+    	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
+  	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
++	  BUILD_LIBLOCK='$(LIBLOCK_PROG)'
+ 	 ;;
+ changequote(,)dnl
+ 	i[3-6]86-*pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+@@ -204,6 +208,7 @@ AC_SUBST(BUILD_DLLTOOL)
+ AC_SUBST(DLLTOOL_DEFS)
+ AC_SUBST(BUILD_WINDRES)
+ AC_SUBST(BUILD_DLLWRAP)
++AC_SUBST(BUILD_LIBLOCK)
+ AC_SUBST(BUILD_MISC)
+ 
+ AC_DEFINE_UNQUOTED(TARGET, "${target}", [Configured target name.])
+diff -drupP binutils.unmod/liblock.c binutils/liblock.c
+--- binutils.unmod/liblock.c	Wed Dec 31 17:00:00 1969
++++ binutils/liblock.c	Mon Jun 14 15:08:12 1999
+@@ -0,0 +1,77 @@
++#include <stdio.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <stdlib.h>
++int
++main(int argc, char **argv)
++{
++	int offset = 0xde;
++	char buf[4];
++	long res;
++	long fd;
++
++	if (argc != 2) {
++	   fprintf(stderr, "Usage: locklib <lib.so>\n");
++	   exit(1);
++	}
++
++	fd = open(argv[1], O_RDWR);
++
++	if (fd < 0) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	lseek (fd, 0, SEEK_SET);
++	res = read(fd, buf, 2);
++
++	if (res != 2) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	if (buf[0] != 'M' || buf[1] != 'Z') {
++	   fprintf(stderr, "File is not PE\n");
++	   exit(1);
++	}
++
++	lseek (fd, 0x80, SEEK_SET);
++
++	res = read(fd, buf, 2);
++
++	if (res != 2) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	if (buf[0] != 'P' || buf[1] != 'E') {
++	   fprintf(stderr, "File is not PEI\n");
++	   exit(1);
++	}
++
++	lseek (fd, offset, SEEK_SET);
++
++	res = read(fd, buf, 1);
++
++	if (res != 1) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	if (buf[0] != 1) {
++	   fprintf(stderr, "File is not unlocked shared lib\n");
++	   exit(1);
++	}
++
++	lseek (fd, offset, SEEK_SET);
++
++	buf[0] = 3;
++	res = write(fd, buf, 1);
++
++	if (res != 1) {
++	   perror("locklib");
++	   exit(1);
++	}
++
++	exit(0);
++}

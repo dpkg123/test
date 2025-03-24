@@ -1,0 +1,27 @@
+These notes are included in the tarball as well.
+
+Here are the remaining pieces, as of the time this is sent,
+needed for Interix and binutils.  Each file has annotations
+at the front of it as to its purpose and current status.
+The list is too long, and too dynamic, to summarize here.
+
+"Currently being applied" means that I'm using the patch in
+my (ir)regular builds, and that it worked properly (in concert
+with all the others).  I can't, of course, promise that there
+haven't been changes to the baseline that would break them.
+
+Note that I've inlcuded the Alpha patches.  I believe that,
+even tho Compaq is dropping the Alpha, that they continue to
+have value.  There is an ongoing support issue, of course.
+More importantly, they fix/implement a lot of features for 
+PE in general (X86 PE is a special case; all RISCs are more
+similar to each other than to X86).  Such features may be
+needed on future NT RISC (or other?) ports.
+
+If/when I get the chance, I will submit cleaned up Alpha
+patches.
+
+There is no bfd/41*, ld/21*
+
+Only gdb/19* exists.  I have today (8/31) submitted to RMS a release
+for gdb.

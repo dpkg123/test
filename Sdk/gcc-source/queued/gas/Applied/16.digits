@@ -1,0 +1,17 @@
+The calculation for "too_many_digits" was off by 1 for base 10 
+large numbers, and was overshooting by one.
+
+	* expr.c (integer_constant): calculation was off by one.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/expr.c gas/expr.c
+--- gas.orig/expr.c	Fri Aug 20 14:00:46 1999
++++ gas/expr.c	Fri Aug 20 14:01:23 1999
+@@ -389,7 +389,7 @@ integer_constant (radix, expressionP)
+       break;
+     case 10:
+       maxdig = radix = 10;
+-      too_many_digits = (valuesize + 12) / 4; /* very rough */
++      too_many_digits = (valuesize + 11) / 4; /* very rough */
+     }
+ #undef valuesize
+   start = input_line_pointer;

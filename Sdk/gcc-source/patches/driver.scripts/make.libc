@@ -1,0 +1,56 @@
+#!/bin/ksh
+if [ $# != 1 ]
+then
+   echo 'usage: make.libc <target dir>'
+   exit 1
+fi
+
+TARGETDIR=$1
+
+m=$(uname -m | cut -f1 -d" " )
+if [ $m = Pentium ]
+then
+   arch=i386
+elif [ $m = Intel ]
+then
+   arch=i386
+elif [ $m = Alpha ]
+then
+   arch=alpha
+else
+   echo "What architecture am I on?"
+   exit 1
+fi
+
+cp -f /usr/lib/libc.a .
+ar -d libc.a loaderstub.o
+
+echo "Making libc.so"
+# -- libc
+../local_bin/ld --shared --whole-archive libc.a --no-whole-archive /usr/lib/libpsxdll.a --soname libc.so -o libc.so -Bsymbolic --image-base 0x77df0000
+
+cp libc.so $TARGETDIR/libc.so
+
+echo "Making libm.so"
+# -- libm 
+../local_bin/ld --shared --whole-archive /usr/lib/libm.a --no-whole-archive /usr/lib/libpsxdll.a --soname libm.so -o libm.so -Bsymbolic --image-base 0x77dc0000
+
+cp libm.so $TARGETDIR/libm.so
+
+echo "Making libf2c.so"
+# -- libf2c
+../local_bin/ld --shared --whole-archive ../local_bin/libf2c.a --no-whole-archive /usr/lib/libpsxdll.a ../local_bin/libgcc.a --soname libf2c.so -o libf2c.so -Bsymbolic
+
+cp libf2c.so $TARGETDIR/libf2c.so
+
+echo "Making libstdc++.so"
+# -- libstdc++
+../local_bin/ld --shared --whole-archive ../local_bin/libstdc++.a --no-whole-archive /usr/lib/libpsxdll.a ../local_bin/libgcc.a --soname libstdc++.so -o libstdc++.so -Bsymbolic 
+
+cp libstdc++.so $TARGETDIR/libstdc++.so
+
+echo "Making libg++.so"
+# -- libg++
+../local_bin/ld --shared --whole-archive ../local_bin/libg++.a --no-whole-archive ../local_bin/libgcc.a /usr/lib/libpsxdll.a --soname libg++.so -o libg++.so -Bsymbolic
+
+cp libg++.so $TARGETDIR/libg++.so

@@ -1,0 +1,11 @@
+NUM=$1
+
+DIR=/dev/fs/C/home/donn.intel/from.rupp/interix-gdb-patches/
+NAME=$(cd $DIR; ls $NUM.*.applied)
+NAME=${NAME%%.applied}
+NAME=${NAME##[0-9][0-9].}
+
+cat /dev/fs/C/home/donn.intel/from.rupp/interix-gdb-patches/$NUM.*{header,applied} >$NUM.$NAME
+
+echo $NAME
+grep \\+\\+\\+ $NUM.$NAME

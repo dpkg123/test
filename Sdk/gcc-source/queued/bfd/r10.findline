@@ -1,0 +1,63 @@
+Ian needs test case.  Sent 9/15.
+
+_bfd_stab_section_find_nearest_line can sometimes pick up garbage
+for certain relocation types if it's a partial_inplace relocation,
+because the addend field isn't set properly.
+
+To recap the discussion: this is an imperfect fix: partial_inplace is
+the best approximation I could find to a flag that told me that 
+r->addend was not the right thing, but there's no direct correlation.
+I didn't want to make the change unconditional because there may be
+variants that DO need r->addend.  However, unconditional might be
+the "right" fix.
+
+	* syms.c (_bfd_stab_section_find_nearest_line): ignore addend
+	field when handling partial_inplace relocations.
+
+Index: src/bfd/syms.c
+===================================================================
+RCS file: /cvs/src/src/bfd/syms.c,v
+retrieving revision 1.15
+diff -p -c -r1.15 syms.c
+*** syms.c	2001/12/12 19:05:26	1.15
+--- syms.c	2001/12/22 22:09:51
+*************** _bfd_stab_section_find_nearest_line (abf
+*** 975,985 ****
+  		  return false;
+  		}
+  
+  	      val = bfd_get_32 (abfd, info->stabs + r->address);
+  	      val &= r->howto->src_mask;
+  	      sym = *r->sym_ptr_ptr;
+! 	      val += sym->value + sym->section->vma + r->addend;
+! 	      bfd_put_32 (abfd, (bfd_vma) val, info->stabs + r->address);
+  	    }
+  	}
+  
+--- 975,1000 ----
+  		  return false;
+  		}
+  
++ 	      bfd_put_32 (abfd, (bfd_vma) val, info->stabs + r->address);
+  	      val = bfd_get_32 (abfd, info->stabs + r->address);
+  	      val &= r->howto->src_mask;
+  	      sym = *r->sym_ptr_ptr;
+! 
+! 	      /* I'm not sure about the use of partial_inplace
+! 		 below; the goal is that for COFF and related
+! 		 formats, the addend is meaningless.
+! 		 coff_slurp_relocation_table (that is,
+! 		 bfd_canonicalise_reloc) puts the wrong value for
+! 		 this use in the ->addend field.  It may be a bug
+! 		 there, but if so, it seems pretty intentional.
+! 
+! 		 For other relocations, the addend is calculated by
+! 		 ...rtype_to_howto, which doesn't make this mistake */
+! 
+! 	      val += sym->value + sym->section->vma +
+! 		 r->howto->partial_inplace ? 0 : r->addend;
+! 
+! 	      bfd_put_32 (abfd, val, info->stabs + r->address);
+  	    }
+  	}
+  

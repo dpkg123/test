@@ -1,0 +1,38 @@
+He didn't buy messages, don't fight.
+
+1) Make -? do something marginally useful.
+2) Clarify message text (at least for PE).  This one is arguable, but
+   the meaning of the -T* options is really unclear for PE without the
+   addition.  I don't believe it confuses anyone else.
+
+	* lexsup.c (ld_options): Clarify messages.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.nil/lexsup.c ld/lexsup.c
+--- ld.nil/lexsup.c	Wed Jul  7 14:17:26 1999
++++ ld/lexsup.c	Wed Jul  7 14:17:45 1999
+@@ -334,11 +334,11 @@ static const struct ld_option ld_options
+   { {"traditional-format", no_argument, NULL, OPTION_TRADITIONAL_FORMAT},
+       '\0', NULL, N_("Use same format as native linker"), TWO_DASHES },
+   { {"Tbss", required_argument, NULL, OPTION_TBSS},
+-      '\0', N_("ADDRESS"), N_("Set address of .bss section"), ONE_DASH },
++      '\0', N_("ADDRESS"), N_("Set [Image Rel] address of .bss section"), ONE_DASH },
+   { {"Tdata", required_argument, NULL, OPTION_TDATA},
+-      '\0', N_("ADDRESS"), N_("Set address of .data section"), ONE_DASH },
++      '\0', N_("ADDRESS"), N_("Set [Image Rel] address of .data section"), ONE_DASH },
+   { {"Ttext", required_argument, NULL, OPTION_TTEXT},
+-      '\0', N_("ADDRESS"), N_("Set address of .text section"), ONE_DASH },
++      '\0', N_("ADDRESS"), N_("Set [Image Rel] address of .text section"), ONE_DASH },
+   { {"verbose", no_argument, NULL, OPTION_VERBOSE},
+       '\0', NULL, N_("Output lots of information during link"), TWO_DASHES },
+   { {"dll-verbose", no_argument, NULL, OPTION_VERBOSE}, /* Linux.  */
+@@ -641,6 +641,10 @@ parse_args (argc, argv)
+ 	case OPTION_GC_SECTIONS:
+ 	  command_line.gc_sections = true;
+ 	  break;
++	case '?':
++	  einfo(_("For detailed help, type %s -help\n"), argv[0]);
++	  xexit(0);
++	  break;
+ 	case OPTION_HELP:
+ 	  help ();
+ 	  xexit (0);

@@ -1,0 +1,11 @@
+51.new.lib:+      id4->comdat = bfd_zalloc(abfd, sizeof(struct bfd_comdat_info));
+51.new.lib:+      if (id4->comdat == NULL)
+51.new.lib:+      id4->comdat->symbol = imp_index;
+51.new.lib:+      id4->comdat->name = (*imp_sym)->symbol.name;
+51.new.lib:+      if (id4->comdat == NULL)
+51.new.lib:+      id4->comdat = bfd_zalloc(abfd, sizeof(struct bfd_comdat_info));
+51.new.lib:+      id4->comdat->symbol = imp_index;
+51.new.lib:+      id4->comdat->name = (char *)(*imp_sym)->symbol.name;
+64.pei.comdat:+      id4->comdat = bfd_zalloc(abfd, sizeof(struct bfd_comdat_info));
+64.pei.comdat:       id4->comdat->symbol = imp_index;
+64.pei.comdat:       id4->comdat->name = (char *)(*imp_sym)->symbol.name;

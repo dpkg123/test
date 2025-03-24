@@ -1,0 +1,36 @@
+For gdb... not needed strictly for bfd.
+
+Ian... gdb gripes that this isn't declared (-Wall)
+How to handle that?  (Other folks need the null definition
+in shared code).
+
+	* peigen.c (bfd_getImageBase): new (for gdb).
+
+Index: src/bfd/peXXigen.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/peXXigen.c,v
+retrieving revision 1.3
+diff -p -c -r1.3 peXXigen.c
+*** src/bfd/peXXigen.c	2001/12/23 03:39:59	1.3
+--- src/bfd/peXXigen.c	2001/12/23 03:41:45
+*************** _bfd_XXi_final_link_postscript (abfd, pf
+*** 1936,1938 ****
+--- 1936,1953 ----
+       program....  */
+    return true;
+  }
++ 
++ bfd_vma bfd_getImageBase (abfd)
++      bfd *abfd;
++ {
++   extern const bfd_target i386pei_vec;
++ 
++   /* We want to check for specifically PE, not just COFF, so we can't
++      use the flavour. */
++ 
++   if (abfd->xvec == &i386pei_vec)
++     return pe_data (abfd)->pe_opthdr.ImageBase;
++   else
++     return 0;
++ }
++ 

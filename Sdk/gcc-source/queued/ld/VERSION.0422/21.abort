@@ -1,0 +1,40 @@
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/ld.h //D/home/donn.intel/gnu.intel/ld/ld.h
+--- //Q/Gnusrc/cygwin.0325/ld/ld.h	Thu Mar 25 02:15:03 1999
++++ //D/home/donn.intel/gnu.intel/ld/ld.h	Mon Mar 29 11:22:54 1999
+@@ -225,4 +225,13 @@ extern void add_cref PARAMS ((const char
+ extern void output_cref PARAMS ((FILE *));
+ extern void check_nocrossrefs PARAMS ((void));
+ 
++/* if gcc, we can give a function name, too */
++#if !defined (__GNUC__) || __GNUC_MINOR__ <= 5
++#define __PRETTY_FUNCTION__  ((char*)0)
++#endif
++
++void ld_abort(const char *, int, const char *);
++#undef abort
++#define abort()         ld_abort (__FILE__, __LINE__, __PRETTY_FUNCTION__)
++
+ #endif
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/ld/ldmisc.c //D/home/donn.intel/gnu.intel/ld/ldmisc.c
+--- //Q/Gnusrc/cygwin.0325/ld/ldmisc.c	Thu Mar 25 02:15:05 1999
++++ //D/home/donn.intel/gnu.intel/ld/ldmisc.c	Mon Mar 29 11:22:54 1999
+@@ -532,4 +533,19 @@ void 
+ print_nl ()
+ {
+   fprintf (config.map_file, "\n");
++}
++
++/* Shamelessly stolen from as */
++/* ld_abort: Print a friendly message saying how totally hosed we are,
++   and exit without producing a core file.  */
++void
++ld_abort (file, line, fn)
++     const char *file, *fn;
++     int line;
++{
++  fprintf (stderr, "Internal error, aborting at %s line %d", file, line);
++  if (fn)
++    fprintf (stderr, " in %s", fn);
++  fprintf (stderr, "\nPlease report this bug.\n");
++  xexit (EXIT_FAILURE);
+ }

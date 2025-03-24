@@ -1,0 +1,205 @@
+REEVALUATE corelow changes for neccessity; changes to interix-nat are
+definitely needed.
+
+Core file support for Interix (assumes corresponding BFD patches
+have been applied).  In core_open, we need to get to the magic
+pstatus info for the unwind stuff.
+
+Is there a better place to put the include?
+
+Is this all corefile support or is some of it trampoline fixes???
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* corelow.c: include procfs.h for Interix.
+	(core_open): for Interix only, get signal trampoline address
+
+
+Index: src/gdb/corelow.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/corelow.c,v
+retrieving revision 1.2
+diff -p -u -r1.2 corelow.c
+--- src/gdb/corelow.c	2001/12/24 02:16:26	1.2
++++ src/gdb/corelow.c	2001/12/24 02:20:09
+@@ -44,6 +44,11 @@
+ #define O_BINARY 0
+ #endif
+ 
++/* See below */
++#ifdef __INTERIX
++#include <sys/procfs.h>
++#endif
++
+ /* List of all available core_fns.  On gdb startup, each core file register
+    reader calls add_core_fns() to register information on each core format it
+    is prepared to read. */
+@@ -309,6 +314,36 @@ core_open (char *filename, int from_tty)
+   discard_cleanups (old_chain);	/* Don't free filename any more */
+   unpush_target (&core_ops);
+   core_bfd = temp_bfd;
++
++#ifdef __INTERIX
++    {
++        /* This is painful, but there doesn't seem to be a better way.
++	   See interix tm.h, IN_SIGTRAMP, and procfs.c for more details. */
++	asection *section;
++	pstatus_t *p;
++
++	section = bfd_get_section_by_name (core_bfd, ".pstatus");
++	if (section != NULL) {
++	    p = (pstatus_t *)section->contents;
++
++	    if (p == NULL) {
++		p = (pstatus_t *)bfd_alloc(core_bfd, section->_raw_size);
++		bfd_get_section_contents (core_bfd, section, p, 0, 
++		    section->_raw_size);
++	    }
++	    tramp_start = (CORE_ADDR)p->pr_signaldeliverer;
++	    tramp_end = (CORE_ADDR)p->pr_endsignaldeliverer;
++	    null_start = (CORE_ADDR)p->pr_nullapi;
++	    null_end = (CORE_ADDR)p->pr_endnullapi;
++        }
++	/* else, just ignore it; it shouldn't ever happen. */
++
++        /* The stack unwind stuff needs to know this; presumably it's always
++	   true for a corefile. */
++	stopped_by_random_signal = 1;
++    }
++#endif
++
+   old_chain = make_cleanup (core_close_cleanup, 0 /*ignore*/);
+ 
+   /* Find a suitable core file handler to munch on core_bfd */
+@@ -368,6 +403,31 @@ core_open (char *filename, int from_tty)
+ 		"you won't be able to access this core file until you terminate\n\
+ your %s; do ``info files''", target_longname);
+     }
++
++#ifdef __INTERIX
++    {
++        /* This is painful, but there doesn't seem to be a better way.
++	   See interix tm.h, IN_SIGTRAMP, and procfs.c for more details. */
++	asection *section;
++	pstatus_t *p;
++
++	section = bfd_get_section_by_name (core_bfd, ".pstatus");
++	if (section != NULL) {
++	    p = (pstatus_t *)section->contents;
++
++	    if (p == NULL) {
++		p = (pstatus_t *)bfd_alloc(core_bfd, section->_raw_size);
++		bfd_get_section_contents (core_bfd, section, p, 0, 
++		    section->_raw_size);
++	    }
++	    tramp_start = (CORE_ADDR)p->pr_signaldeliverer;
++	    tramp_end = (CORE_ADDR)p->pr_endsignaldeliverer;
++	    null_start = (CORE_ADDR)p->pr_nullapi;
++	    null_end = (CORE_ADDR)p->pr_endnullapi;
++        }
++	/* else, just ignore it; it shouldn't ever happen. */
++    }
++#endif
+ }
+ 
+ static void
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files gdb.saved/i386interix-nat.c gdb/i386interix-nat.c
+--- gdb.saved/i386interix-nat.c	Tue Mar  5 14:56:13 2002
++++ gdb/i386interix-nat.c	Wed Mar  6 19:25:32 2002
+@@ -28,7 +28,10 @@ Foundation, Inc., 59 Temple Place - Suit
+ #include "symfile.h"
+ #include "objfiles.h"
+ #include "gdb-stabs.h"
+-
++#include "gdbcore.h"
++#include "gregset.h"
++
++
+ typedef unsigned long greg_t;  /* Where should this be defined? */
+ 
+ /* See procfs.c and *interix*.h in config/[alpha,i386] */
+@@ -214,7 +216,64 @@ fill_fpregset (fpregset_t *fpregsetp,
+   convert_to_fpregset (fpregsetp, registers, 0);
+ }
+ 
+-
++/*
++
++   GLOBAL FUNCTION
++
++   fetch_core_registers -- fetch current registers from core file
++
++   SYNOPSIS
++
++   void fetch_core_registers (char *core_reg_sect,
++   unsigned core_reg_size,
++   int which, CORE_ADDR reg_addr)
++
++   DESCRIPTION
++
++   Read the values of either the general register set (WHICH equals 0)
++   or the floating point register set (WHICH equals 2) from the core
++   file data (pointed to by CORE_REG_SECT), and update gdb's idea of
++   their current values.  The CORE_REG_SIZE parameter is compared to
++   the size of the gregset or fpgregset structures (as appropriate) to
++   validate the size of the structure from the core file.  The
++   REG_ADDR parameter is ignored.
++
++ */
++
++static void
++fetch_core_registers (char *core_reg_sect, unsigned core_reg_size, int which,
++		      CORE_ADDR reg_addr)
++{
++  gdb_gregset_t gregset;
++  gdb_fpregset_t fpregset;
++
++  if (which == 0)
++    {
++      if (core_reg_size != sizeof (gregset))
++	{
++	  warning ("wrong size gregset struct in core file");
++	}
++      else
++	{
++	  memcpy ((char *) &gregset, core_reg_sect, sizeof (gregset));
++	  supply_gregset (&gregset);
++	}
++    }
++  else if (which == 2)
++    {
++      if (core_reg_size != sizeof (fpregset))
++	{
++	  warning ("wrong size fpregset struct in core file");
++	}
++      else
++	{
++	  memcpy ((char *) &fpregset, core_reg_sect, sizeof (fpregset));
++	  if (FP0_REGNUM >= 0)
++	    supply_fpregset (&fpregset);
++	}
++    }
++}
++
+ /* the name of the proc status struct depends on the implementation */
+ #ifdef HAVE_PSTATUS_T
+   typedef pstatus_t gdb_prstatus_t;
+@@ -410,4 +469,19 @@ get_longjmp_target (pc)
+ 
+   *pc = extract_address (raw_buffer, sizeof(CORE_ADDR));
+   return 1;
++}
++
++static struct core_fns interix_core_fns =
++{
++  bfd_target_coff_flavour,		/* core_flavour  (more or less) */
++  default_check_format,			/* check_format */
++  default_core_sniffer,			/* core_sniffer */
++  fetch_core_registers,		        /* core_read_registers */
++  NULL					/* next */
++};
++
++void
++_initialize_core_interix (void)
++{
++  add_core_fns (&interix_core_fns);
+ }

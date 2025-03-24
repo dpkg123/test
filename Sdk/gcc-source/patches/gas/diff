@@ -1,0 +1,75 @@
+--- tc-i386.c.orig	Tue Jan 15 13:54:58 2002
++++ tc-i386.c	Tue Jan 15 13:58:12 2002
+@@ -4321,19 +4321,45 @@ md_apply_fix3 (fixP, valP, seg)
+ 
+   /* Fix a few things - the dynamic linker expects certain values here,
+      and we must not dissappoint it.  */
++#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) || defined (TE_PE_DYN) /* [ */
++  if (fixP->fx_addsy
+ #if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+-  if (OUTPUT_FLAVOR == bfd_target_elf_flavour
+-      && fixP->fx_addsy)
++      && OUTPUT_FLAVOR == bfd_target_elf_flavour
++#endif
++  )
+     switch (fixP->fx_r_type)
+       {
+       case BFD_RELOC_386_PLT32:
+       case BFD_RELOC_X86_64_PLT32:
++#ifdef TE_PE_DYN
++        /* On PE, to get the right value in the .o file, we need to fake out 
++	   _bfd_install_relocaction, see above.  */
++        value += fixP->fx_where + fixP->fx_frag->fr_address;
++#else
+ 	/* Make the jump instruction point to the address of the operand.  At
+ 	   runtime we merely add the offset to the actual PLT entry.  */
+ 	value = -4;
++#endif
+ 	break;
++
++#ifdef TE_PE_DYN
++    case BFD_RELOC_32:
++      /* On PE, to get the right value in the .o file, we need to fake out 
++	 _bfd_install_relocaction, see above.
++	 In this case, we're looking to see if this might be transformed
++	 into a GOTPC, later*/
++      if (GOT_symbol == NULL || fixP->fx_addsy != GOT_symbol)
++	  break;
++      /* drop thru */
++#endif
++
+       case BFD_RELOC_386_GOTPC:
+-
++#ifdef TE_PE_DYN
++      /* On PE, to get the right value in the .o file, we need to fake out
++	 _bfd_install_relocaction, see above.  */
++      value += fixP->fx_where + fixP->fx_frag->fr_address;
++#else
++
+ /*   This is tough to explain.  We end up with this one if we have
+  * operands that look like "_GLOBAL_OFFSET_TABLE_+[.-.L284]".  The goal
+  * here is to obtain the absolute address of the GOT, and it is strongly
+@@ -4373,11 +4399,14 @@ md_apply_fix3 (fixP, valP, seg)
+  * way.  */
+ 
+ 	value -= 1;
++#endif
+ 	break;
++
+       case BFD_RELOC_386_GOT32:
+       case BFD_RELOC_X86_64_GOT32:
+ 	value = 0; /* Fully resolved at runtime.  No addend.  */
+ 	break;
++
+       case BFD_RELOC_386_GOTOFF:
+       case BFD_RELOC_X86_64_GOTPCREL:
+ 	break;
+@@ -4390,7 +4419,7 @@ md_apply_fix3 (fixP, valP, seg)
+       default:
+ 	break;
+       }
+-#endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)  */
++#endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) ] */
+   * valP = value;
+ #endif /* defined (BFD_ASSEMBLER) && !defined (TE_Mach)  */
+ 

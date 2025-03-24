@@ -1,0 +1,6 @@
+This directory contains a few additional tests that don't quite fit
+elsewhere, for one reason or another.  The reason should be noted in
+the individual script.
+
+Scripts are responsible for reporting the details of the error,
+and should exit 0 on pass, nonzero on fail.

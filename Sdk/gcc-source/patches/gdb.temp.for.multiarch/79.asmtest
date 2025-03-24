@@ -1,0 +1,254 @@
+The assembler debug tests make a lot of assumptions that are false
+at least some of the time.  Make the assumptions explicit build requirements
+and more machines can pass.
+
+The imbedded comment gives most of the details.
+
+1) Add a new .inc file for COFF so symbol foostatic can be recognized
+   as a function.  (Need the function type info.)
+2) Add two new .s files: one to contain the startup so that unwind to 
+   entry file (rather than entry function) works, one to create an
+   "EOF" for stabs so the step into foo2 works.
+3) Rename a couple of symbols with leading underscores so gdb can find them
+   on leading-underscore machines.  (It may take some work on non-leading-
+   underscore machines to make this work.)
+4) Some of the changes to asmsrc1.s are solely to maintain line numbers,
+   and could be simplified on final checkin.
+
+Also, add a comment to dbxread.c resolving an unknown condition related to this.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/dbxread.c gdb/dbxread.c
+--- dbxread.c	Thu Mar  7 09:18:59 2002
++++ dbxread.c	Sat Mar  9 20:13:58 2002
+@@ -2568,8 +2568,9 @@ read_ofile_symtab (struct partial_symtab
+   else
+     {
+       /* The N_SO starting this symtab is the first symbol, so we
+-         better not check the symbol before it.  I'm not this can
+-         happen, but it doesn't hurt to check for it.  */
++         better not check the symbol before it.  This is rare, but it
++	 does occur, particularly with debug symbols from the assembler,
++	 which would not (of course) have a compiler name entry. */
+       bfd_seek (symfile_bfd, sym_offset, SEEK_CUR);
+       processing_gcc_compilation = 0;
+     }
+
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files testsuite/baseline.gdb.asm/asm-source.exp testsuite/gdb.asm/asm-source.exp
+--- testsuite/baseline.gdb.asm/asm-source.exp	Wed Oct 23 10:38:50 2002
++++ testsuite/gdb.asm/asm-source.exp	Wed Oct 23 14:19:14 2002
+@@ -25,9 +25,34 @@ if $tracelevel then {
+ 
+ #
+ # Test debugging assembly level programs.
+-# This file uses asmsrc[12].s for input.
+-#
+-
++# This file uses asmsrc[1234].s for input.
++#
++# Some comments on "corner cases": On some systems it's not possible to
++# link an application without both crt0.o and the default libc, because
++# they mutually refer.  For this test to work, it must either use crt0 and libc
++# or stand completely alone.  Since there are good reasons not to use crt0,
++# it needs to stand completely alone.  Since the stabs entries generated
++# by the assembler are mostly SLINE entries (no functions or blocks), there's
++# nothing but the "next" SO entry to terminate the blocks (and thus generate
++# partial symtabs with a proper end value).  That happens "accidentally"
++# if linking with more complete libraries, but not in this case.  (This
++# would also not be a problem if FUN entries were generated.) To cause
++# the insertion of a "next" SO entry follwing asmsrc2.o, we use the (nearly)
++# empty asmsrc4.o. (Ref: read_dbx_symtab.)
++#
++# Additionally, the stack unwinder logic (at least for COFF) looks to see
++# if the PC is in the "entry file".  Putting _start (which identifies
++# the entry file) in the same file as main confuses the unwinder, and it
++# omits unwinding main as well, causing test failures.  Thus, asmsrc3.s
++# contains _start (alone).
++#
++# Not all systems have their default entry point as _start, so we set it.
++#
++# Everything appears to work correctly for "leading underscore" machines,
++# but there is some risk that it might not under some circumstances; if
++# this test is failing by not finding symbols, look for that.
++#
++
+ set prms_id 0
+ set bug_id 0
+ 
+@@ -54,6 +79,9 @@ if [istarget "x86_64-*-*"] then {
+ if [istarget "i\[3456\]86-*-*"] then {
+     set asm-arch i386
+ }
++if [istarget "i\[3456\]86-*-interix*"] then {
++    set asm-arch i386coff
++}
+ if [istarget "m32r*-*"] then {
+     set asm-arch m32r
+ }
+@@ -101,7 +129,9 @@ set testfile "asm-source"
+ set binfile ${objdir}/${subdir}/${testfile}
+ set src1 ${srcdir}/${subdir}/asmsrc1.s
+ set src2 ${srcdir}/${subdir}/asmsrc2.s
+-
++set src3 ${srcdir}/${subdir}/asmsrc3.s
++set src4 ${srcdir}/${subdir}/asmsrc4.s
++
+ remote_exec build "rm -f ${subdir}/arch.inc"
+ remote_download host ${srcdir}/${subdir}/${asm-arch}.inc ${subdir}/arch.inc
+ 
+@@ -116,18 +146,27 @@ if {[target_assemble ${src1} asmsrc1.o "
+ if {[target_assemble ${src2} asmsrc2.o "${asm-flags}"] != ""} then {
+      gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+ }
++if {[target_assemble ${src3} asmsrc3.o "${asm-flags}"] != ""} then {
++     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
++}
++if {[target_assemble ${src4} asmsrc4.o "${asm-flags}"] != ""} then {
++     gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
++}
+ 
+-set opts "debug ldflags=-nostartfiles"
++# Some shared libs won't stand alone (without the startup file), so be sure
++# it's static.  And not all systems start at _start.
++
++set opts "debug ldflags=-nostartfiles ldflags=-nostdlib ldflags=-Wl,-entry,_start ldflags=--static "
+ foreach i ${link-flags} {
+     append opts " ldflags=$i"
+ }
+-if { [gdb_compile "asmsrc1.o asmsrc2.o" "${binfile}" executable $opts] != "" } {
++if { [gdb_compile "asmsrc1.o asmsrc2.o asmsrc3.o asmsrc4.o" "${binfile}" executable $opts] != "" } {
+      gdb_suppress_entire_file "Testcase compile failed, so all tests in this file will automatically fail."
+ }
+ 
+-remote_exec build "mv asmsrc1.o asmsrc2.o ${objdir}/${subdir}"
+-
+-
++remote_exec build "mv asmsrc1.o asmsrc2.o asmsrc3.o asmsrc4.o ${objdir}/${subdir}"
++
++
+ gdb_start
+ gdb_reinitialize_dir $srcdir/$subdir
+ gdb_load ${binfile}
+@@ -196,8 +235,8 @@ gdb_expect {
+ gdb_test "list $entry_symbol" ".*gdbasm_startup.*" "list"
+ 
+ # Now try a source file search
+-gdb_test "search A routine for foo2 to call" \
+-	"40\[ \t\]+comment \"A routine for foo2 to call.\"" "search"
++gdb_test "search Provide something to search for" \
++       "19\[ \t\]+comment \"Provide something to search for\"" "search"
+ 
+ # See if `f' prints the right source file.
+ gdb_test "f" ".*asmsrc2\[.\]s:8.*" "f in foo2"
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files testsuite/baseline.gdb.asm/asmsrc1.s testsuite/gdb.asm/asmsrc1.s
+--- testsuite/baseline.gdb.asm/asmsrc1.s	Wed Oct 23 10:38:50 2002
++++ testsuite/gdb.asm/asmsrc1.s	Wed Oct 23 14:06:17 2002
+@@ -9,13 +9,13 @@ comment "asm-source.exp."
+ comment	"This file is not linked with crt0."
+ comment	"Provide very simplistic equivalent."
+ 	
+-	.global _start
+-gdbasm_declare _start
+-	gdbasm_startup
+-	gdbasm_call main
+-	gdbasm_exit0
+-	gdbasm_end _start
+-
++comment "	.global _start"
++comment "gdbasm_declare _start"
++comment "	gdbasm_startup"
++comment "	gdbasm_call main"
++comment "	gdbasm_exit0"
++comment "	gdbasm_end _start"
++
+ comment "main routine for assembly source debugging test"
+ comment "This particular testcase uses macros in <arch>.inc to achieve"
+ comment "machine independence."
+@@ -64,4 +64,4 @@ gdbasm_datavar	globalvar	11
+ 
+ comment "A static variable"
+ 
+-gdbasm_datavar	staticvar	5
++gdbasm_datavar	_staticvar	5
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files testsuite/baseline.gdb.asm/asmsrc3.s testsuite/gdb.asm/asmsrc3.s
+--- testsuite/baseline.gdb.asm/asmsrc3.s	Wed Dec 31 16:00:00 1969
++++ testsuite/gdb.asm/asmsrc3.s	Wed Oct 23 14:00:17 2002
+@@ -0,0 +1,20 @@
++	.include "common.inc"
++	.include "arch.inc"
++	comment "empty file, to provide EOF entry in stabs"
++
++comment        "This file is not linked with crt0."
++comment        "Provide very simplistic equivalent."
++
++	.global _start
++gdbasm_declare _start
++	gdbasm_startup
++	gdbasm_call main
++	gdbasm_exit0
++
++comment "The next nonblank line must be 'offscreen' w.r.t. start"
++comment "and it must not be the last line in the file (I don't know why)"
++
++
++
++comment "Provide something to search for"
++
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files testsuite/baseline.gdb.asm/asmsrc4.s testsuite/gdb.asm/asmsrc4.s
+--- testsuite/baseline.gdb.asm/asmsrc4.s	Wed Dec 31 16:00:00 1969
++++ testsuite/gdb.asm/asmsrc4.s	Wed Oct 23 13:52:33 2002
+@@ -0,0 +1,5 @@
++	.include "common.inc"
++	.include "arch.inc"
++	comment "empty file, to provide EOF entry in stabs"
++
++gdbasm_declare ender
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files testsuite/baseline.gdb.asm/i386coff.inc testsuite/gdb.asm/i386coff.inc
+--- testsuite/baseline.gdb.asm/i386coff.inc	Wed Dec 31 16:00:00 1969
++++ testsuite/gdb.asm/i386coff.inc	Wed Oct 23 14:13:56 2002
+@@ -0,0 +1,45 @@
++	comment "subroutine prologue"
++	.macro gdbasm_enter
++	push	%ebp
++	mov	%esp,%ebp
++	.endm
++
++	comment "subroutine epilogue"
++	.macro gdbasm_leave
++	pop	%ebp
++	ret
++	.endm
++
++	.macro gdbasm_call subr
++	call	\subr
++	.endm
++
++	.macro gdbasm_several_nops
++	nop
++	nop
++	nop
++	nop
++	.endm
++
++	comment "exit (0)"
++	.macro gdbasm_exit0
++	hlt
++	.endm
++
++	comment "crt0 startup"
++	.macro gdbasm_startup
++	xor	%ebp, %ebp
++	.endm
++
++	comment "Declare a subroutine"
++	.macro gdbasm_declare name
++\name:
++	.def \name; .val \name; .scl 2; .type 040; .endef
++	.endm
++
++	comment "Declare a data variable"
++	.macro gdbasm_datavar name value
++	.data
++\name:
++	.long	\value
++	.endm

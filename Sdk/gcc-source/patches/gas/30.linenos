@@ -1,0 +1,29 @@
+Not currently in use.
+
+Another off-by-one issue.  See the corresponding patch in bfd for
+another off by one.  Same idea... wait for gas to determine the
+proper fix.
+
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0325/gas/config/obj-coff.c //D/home/donn.intel/gnu.intel/gas/config/obj-coff.c
+--- //Q/Gnusrc/cygwin.0325/gas/config/obj-coff.c	Thu Mar 25 02:10:35 1999
++++ //D/home/donn.intel/gnu.intel/gas/config/obj-coff.c	Wed Mar 31 11:17:00 1999
+@@ -545,18 +545,6 @@
+ #endif
+   demand_empty_rest_of_line ();  /* this seems reasonable, but... */
+ 
+-#ifdef TE_PE
+-  /* PE format line numbers are one off from what the alpha compiler
+-     generates with .loc; we make the change here rather than in the
+-     compiler for source compatability issues.  However, this could
+-     cause a line number of 0 (which is special) if the compiler
+-     puts out .loc's before the end of the prologue (which it in
+-     fact does).  Rather than fiddle with the compiler on that one,
+-     too, just ignore values of 1.  (Ugly, agreed, but...) 
+-     (I guess we could ignore or complain about ones before .bf?> */
+-  if (lineno == 1) return;
+-  lineno -= 1;
+-#endif
+   add_lineno (frag_now, frag_now_fix (), lineno);
+ 
+ }

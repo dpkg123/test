@@ -1,0 +1,111 @@
+--- pe.em.orig	Fri Nov  8 14:58:40 2002
++++ pe.em	Fri Nov  8 15:29:26 2002
+@@ -1143,10 +1143,18 @@ pr_sym (h, string)
+   return true;
+ }
+ 
+-
++/* These variables are required to pass information back and forth
++   between after_open and check_needed and stat_needed.  */
++
++static struct bfd_link_needed_list *global_needed;
++static struct stat global_stat;
++static boolean global_found;
++
+ static void
+ gld_${EMULATION_NAME}_after_open ()
+ {
++  struct bfd_link_needed_list *needed, *l;
++
+   if (pe_dll_extra_pe_debug)
+     {
+       bfd *a;
+@@ -2080,11 +2088,14 @@ gld_${EMULATION_NAME}_place_orphan (file
+   if (os != NULL
+       && (os->bfd_section == NULL
+ 	  || ((s->flags ^ os->bfd_section->flags)
+-	      & (SEC_LOAD | SEC_ALLOC)) == 0))
++	      & (SEC_LOAD | SEC_ALLOC)) == 0)
++      && (!link_info.relocateable || (s->flags & SEC_LINK_ONCE) == 0))
+     {
+       /* We already have an output section statement with this
+-	 name, and its bfd section, if any, has compatible flags.  */
+-      lang_add_section (&add_child, s, os, file);
++	 name, and its bfd section, if any, has compatible flags.
++	 It also can't be "link once", as those must stay separate
++	 until final link to avoid duplicate symbol errors.  */
++      lang_add_section (&add_child, s, os, file, false);
+     }
+   else
+     {
+@@ -2098,12 +2109,18 @@ gld_${EMULATION_NAME}_place_orphan (file
+       lang_statement_list_type add;
+       etree_type *address;
+ 
++      place = NULL;
++      outsecname = xstrdup (hold_section_name);
++
++      /* We don't want to try to be fancy with comdats. */
++      if (!link_info.relocateable || (s->flags & SEC_LINK_ONCE) == 0)
++// Deferred indentation fix; indent when final apply is done
++    {
+       /* Try to put the new output section in a reasonable place based
+ 	 on the section name and section flags.  */
+ #define HAVE_SECTION(hold, name) \
+ (hold.os != NULL || (hold.os = lang_output_section_find (name)) != NULL)
+ 
+-      place = NULL;
+       if ((s->flags & SEC_ALLOC) == 0)
+ 	;
+       else if ((s->flags & SEC_HAS_CONTENTS) == 0
+@@ -2125,7 +2142,6 @@ gld_${EMULATION_NAME}_place_orphan (file
+       /* Choose a unique name for the section.  This will be needed if
+ 	 the same section name appears in the input file with
+ 	 different loadable or allocatable characteristics.  */
+-      outsecname = xstrdup (hold_section_name);
+       if (bfd_get_section_by_name (output_bfd, outsecname) != NULL)
+ 	{
+ 	  unsigned int len;
+@@ -2138,7 +2154,7 @@ gld_${EMULATION_NAME}_place_orphan (file
+ 	  i = 0;
+ 	  do
+ 	    {
+-	      sprintf (newname + len, "%d", i);
++	      sprintf (newname + len, "?%d", i);
+ 	      ++i;
+ 	    }
+ 	  while (bfd_get_section_by_name (output_bfd, newname) != NULL);
+@@ -2146,7 +2162,8 @@ gld_${EMULATION_NAME}_place_orphan (file
+ 	  free (outsecname);
+ 	  outsecname = newname;
+ 	}
+-
++    }
++
+       /* Start building a list of statements for this section.  */
+       old = stat_ptr;
+       stat_ptr = &add;
+@@ -2182,13 +2199,21 @@ gld_${EMULATION_NAME}_place_orphan (file
+ 			      exp_nameop (NAME, "__section_alignment__"));
+ 	}
+ 
+-      os = lang_enter_output_section_statement (outsecname, address, 0,
++      /* Output the section; be sure that if it's a relocateable link and
++	 COMDAT that we preserve the fact that it's a separate section, even
++	 if the name is the same as another section. */
++      os = lang_enter_output_section_statement (outsecname, 
++						link_info.relocateable &&
++						(s->flags & SEC_LINK_ONCE)!=0,
++						address, 0,
+ 						(bfd_vma) 0,
+ 						(etree_type *) NULL,
+ 						(etree_type *) NULL,
+ 						(etree_type *) NULL);
+ 
+-      lang_add_section (&add_child, s, os, file);
++      lang_add_section (&add_child, s, os, file,
++					link_info.relocateable &&
++					(s->flags & SEC_LINK_ONCE)!=0);
+ 
+       lang_leave_output_section_statement
+ 	((bfd_vma) 0, "*default*",

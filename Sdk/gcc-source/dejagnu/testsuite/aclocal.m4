@@ -1,0 +1,1 @@
+sinclude(../aclocal.m4)

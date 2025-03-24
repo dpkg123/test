@@ -1,0 +1,102 @@
+|Need to sell.
+|
+|Only partially applied; remainder is below.
+|
+|Ian sez:
+|   BSF_DEBUGGING was overloaded: it said both that the symbol was for
+|   debugging, AND that it was "arbitrary data" (not relocateable).
+|   There are relocateable debugging symbols, specifically .bf.  Add
+|   flag BSF_DEBUGGING_RELOC that modifies the meaning of BSF_DEBUGGING
+|   to indicate the symbol is relocateable.  Set in
+|   coffcode.h/coff_slurp_symbol_table().  Use in coffgen.c/fixup_symbol_value.
+|   Define in syms.c.
+|
+|   Ian, you've seen pieces of this before, but this is the whole thing.
+|
+|           * syms.c: Add BSF_DEBUGGING_RELOC
+|           * coffcode.h(coff_slurp_symbol_table): use
+|           * coffgen.c (fixup_symbol_value): use
+|
+|I checked some of this in.  Thanks.
+|
+|   +              dst->symbol.flags = BSF_LOCAL | BSF_DEBUGGING;
+|   +              if (strcmp(dst->symbol.name, ".bf") != 0)
+|   +            {
+|   +                  /* .ef and .lf have funny values here; don't relocate */
+|   +              /* PE sets the symbol to a value relative to the start
+|   +                 of the section.  */
+|   +              dst->symbol.value = src->u.syment.n_value;
+|   +            }
+|   +              else
+|   +                {
+|   +                  /* Base the value as an index from the base of the
+|   +                     section.  Say this is a relocatable debugging symbol. */
+|   +                  dst->symbol.flags |= BSF_DEBUGGING_RELOC;
+|   +                  dst->symbol.value = (src->u.syment.n_value
+|   +                                   - dst->symbol.section->vma);
+|   +                }
+|
+|Subtracting the section VMA in the last statement above does not look
+|right to me, and I didn't check it in.  PE symbols normally do not
+|include the section VMA.  You would only notice this when using an
+|object file which a non-zero section VMA.
+>>
+>>  Moved to 39
+>>
+|
+|   @@ -4107,6 +4237,9 @@ coff_slurp_symbol_table (abfd)
+|                 dst->symbol.value = (src->u.syment.n_value);
+|                 break;
+|               }
+|   +
+|   +      if (src->u.syment.n_scnum == N_DEBUG)
+|   +         dst->symbol.flags |= BSF_DEBUGGING;
+|
+|    /*      BFD_ASSERT(dst->symbol.flags != 0);*/
+|
+|This seems like a coverup for some other problem.  It seems as though
+|the case would only arise if we were misclassifying some symbol.  I'd
+|rather not check this in without some sort of test case.
+>>
+>> Deferred until later
+>>
+|
+|
+|BSF_DEBUGGING was overloaded: it said both that the symbol was for
+|debugging, AND that it was "arbitrary data" (not relocateable).
+|There are relocateable debugging symbols, specifically .bf.  Add
+|flag BSF_DEBUGGING_RELOC that modifies the meaning of BSF_DEBUGGING
+|to indicate the symbol is relocateable.  Set in
+|coffcode.h/coff_slurp_symbol_table().  Use in coffgen.c/fixup_symbol_value.
+|Define in syms.c.
+|
+|Ian, you've seen pieces of this before, but this is the whole thing.
+|
+|	* syms.c: Add BSF_DEBUGGING_RELOC
+|	* coffcode.h(coff_slurp_symbol_table): use
+|	* coffgen.c (fixup_symbol_value): use
+|
+--DELETE ABOVE-----------------------------------------------------------------
+
+	*???
+
+
+Index: src/bfd/coffcode.h
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/bfd/coffcode.h,v
+retrieving revision 1.3
+diff -p -c -r1.3 coffcode.h
+*** src/bfd/coffcode.h	2001/12/23 01:19:32	1.3
+--- src/bfd/coffcode.h	2001/12/23 01:23:41
+*************** coff_slurp_symbol_table (abfd)
+*** 4663,4668 ****
+--- 4663,4671 ----
+  	      break;
+  	    }
+  
++ 	  if (src->u.syment.n_scnum == N_DEBUG)
++ 	     dst->symbol.flags |= BSF_DEBUGGING;
++ 
+  /*      BFD_ASSERT(dst->symbol.flags != 0);*/
+  
+  	  dst->native = src;

@@ -1,0 +1,38 @@
+Minor tweaks to reloc entry dumping code.
+
+	* write.c (dump_section_relocs): avoid coredump if section unnamed.
+	* write.c (adjust_reloc_syms): New DEBUG, print result of adjust.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/write.c gas/write.c
+--- gas.orig/write.c	Fri Aug 20 14:00:50 1999
++++ gas/write.c	Fri Aug 20 14:01:24 1999
+@@ -662,8 +666,17 @@ dump_section_relocs (abfd, sec, stream_)
+       symbolS *s = fixp->fx_addsy;
+       if (s)
+ 	{
++	  const char *secname;
++	  if (s->bsym->section == NULL) 
++	    {
++	       secname = "*unknown*";
++	    }
++	  else
++	    {
++	       secname = s->bsym->section->name;
++	    }
+ 	  fprintf (stream, "  %08x: %s(%s", fixp, S_GET_NAME (s),
+-		   s->bsym->section->name);
++		   secname);
+ 	  if (s->bsym->flags & BSF_SECTION_SYM)
+ 	    {
+ 	      fprintf (stream, " section sym");
+@@ -866,6 +881,10 @@ adjust_reloc_syms (abfd, sec, xxx)
+ 	fixp->fx_offset += S_GET_VALUE (sym);
+ 	fixp->fx_addsy = section_symbol (S_GET_SEGMENT (sym));
+ 	symbol_mark_used_in_reloc (fixp->fx_addsy);
++#ifdef DEBUG5
++	fprintf (stderr, "\nadjusted fixup:\n");
++	print_fixup (fixp);
++#endif
+ 
+       done:
+ 	;

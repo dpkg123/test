@@ -1,0 +1,30 @@
+objcopy and ld (and probably objdump) crash with a null pointer dereference
+when operating on .lib files that have IMPORT_CONST.
+
+The comdat structure is initialized in other cases (prior to this) in
+exactly this way, but not here.
+
+
+--- peicode.h.orig	Wed Jun 19 15:06:10 2002
++++ peicode.h	Wed Jun 19 15:06:34 2002
+@@ -1152,6 +1152,7 @@
+       imp_sym   = &(vars.sym_ptr_table)[imp_index];
+ 
+       /* Fill in the comdat info. */
++      id5->comdat = bfd_zalloc(abfd, sizeof(struct bfd_comdat_info));
+       id5->comdat->symbol = imp_index;
+       id5->comdat->name = (char *)(*imp_sym)->symbol.name;
+ 
+@@ -1164,10 +1165,12 @@
+ 	 what objdump sees is the member after this process. */
+ 
+       /* Fill in the comdat info. */
++      id4->comdat = bfd_zalloc(abfd, sizeof(struct bfd_comdat_info));
+       id4->comdat->symbol = imp_index;
+       id4->comdat->name = (char *)(*imp_sym)->symbol.name;
+ 
+       /* Fill in the comdat info. */
++      id6->comdat = bfd_zalloc(abfd, sizeof(struct bfd_comdat_info));
+       id6->comdat->symbol = imp_index;
+       id6->comdat->name = (char *)(*imp_sym)->symbol.name;
+       break;

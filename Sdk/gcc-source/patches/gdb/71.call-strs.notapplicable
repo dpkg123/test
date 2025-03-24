@@ -1,0 +1,19 @@
+Fix bug so that if strcpy is debuggable (and thus reports a line number
+and stops) that the test will continue.  (Do a next rather than a
+step.)
+	* call-strs.exp: replace step with next to assure test pass.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gdb.doesnt.work/testsuite/gdb.base/call-strs.exp gdb/testsuite/gdb.base/call-strs.exp
+--- gdb.doesnt.work/testsuite/gdb.base/call-strs.exp	Wed Jan 12 10:37:40 2000
++++ gdb/testsuite/gdb.base/call-strs.exp	Thu Jan 20 11:26:09 2000
+@@ -106,8 +106,8 @@ gdb_expect {
+     }
+ 
+ 
+-#step
+-send_gdb "step\n"
++#step; use next in case strcpy is debuggable and we stop there!
++send_gdb "next\n"
+ gdb_expect {
+         -re ".*str_func\\(\"abcd\", \"efgh\", \"ijkl\", \"mnop\", \"qrst\", \"uvwx\", \"yz12\"\\);.*$gdb_prompt $" {pass "step after strcpy"}
+         -re ".*$gdb_prompt $" { fail "step after strcpy" }

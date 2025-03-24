@@ -1,0 +1,40 @@
+Print the comdat symbol name for PE style common.  This requires that
+dumping of the section headers be deferred until the symbol table is
+read, to have the name available.
+
+	* objdump.c (dump_section_header): print comdat sym if present.
+	(display_bfd): delay dump_section_headers call.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/objdump.c binutils/objdump.c
+--- binutils.nil/objdump.c	Wed Jul  7 16:58:52 1999
++++ binutils/objdump.c	Wed Jul  7 17:01:10 1999
+@@ -356,6 +357,13 @@ dump_section_header (abfd, section, igno
+     }
+ 
+   printf ("\n");
++
++  if ((section->flags & SEC_LINK_ONCE) != 0 &&
++       section->comdat != NULL)  
++    {
++      printf(_("                  COMDAT Symbol Index: %d %s\n"), section->comdat->symbol, section->comdat->name);
++    }
++
+ #undef PF
+ }
+ 
+@@ -2048,12 +2057,13 @@ display_bfd (abfd)
+   if (dump_private_headers)
+     dump_bfd_private_header (abfd);
+   putchar ('\n');
+-  if (dump_section_headers)
+-    dump_headers (abfd);
+   if (dump_symtab || dump_reloc_info || disassemble || dump_debugging)
+     {
+       syms = slurp_symtab (abfd);
+     }
++  /* we might need the symbol table for dump_headers */
++  if (dump_section_headers)
++    dump_headers (abfd);
+   if (dump_dynamic_symtab || dump_dynamic_reloc_info)
+     {
+       dynsyms = slurp_dynamic_symtab (abfd);

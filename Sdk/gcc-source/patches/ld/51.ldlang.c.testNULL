@@ -1,0 +1,27 @@
+Amit Kumar Ghosh (amitgho@microsoft.com) 20-Sep-2004 
+=====================================================
+
+During linking of some c++ program with templates, we have observed 
+sec->comdat->name to be NULL. Hence ld is crashing inside the following
+strcmp(). So adding the following benign isNULL test before 
+invoking strcmp().
+
+diff -u ldlang.c.orig ldlang.c
+
+===============================================================================
+
+--- ldlang.c.orig    Mon Sep 20 11:08:18 2004
++++ ldlang.c         Mon Sep 20 11:07:37 2004
+@@ -1029,7 +1029,10 @@
+     {
+       if (sec->comdat == NULL
+          || l->sec->comdat == NULL
+-         || strcmp (sec->comdat->name, l->sec->comdat->name) == 0)
++          || (NULL == sec->comdat->name)
++          || (NULL == l->sec->comdat->name)
++          || (strcmp (sec->comdat->name, l->sec->comdat->name) == 0)
++         )
+        {
+          /* The section has already been linked.  See if we should
+              issue a warning.  */
+

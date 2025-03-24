@@ -1,0 +1,33 @@
+Test cdtest -Ur was failing because the comdat symbol was being
+emitted before the section symbol (for a single comdat section),
+which is wrong.  Emit certain section symbols earlier.
+
+--- cofflink.c.bak	Thu Apr 11 10:28:52 2002
++++ cofflink.c	Thu Apr 11 10:31:06 2002
+@@ -1555,9 +1555,25 @@ _bfd_coff_link_input_bfd (finfo, input_b
+ 	    {
+ 	    default:
+ 	      abort ();
++
++	    case COFF_SYMBOL_PE_SECTION:
++	      /* For relocatable links, we want to keep the comdat info
++		 around. If it's a section symbol that we're going to emit,
++		 and it's a section with a comdat symbol, we must
++		 emit it now (so it's corresponding COMDAT symbol
++		 comes out in the right order).  Any other section
++		 symbol (and non-relocateable) gets sorted out later. */
++	      if (! finfo->info->relocateable
++		  || (h->coff_link_hash_flags 
++			  & COFF_LINK_HASH_PE_SECTION_SYMBOL) == 0
++		  || h->root.u.def.section->output_section == NULL
++		  || h->root.u.def.section->comdat == NULL)
++		skip = true;
++	      global = true;
++	      break;
++
+ 	    case COFF_SYMBOL_GLOBAL:
+ 	    case COFF_SYMBOL_COMMON:
+-	    case COFF_SYMBOL_PE_SECTION:
+ 	      /* This is a global symbol.  Global symbols come at the
+ 		 end of the symbol table, so skip them for now.
+ 		 Locally defined function symbols, however, are an

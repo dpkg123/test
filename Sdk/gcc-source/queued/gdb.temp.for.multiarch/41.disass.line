@@ -1,0 +1,77 @@
+In a long function, asking for a full disassembly is often far
+too much.  Allow disassembling a single line.  In optimized code,
+it disassembles the first "chunk" of the line, but if you're doing
+disassemblys you should be prepared for that.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* printcmd.c(disassemble_command): support "disassemble line".
+	(_initialize_printcmd): reflect in help.
+	* help.exp: add help here.
+
+Index: src/gdb/printcmd.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/printcmd.c,v
+retrieving revision 1.3
+diff -p -u -r1.3 printcmd.c
+--- src/gdb/printcmd.c	2001/12/24 01:42:08	1.3
++++ src/gdb/printcmd.c	2001/12/24 02:10:29
+@@ -2370,7 +2370,32 @@ disassemble_command (char *arg, int from
+ #endif
+       low += FUNCTION_START_OFFSET;
+     }
+-  else
++  else if (strncmp("line", arg, space_index-arg) == 0)
++    {
++      /* Two args, the first is (abbreviated) "line" */
++      struct symtab_and_line sal;
++      struct symtabs_and_lines sals;
++
++      sals = decode_line_spec_1 (space_index + 1, 0);
++      if (sals.nelts <= 0) 
++	{
++	   error ("Invalid line spec.\n");
++	}
++      if (sals.nelts > 1) 
++	{
++	   printf_filtered ("More than one line resulted; doing first.\n");
++        }
++      sal = sals.sals[0];
++      if (!(sal.line > 0 && find_line_pc_range (sal, &low, &high)))
++	{
++	   error ("Line not found.\n");
++	}
++      if (low == high)
++	{
++	   error ("Line contains no code.\n");
++	}
++    }
++  else 
+     {
+       /* Two arguments.  */
+       *space_index = '\0';
+@@ -2443,7 +2468,8 @@ with this command or \"print\".", NULL))
+ 	       "Disassemble a specified section of memory.\n\
+ Default is the function surrounding the pc of the selected frame.\n\
+ With a single argument, the function surrounding that address is dumped.\n\
+-Two arguments are taken as a range of memory to dump.");
++If the first argument is \"line\" (or \"l\") dump that line.\n\
++Two other arguments are taken as a range of memory to dump.");
+   set_cmd_completer (c, location_completer);
+   if (xdb_commands)
+     add_com_alias ("va", "disassemble", class_xdb, 0);
+Index: src/gdb/testsuite/gdb.base/help.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/help.exp,v
+retrieving revision 1.2
+diff -p -u -r1.2 help.exp
+--- src/gdb/testsuite/gdb.base/help.exp	2001/12/23 23:31:12	1.2
++++ src/gdb/testsuite/gdb.base/help.exp	2001/12/24 02:10:29
+@@ -108,7 +108,7 @@ gdb_test "help disable breakpoints" "Dis
+ # test help disable display
+ gdb_test "help disable display" "Disable some expressions to be displayed when program stops\.\[\r\n\]+Arguments are the code numbers of the expressions to stop displaying\.\[\r\n\]+No argument means disable all automatic-display expressions\.\[\r\n\]+Do \"info display\" to see current list of code numbers\." "help disable display"
+ # test help disassemble
+-gdb_test "help disassemble" "Disassemble a specified section of memory\.\[\r\n\]+Default is the function surrounding the pc of the selected frame\.\[\r\n\]+With a single argument, the function surrounding that address is dumped\.\[\r\n\]+Two arguments are taken as a range of memory to dump\." "help disassemble"
++gdb_test "help disassemble" "Disassemble a specified section of memory\.\[\r\n\]+Default is the function surrounding the pc of the selected frame\.\[\r\n\]+With a single argument, the function surrounding that address is dumped\.\[\r\n\]+If the first argument is \"line\" .or \"l\". dump that line\.\[\r\n\]+Two other arguments are taken as a range of memory to dump\." "help disassemble"
+ # test help display
+ gdb_test "help display" "Print value of expression EXP each time the program stops\.\[\r\n\]+/FMT may be used before EXP as in the \"print\" command\.\[\r\n\]+/FMT \"i\" or \"s\" or including a size-letter is allowed,\[\r\n\]+as in the \"x\" command, and then EXP is used to get the address to examine\[\r\n\]+and examining is done as in the \"x\" command\.\[\r\n\]+With no argument, display all currently requested auto-display expressions\.\[\r\n\]+Use \"undisplay\" to cancel display requests previously made\." "help display"
+ # test help do

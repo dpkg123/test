@@ -1,0 +1,139 @@
+Testsuite patches, currently being applied.
+Notes:
+
+The testsuite tries to pick items out of the output of configure.host.
+These are in "make" syntax (w.r.t quoting of $'s anyway).  If the
+resulting value contains a substitution or environment variable,
+it should be evaluated.  Because the output is in make syntax, $$
+becomes the PID of the current process rather than a single $.
+Use sed to clean this up.
+
+Handle the possibility of date-stamped executables for the binary
+compare of executables in the ld bootstrap tests.
+
+When testing nm, extract the value of ImageBase (if present) and use
+it to correct the printed values to the expected ones.
+
+ChangeLog:
+
+	* testsuite/config/default.exp (get_link_files): handle $$ quoting.
+
+	* testsuite/ld-bootstrap/bootstrap.exp: more specific message.
+
+	* testsuite/ld-bootstrap/bootstrap.exp: handle datestamps
+
+	* testsuite/ld-scripts/script.exp: Use ImageBase as needed.
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0404/ld/testsuite/config/default.exp //D/home/donn.intel/be.build/ld/testsuite/config/default.exp
+--- //Q/Gnusrc/cygwin.0404/ld/testsuite/config/default.exp	Sun Apr  4 03:15:37 1999
++++ //D/home/donn.intel/be.build/ld/testsuite/config/default.exp	Mon Apr 12 11:22:07 1999
+@@ -68,7 +68,12 @@ proc get_link_files {varname} {
+     global srcdir
+     global CC
+     if ![info exists $varname] {
+-	set status [catch "exec sh -c \"host='$target_triplet' && CC='$CC' && . $srcdir/../configure.host && eval echo \\$$varname\"" result]
++	#if the desired variable contains either a substitution (``) or env
++	#variables, we must get that evaluated.  If it's env variables,
++	#they'll be written make-style as $$, which we must be careful is
++	#properly interpreted (watch out for $$==current PID).
++	#(The sed 'y' expression avoids some sticky quoting problems.)
++	set status [catch "exec sh -c \"host='$target_triplet' && CC='$CC' && . $srcdir/../configure.host && eval echo `(echo \\$$varname | sed -e y/$/%/ -e s/%%/$/g -e y/%/$/; exit 0)`\"" result]
+ 	if $status { error "Error getting native link files: $result" }
+ 	set $varname $result
+     }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0404/ld/testsuite/ld-bootstrap/bootstrap.exp //D/home/donn.intel/be.build/ld/testsuite/ld-bootstrap/bootstrap.exp
+--- //Q/Gnusrc/cygwin.0404/ld/testsuite/ld-bootstrap/bootstrap.exp	Sun Apr  4 03:15:38 1999
++++ //D/home/donn.intel/be.build/ld/testsuite/ld-bootstrap/bootstrap.exp	Mon Apr 12 11:22:07 1999
+@@ -78,6 +78,7 @@ foreach flags {"" "strip" "--static" "--
+     }
+ 
+     if ![ld_link $ld tmpdir/ld1 "$flags tmpdir/ld-partial.o $BFDLIB $LIBIBERTY"] {
++	send_log "pass 1 failed"
+ 	fail $testname
+ 	continue
+     }
+@@ -95,11 +96,13 @@ foreach flags {"" "strip" "--static" "--
+     }
+ 
+     if ![ld_link tmpdir/ld1 tmpdir/ld2 "$flags $OFILES $BFDLIB $LIBIBERTY"] {
++ 	send_log "pass 2 failed"
+ 	fail $testname
+ 	continue
+     }
+ 
+     if ![ld_link tmpdir/ld2 tmpdir/ld3 "$flags $OFILES $BFDLIB $LIBIBERTY"] {
++ 	send_log "pass 3 failed"
+ 	fail $testname
+ 	continue
+     }
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0404/ld/testsuite/ld-scripts/script.exp //D/home/donn.intel/be.build/ld/testsuite/ld-scripts/script.exp
+--- //Q/Gnusrc/cygwin.0404/ld/testsuite/ld-scripts/script.exp	Sun Apr  4 03:15:46 1999
++++ //D/home/donn.intel/be.build/ld/testsuite/ld-scripts/script.exp	Mon Apr 12 13:42:12 1999
+@@ -8,7 +8,7 @@ if ![ld_assemble $as $srcdir/$subdir/scr
+     return
+ }
+ 
+-proc check_script { } {
++proc check_script { useImageBase } {
+     global nm
+     global testname
+     global nm_output
+@@ -24,21 +24,36 @@ proc check_script { } {
+                set text_end 0x102
+		set data_end 0x1002
+	    }
+-	    if {$nm_output(text_start) != 0x100} {
++	    # On NT, nm wants to print symbols at their memory address,
++	    # which includes the ImageBase value.  (So when looking at
++	    # nm output, the symbols are printed with the address at which
++	    # they will (usually) be when the program is executed, as would
++	    # be the case on Unix.)  ("Usually": if you understand PE/PEI,
++	    # you understand that... if not, you really, truly don't want
++	    # to know.)  However, the test below expects hardcoded values
++	    # that don't include ImageBase.  Extract the value of ImageBase
++	    # to correct (so the test passes).  (Some PE versions of nm may 
++	    # not correct for ImageBase, and will cause this test to fail.)
++	    if {$useImageBase && [info exists nm_output(image_base__)]} {
++		set ImageBase $nm_output(image_base__)
++	    } else {
++		set ImageBase 0
++	    }
++	    if {[expr $nm_output(text_start)] != [expr $ImageBase + 0x100]} {
+ 		send_log "text_start == $nm_output(text_start)\n"
+ 		verbose "text_start == $nm_output(text_start)"
+ 		fail $testname
+-	    } else { if {$nm_output(text_end) < $text_end \
+-			  || $nm_output(text_end) > 0x110} {
++	    } else {if {[expr $nm_output(text_end)] < [expr $text_end + $ImageBase]\
++		    || [expr $nm_output(text_end)] > [expr 0x110 + $ImageBase]} {
+ 		send_log "text_end == $nm_output(text_end)\n"
+ 		verbose "text_end == $nm_output(text_end)"
+ 		fail $testname
+-	    } else { if {$nm_output(data_start) != 0x1000} {
++	    } else { if {[expr $nm_output(data_start)] != [expr 0x1000 + $ImageBase]} {
+ 		send_log "data_start == $nm_output(data_start)\n"
+ 		verbose "data_start == $nm_output(data_start)"
+ 		fail $testname
+-	    } else { if {$nm_output(data_end) < $data_end \
+-			 || $nm_output(data_end) > 0x1010} {
++	    } else {if {[expr $nm_output(data_end)] < [expr $data_end + $ImageBase]\
++		    || [expr $nm_output(data_end)] > [expr 0x1010 + $ImageBase]} {
+ 		send_log "data_end == $nm_output(data_end)\n"
+ 		verbose "data_end == $nm_output(data_end)"
+ 		fail $testname
+@@ -52,7 +67,7 @@ proc check_script { } {
+ if ![ld_simple_link $ld tmpdir/script "-T $srcdir/$subdir/script.t tmpdir/script.o"] {
+     fail $testname
+ } else {
+-    check_script
++    check_script 1
+ }
+ 
+ set testname "MRI script"
+@@ -60,5 +75,5 @@ set testname "MRI script"
+ if ![ld_simple_link $ld tmpdir/script "-c $srcdir/$subdir/scriptm.t"] {
+     fail $testname
+ } else {
+-    check_script
++    check_script 0
+ }

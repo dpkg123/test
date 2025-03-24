@@ -1,0 +1,338 @@
+
+He doesn't like [ ] on ifdefs... his loss.  (Mine too, but...)
+He didn't accept the fix to the identical error messages; if I ever
+care, find some other change.
+
+Various cosmetic changes.
+
+Ian: there's a place where going from K&R to ANSI functions causes
+gcc to gripe about incompatible pointer types (uses of no_func()
+initializing coff_format_ops).  I figured this was
+the lesser evil, but if you don't like it, it's livable either way.
+
+flag_16bit_code: as an extern in tc-i386.h it conflicts with static
+in tc-i386.c
+
+	* config/obj-coff.c: comments on ifdef brackets.
+	* config/obj-coff.c (c_dot_file_symbol): Comment.
+	* config/obj-coff.c (obj_coff_val): Comments.
+	* config/obj-coff.c (coff_frob_symbol): Use appropriate macro
+	  instead of equivalent code.
+	* config/obj-coff.c (obj_coff_ln): Prototype.
+	* config/obj-coff.c (obj_coff_dim): Prototype.
+	* config/obj-coff.c (obj_coff_line): Prototype.
+	* config/obj-coff.c (obj_coff_size): Prototype.
+	* config/obj-coff.c (obj_coff_scl): Prototype.
+	* config/obj-coff.c (obj_coff_tag): Prototype.
+	* config/obj-coff.c (obj_coff_val): Prototype.
+	* config/obj-coff.c (obj_coff_read_begin_hook): Prototype.
+	* config/obj-coff.c (coff_from_file_after_relocs): Prototype.
+	* config/obj-coff.c (obj_coff_section): Prototype.
+	* config/obj-coff.c (obj_coff_def): Prototype.
+	* config/obj-coff.c (obj_coff_type): Prototype.
+	* config/obj-coff.c (obj_coff_pop_insert): Prototype.
+	* symbols.c (exit_dont_set_value): discriminate dup. message text.
+	* write.c (write_contents): discriminate dup. message text.
+	* expr.h (expr): use enum arg in prototype.
+	* config/tc-i386.h (flag_16bit_code): delete extern.
+	* config/tc-i386.c (md_apply_fix_3): Comments.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/obj-coff.c gas/config/obj-coff.c
+--- gas.orig/config/obj-coff.c	Fri Aug 20 14:00:39 1999
++++ gas/config/obj-coff.c	Fri Aug 20 14:18:35 1999
+@@ -220,7 +220,7 @@ obj_coff_weak (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
+-#ifdef BFD_ASSEMBLER
++#ifdef BFD_ASSEMBLER /* [ */
+ 
+ static void SA_SET_SYM_TAGNDX PARAMS ((symbolS *, symbolS *));
+ 
+@@ -334,6 +334,8 @@ c_dot_file_symbol (filename)
+ {
+   symbolS *symbolP;
+ 
++  /* bfd converts filename to a .file + aux entry; it also
++     handles chaining */
+   symbolP = symbol_new (filename, bfd_abs_section_ptr, 0, &zero_address_frag);
+ 
+   S_SET_STORAGE_CLASS (symbolP, C_FILE);
+@@ -442,6 +450,7 @@ coff_add_linesym (sym)
+   current_lineno_sym = sym;
+ }
+ 
++static void obj_coff_ln PARAMS((int));
+ static void
+ obj_coff_ln (appline)
+      int appline;
+@@ -499,6 +570,7 @@ obj_coff_ln (appline)
+ 				       *input_line_pointer == '\t') \
+     input_line_pointer++;
+ 
++static void obj_coff_def PARAMS((int));
+ static void
+ obj_coff_def (what)
+      int what;
+@@ -546,6 +618,7 @@ obj_coff_def (what)
+ 
+ unsigned int dim_index;
+ 
++static void obj_coff_endef PARAMS((int));
+ static void
+ obj_coff_endef (ignore)
+      int ignore;
+@@ -726,6 +826,7 @@ obj_coff_endef (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_dim PARAMS((int));
+ static void
+ obj_coff_dim (ignore)
+      int ignore;
+@@ -766,6 +867,7 @@ obj_coff_dim (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_line PARAMS((int));
+ static void
+ obj_coff_line (ignore)
+      int ignore;
+@@ -794,6 +896,7 @@ obj_coff_line (ignore)
+ #endif
+ }
+ 
++static void obj_coff_size PARAMS((int));
+ static void
+ obj_coff_size (ignore)
+      int ignore;
+@@ -815,6 +918,7 @@ obj_coff_size (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_scl PARAMS((int));
+ static void
+ obj_coff_scl (ignore)
+      int ignore;
+@@ -830,6 +934,7 @@ obj_coff_scl (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_tag PARAMS((int));
+ static void
+ obj_coff_tag (ignore)
+      int ignore;
+@@ -889,6 +994,7 @@ obj_coff_type (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_val PARAMS((int));
+ static void
+ obj_coff_val (ignore)
+      int ignore;
+@@ -928,8 +1034,15 @@ obj_coff_val (ignore)
+ 	     resolved, then copy the segment id from the forward
+ 	     symbol.  */
+ 	  SF_SET_GET_SEGMENT (def_symbol_in_progress);
++          /* FIXME: gcc can generate address expressions
++             here in unusual cases (search for "obscure"
++             in sdbout.c).  We just ignore the offset
++             here, thus generating incorrect debugging
++             information.  We ignore the rest of the
++             line just below.  */
+ 	}
+-      /* Otherwise, it is the name of a non debug symbol and its value will be calculated later. */
++      /* Otherwise, it is the name of a non debug symbol and 
++	 its value will be calculated later. */
+       *input_line_pointer = name_end;
+     }
+   else
+@@ -940,6 +1053,7 @@ obj_coff_val (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++void coff_obj_read_begin_hook PARAMS((void));
+ void
+ coff_obj_read_begin_hook ()
+ {
+@@ -1037,8 +1151,7 @@ coff_frob_symbol (symp, punt)
+ 	      coff_last_function = symp;
+ 	      if (S_GET_NUMBER_AUXILIARY (symp) < 1)
+ 		S_SET_NUMBER_AUXILIARY (symp, 1);
+-	      auxp =
+-		&coffsymbol (symbol_get_bfdsym (symp))->native[1].u.auxent;
++	      auxp = SYM_AUXENT(symp);
+ 	      memset (auxp->x_sym.x_fcnary.x_ary.x_dimen, 0,
+ 		      sizeof (auxp->x_sym.x_fcnary.x_ary.x_dimen));
+ 	    }
+@@ -1174,7 +1297,8 @@ coff_adjust_section_syms (abfd, sec, x)
+   SA_SET_SCN_NRELOC (secsym, nrelocs);
+   SA_SET_SCN_NLINNO (secsym, nlnno);
+ }
+ 
++void coff_frob_file_after_relocs PARAMS((void));
+ void
+ coff_frob_file_after_relocs ()
+ {
+@@ -1202,6 +1328,7 @@ coff_frob_file_after_relocs ()
+  * subsegment number.
+  */
+ 
++void obj_coff_section PARAMS((int));
+ void
+ obj_coff_section (ignore)
+      int ignore;
+@@ -1417,7 +1568,7 @@ symbol_dump ()
+ 
+ #endif /* DEBUG */
+ 
+-#else /* not BFD_ASSEMBLER */
++#else /* ][ not BFD_ASSEMBLER */
+ 
+ #include "frags.h"
+ /* This is needed because we include internal bfd things. */
+@@ -2158,6 +2309,7 @@ obj_coff_ln (appline)
+ 				      *input_line_pointer == '\t') \
+                                          input_line_pointer++;
+ 
++static void obj_coff_def PARAMS((int));
+ static void
+ obj_coff_def (what)
+      int what ATTRIBUTE_UNUSED;
+@@ -2548,6 +2700,7 @@ obj_coff_tag (ignore)
+   demand_empty_rest_of_line ();
+ }
+ 
++static void obj_coff_type PARAMS((int));
+ static void
+ obj_coff_type (ignore)
+      int ignore ATTRIBUTE_UNUSED;
+@@ -2653,7 +2806,7 @@ obj_coff_pe_handle_link_once (type)
+ #endif /* TE_PE */
+ 
+ void
+-coff_obj_read_begin_hook ()
++coff_obj_read_begin_hook PARAMS((void))
+ {
+   /* These had better be the same.  Usually 18 bytes. */
+ #ifndef BFD_HEADERS
+@@ -4385,7 +4538,7 @@ adjust_stab_section(abfd, seg)
+   bfd_h_put_32 (abfd, (bfd_vma) strsz, (bfd_byte *) p + 8);
+ }
+ 
+-#endif /* not BFD_ASSEMBLER */
++#endif /* not BFD_ASSEMBLER ] */
+ 
+ const pseudo_typeS obj_pseudo_table[] =
+ {
+@@ -4432,11 +4588,13 @@ const pseudo_typeS obj_pseudo_table[] =
+ 
+ /* Support for a COFF emulation.  */
+ 
++static void coff_pop_insert PARAMS((void));
+ static void
+-coff_pop_insert ()
++coff_pop_insert PARAMS((void))
+ {
+   pop_insert (obj_pseudo_table);
+ }
+ 
++static int coff_sec_sym_ok_for_reloc PARAMS((asection*));
+ static int
+ coff_sec_sym_ok_for_reloc (sec)
+@@ -4445,9 +4603,10 @@ coff_sec_sym_ok_for_reloc (sec)
+   return 0;
+ }
+ 
++static void no_func PARAMS((void));
+ static void
+-no_func ()
++no_func PARAMS((void))
+ {
+   abort ();
+ }
+      asection *sec;
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/symbols.c gas/symbols.c
+--- gas.orig/symbols.c	Fri Aug 20 14:00:49 1999
++++ gas/symbols.c	Fri Aug 20 14:01:23 1999
+@@ -1174,7 +1174,7 @@ exit_dont_set_value:
+ 	symp->sy_resolved = 1;
+       else if (S_GET_SEGMENT (symp) != expr_section)
+ 	{
+-	  as_bad (_("can't resolve value for symbol \"%s\""), S_GET_NAME (symp));
++	  as_bad (_("symbols can't resolve value for symbol \"%s\""), S_GET_NAME (symp));
+ 	  symp->sy_resolved = 1;
+ 	}
+     }
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/write.c gas/write.c
+--- gas.orig/write.c	Fri Aug 20 14:00:50 1999
++++ gas/write.c	Fri Aug 20 14:01:24 1999
+@@ -1876,7 +1903,7 @@ write_object_file ()
+ 	  /* Make sure we really got a value for the symbol.  */
+ 	  if (! symbol_resolved_p (symp))
+ 	    {
+-	      as_bad (_("can't resolve value for symbol \"%s\""),
++	      as_bad (_("write can't resolve value for symbol \"%s\""),
+ 		      S_GET_NAME (symp));
+ 	      symbol_mark_resolved (symp);
+ 	    }
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/expr.h gas/expr.h
+--- gas.orig/expr.h	Fri Aug 20 14:00:46 1999
++++ gas/expr.h	Fri Aug 20 14:01:23 1999
+@@ -149,7 +149,7 @@ typedef char operator_rankT;
+ extern char get_symbol_end PARAMS ((void));
+ extern void expr_begin PARAMS ((void));
+ extern void expr_set_precedence PARAMS ((void));
+-extern segT expr PARAMS ((int rank, expressionS * resultP));
++extern segT expr PARAMS ((operator_rankT rank, expressionS * resultP));
+ extern unsigned int get_single_number PARAMS ((void));
+ extern symbolS *make_expr_symbol PARAMS ((expressionS * expressionP));
+ extern int expr_symbol_where
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.h gas/config/tc-i386.h
+--- gas.orig/config/tc-i386.h	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.h	Fri Aug 20 14:01:23 1999
+@@ -446,7 +469,6 @@ extern const struct relax_type md_relax_
+ #define TC_GENERIC_RELAX_TABLE md_relax_table
+ 
+ 
+-extern int flag_16bit_code;
+ 
+ #define md_do_align(n, fill, len, max, around)				\
+ if ((n) && !need_pass_2							\
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -3907,7 +3919,7 @@ md_apply_fix3 (fixP, valp, seg)
+   register char *p = fixP->fx_where + fixP->fx_frag->fr_literal;
+   valueT value = *valp;
+ 
+-#if defined (BFD_ASSEMBLER) && !defined (TE_Mach)
++#if defined (BFD_ASSEMBLER) && !defined (TE_Mach) /* [ */
+   if (fixP->fx_pcrel)
+     {
+       switch (fixP->fx_r_type)
+@@ -3927,9 +3939,11 @@ md_apply_fix3 (fixP, valp, seg)
+ 	}
+     }
+ 
+   /*
+    * This is a hack.  There should be a better way to
+-   * handle this.
++   * handle this.  This covers for the fact that bfd_install_relocation
++   * will subtract the current location (for partial_inplace, PC relative
++   * relocations); see more below.
+    */
+   if ((fixP->fx_r_type == BFD_RELOC_32_PCREL
+        || fixP->fx_r_type == BFD_RELOC_16_PCREL
+@@ -4034,9 +4042,9 @@ md_apply_fix3 (fixP, valp, seg)
+     default:
+       break;
+     }
+ #endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) */
+   *valp = value;
+-#endif /* defined (BFD_ASSEMBLER) && !defined (TE_Mach) */
++#endif /* defined (BFD_ASSEMBLER) && !defined (TE_Mach) ] */
+   md_number_to_chars (p, value, fixP->fx_size);
+ 
+   return 1;

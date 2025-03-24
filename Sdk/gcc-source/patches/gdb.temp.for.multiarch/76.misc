@@ -1,0 +1,64 @@
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* gdb.base/commands.exp: Line number changed in source file.
+	* gdb.base/ending-run.exp: Allow cap S in entry point name.
+	* gdb.base/step-test.exp: Step a couple of times to avoid prologue,
+
+
+Index: src/gdb/testsuite/gdb.base/commands.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/commands.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 commands.exp
+--- src/gdb/testsuite/gdb.base/commands.exp	2001/12/23 00:35:16	1.1.1.1
++++ src/gdb/testsuite/gdb.base/commands.exp	2001/12/24 02:42:40
+@@ -331,7 +331,7 @@ proc watchpoint_command_test {} {
+     }
+     send_gdb "continue\n"
+     gdb_expect {
+-	-re "Continuing.*\[Ww\]atchpoint $wp_id deleted because the program has left the block in.*which its expression is valid.*run.c:57.*$gdb_prompt $" {
++	-re "Continuing.*\[Ww\]atchpoint $wp_id deleted because the program has left the block in.*which its expression is valid.*run.c:82.*$gdb_prompt $" {
+ 	    pass "continue with watch"
+ 	}
+ 	-re "$gdb_prompt $"   {fail "continue with watch"}
+Index: src/gdb/testsuite/gdb.base/ending-run.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/ending-run.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 ending-run.exp
+--- src/gdb/testsuite/gdb.base/ending-run.exp	2001/12/23 00:35:16	1.1.1.1
++++ src/gdb/testsuite/gdb.base/ending-run.exp	2001/12/24 02:42:40
+@@ -151,7 +151,7 @@ gdb_expect {
+ 		fail "Old bug came back!"
+ 		gdb_test "n" ".*" ""
+ 	    }
+-	    -re ".*in.*start.*$gdb_prompt $" { 
++	    -re ".*in.*\[Ss\]tart.*$gdb_prompt $" { 
+ 		pass "step out of main"
+ 	    }
+ 	    -re ".*in.*bsp_trap.*$gdb_prompt $" { 
+Index: src/gdb/testsuite/gdb.base/step-test.exp
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/testsuite/gdb.base/step-test.exp,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 step-test.exp
+--- src/gdb/testsuite/gdb.base/step-test.exp	2001/12/23 00:35:19	1.1.1.1
++++ src/gdb/testsuite/gdb.base/step-test.exp	2001/12/24 02:42:40
+@@ -167,7 +167,7 @@ gdb_expect {
+       fail "Can't run to line 45"
+       return 0
+     }
+-    fail "stepi: finish call"
++    fail "stepi: finish call (unexpected exit)"
+   }
+   -re ".*${decimal}.*callee.*NEXTI.*$gdb_prompt $" {
+     pass "stepi: finish call"
+@@ -185,7 +185,7 @@ gdb_expect {
+   }
+   -re "$gdb_prompt $" {
+     # We got something else.  Fail.
+-    fail "stepi: finish call"
++    fail "stepi: finish call (unexpected result)"
+     return
+   }
+   timeout {

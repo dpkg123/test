@@ -1,0 +1,21 @@
+diff -urpPd xxx/libexec/libdl/Makefile.in yyy/libexec/libdl/Makefile.in
+--- xxx/libexec/libdl/Makefile.in	Tue May 18 15:33:48 1999
++++ yyy/libexec/libdl/Makefile.in	Wed May 19 16:11:28 1999
+@@ -94,7 +94,7 @@ libdl.so: ld.so $(LIBDL_OBJS) tlibdl.c
+ 	$(LD) $(LIBDL_BASE) $(LDFLAGS) $(LIBDL_OBJS) $(MDOBJS) -o libdl.so \
+ 	--soname libdl.so $(LIBS)
+ 	@echo "Checking libdl as whole program."
+-	@$(CC) --dynamic tlibdl.c ./libdl.so ./ld.so -o discard
++	@$(CC) -Wl,-Bdynamic tlibdl.c ./libdl.so ./ld.so -o discard
+ 
+ CRT00=crt00.o
+ 
+@@ -106,7 +106,7 @@ ld.so:  $(LDSO_OBJS) $(PICLIBS) $(CRT00)
+ 	--soname ld.so -lcpic $(PICLIBS) \
+ 	$$INTERIX_ROOT/usr/contrib/$(MACHINE_ARCH)-pc-interix/cygnus-2.7.2-970404/libgcc.a
+ 	@echo "Checking ldso as whole program."
+-	@$(CC) --dynamic tldso.c ./ld.so -o discard
++	@$(CC) -Wl,-Bdynamic tldso.c ./ld.so -o discard
+ 
+ # From the existing dll libs, make a PIC version; that way we don't have
+ # to relocate the jmp's to the __imp_* symbols, which we can't do during

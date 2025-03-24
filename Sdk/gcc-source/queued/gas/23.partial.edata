@@ -1,0 +1,17 @@
+From working with Mumit... fixes edata.  Not sure yet.
+
+--- config/tc-i386.c.orig	Fri Sep 10 15:05:41 1999
++++ config/tc-i386.c	Fri Sep 10 15:07:13 1999
+@@ -4478,8 +4478,11 @@ tc_gen_reloc (section, fixp)
+    * Note that if you change this as part of cleaning up the apalling
+    * mess of complementary adds/subtracts of which this is part, that
+    * bfd:coff_i386_reloc may need attention too.
++   *
++   * Similarly, even local RVAs need this treatment.
+    */
+-  if (S_IS_EXTERN (fixp->fx_addsy) && !S_IS_COMMON(fixp->fx_addsy))
++  if ((S_IS_EXTERN (fixp->fx_addsy) && !S_IS_COMMON(fixp->fx_addsy))
++      || (fixp->fx_r_type == BFD_RELOC_RVA))
+     rel->addend -= symbol_get_bfdsym (fixp->fx_addsy)->value;
+ #endif
+   return rel;

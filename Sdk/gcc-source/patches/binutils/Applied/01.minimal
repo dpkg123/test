@@ -1,0 +1,32 @@
+	* Makefile.am (LEX, YACC): Use what configure found as the last resort.
+	* configure.in (interix): add
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/configure.in binutils/configure.in
+--- binutils.nil/configure.in	Wed Jul  7 16:58:50 1999
++++ binutils/configure.in	Wed Jul  7 16:59:21 1999
+@@ -185,6 +185,10 @@ changequote([,])dnl
+ 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
+ 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+ 	 ;;
++ 	i[3-6]86-*-interix)
++   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
++ 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
++	 ;;
+ changequote(,)dnl
+ 	i[3-6]86-*pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32*)
+ changequote([,])dnl
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/Makefile.am binutils/Makefile.am
+--- binutils.nil/Makefile.am	Wed Jul  7 16:58:51 1999
++++ binutils/Makefile.am	Wed Jul  7 16:59:21 1999
+@@ -15,9 +15,9 @@ tooldir = $(exec_prefix)/$(target_alias)
+ CC_FOR_BUILD = @CC_FOR_BUILD@
+ EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
+ 
+-YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo bison -y ; fi`
++YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo @YACC@ ; fi`
+ YFLAGS = -d
+-LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo flex ; fi`
++LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo @LEX@ ; fi`
+ 
+ # these two are almost the same program
+ AR_PROG=ar

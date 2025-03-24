@@ -1,0 +1,9 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_PREREQ(2.5)
+AC_INIT(Makefile.in)
+CC=${CC-cc}
+
+AC_CONFIG_SUBDIRS(calc)
+
+AC_SUBST(CC)
+AC_OUTPUT(Makefile)

@@ -1,0 +1,219 @@
+(This really applies to released, not gcc, versions.)
+
+This patch contains a hack for setpgrp in exp_command.c; it really requires
+a configure fix to check for the right function.
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/expect/expect-5.34/config.guess expect/config.guess
+--- /dev/fs/M/donn/sources/expect/expect-5.34/config.guess	Mon Dec 11 08:44:55 2000
++++ expect/config.guess	Fri Feb  1 13:48:44 2002
+@@ -384,6 +384,9 @@ EOF
+ 		echo ${UNAME_MACHINE}-unknown-sysv32
+ 	fi
+ 	exit 0 ;;
++    x86:Interix*:3*)
++	echo i386-pc-interix3
++	exit 0 ;;
+     Intel:Mach:3*:*)
+ 	echo i386-unknown-mach3
+ 	exit 0 ;;
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/expect/expect-5.34/config.sub expect/config.sub
+--- /dev/fs/M/donn/sources/expect/expect-5.34/config.sub	Mon Sep  6 17:20:09 1999
++++ expect/config.sub	Fri Feb  1 13:52:46 2002
+@@ -749,6 +749,9 @@ case $os in
+ 		;;
+ 	-none)
+ 		;;
++	-interix*)
++		os=-interix
++		;;
+ 	*)
+ 		# Get rid of the `-' at the beginning of $os.
+ 		os=`echo $os | sed 's/[^-]*-//'`
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/expect/expect-5.34/configure.in expect/configure.in
+--- /dev/fs/M/donn/sources/expect/expect-5.34/configure.in	Thu Dec 20 13:11:33 2001
++++ expect/configure.in	Fri Feb  1 14:41:03 2002
+@@ -222,6 +222,7 @@ case "${host}" in
+   *-*-osf[[234]]*)	stty_reads_stdout=0 ;;
+   *-*-ultrix4.4)	stty_reads_stdout=0 ;;
+   *-*-dgux*)		stty_reads_stdout=0 ;;
++  *-*-interix*)		stty_reads_stdout=0 ;;
+ esac
+ 
+ if test $mach -eq 1 ; then
+@@ -564,6 +565,9 @@ AC_CHECK_HEADER(unistd.h, AC_DEFINE(HAVE
+ # If no stropts.h, then the svr4 implementation is broken.
+ # At least it is on my Debian "potato" system. - Rob Savoye
+ AC_CHECK_HEADER(sys/stropts.h, AC_DEFINE(HAVE_STROPTS_H), svr4_ptys_broken=1)
++if test "x$svr4_ptys_broken" = x ; then
++    AC_EGREP_HEADER(I_PUSH, sys/stropts.h, , svr4_ptys_broken=1)
++fi
+ AC_CHECK_HEADER(sys/sysconfig.h, AC_DEFINE(HAVE_SYSCONF_H))
+ AC_CHECK_HEADER(sys/fcntl.h, AC_DEFINE(HAVE_SYS_FCNTL_H))
+ AC_CHECK_HEADER(sys/select.h, AC_DEFINE(HAVE_SYS_SELECT_H))
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/expect/expect-5.34/exp_command.c expect/exp_command.c
+--- /dev/fs/M/donn/sources/expect/expect-5.34/exp_command.c	Mon Jan 31 22:38:43 2000
++++ expect/exp_command.c	Fri Feb  1 14:54:50 2002
+@@ -56,6 +56,11 @@ would appreciate credit if this program 
+ # include <unistd.h>
+ #endif
+ 
++#ifdef __INTERIX
++/* No... it's not really there */
++#undef TIOCSCTTY
++#endif
++
+ #include <math.h>		/* for log/pow computation in send -h */
+ #include <ctype.h>		/* all this for ispunct! */
+ 
+@@ -513,11 +518,14 @@ expSetpgrp()
+     syscall(SYS_setpgrp);
+ #endif
+ 
++#if 0
+ #ifdef SETPGRP_VOID
+     (void) setpgrp();
+ #else
+     (void) setpgrp(0,0);
+ #endif
++#endif
++    (void) setpgid(0,0);
+ }
+ 
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/expect/expect-5.34/exp_poll.c expect/exp_poll.c
+--- /dev/fs/M/donn/sources/expect/expect-5.34/exp_poll.c	Mon Jan 10 10:24:45 2000
++++ expect/exp_poll.c	Fri Feb  1 13:23:33 2002
+@@ -91,12 +91,12 @@ typedef struct FileHandlerEvent {
+ static struct {
+     FileHandler *firstFileHandlerPtr;
+ 				/* Pointer to head of file handler list. */
+-    fd_mask checkMasks[3*MASK_SIZE];
++    fd_set checkMasks[3];
+ 				/* This array is used to build up the masks
+ 				 * to be used in the next call to select.
+ 				 * Bits are set in response to calls to
+ 				 * Tcl_CreateFileHandler. */
+-    fd_mask readyMasks[3*MASK_SIZE];
++    fd_set readyMasks[3];
+ 				/* This array reflects the readable/writable
+ 				 * conditions that were found to exist by the
+ 				 * last call to select. */
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files /dev/fs/M/donn/sources/expect/expect-5.34/exp_simple.c expect/exp_simple.c
+--- /dev/fs/M/donn/sources/expect/expect-5.34/exp_simple.c	Mon Jan 10 10:24:46 2000
++++ expect/exp_simple.c	Fri Feb  1 13:23:33 2002
+@@ -22,12 +22,12 @@ static char sccsid[] = "@(#) tclUnixNoti
+  * exception masks to select during calls to Tcl_DoOneEvent.
+  */
+ 
+-static fd_mask checkMasks[3*MASK_SIZE];
++static fd_set checkMasks[3];
+ 				/* This array is used to build up the masks
+ 				 * to be used in the next call to select.
+ 				 * Bits are set in response to calls to
+ 				 * Tcl_WatchFile. */
+-static fd_mask readyMasks[3*MASK_SIZE];
++static fd_set readyMasks[3];
+ 				/* This array reflects the readable/writable
+ 				 * conditions that were found to exist by the
+ 				 * last call to select. */
+@@ -68,9 +68,8 @@ Tcl_WatchFile(file, mask)
+ 				 * indicates conditions to wait for
+ 				 * in select. */
+ {
+-    int fd, type, index;
+-    fd_mask bit;
+-
++    int fd, type;
++
+     fd = (int) Tcl_GetFileInfo(file, &type);
+ 
+     if (type != TCL_UNIX_FD) {
+@@ -81,16 +80,14 @@ Tcl_WatchFile(file, mask)
+ 	panic("Tcl_WatchFile can't handle file id %d", fd);
+     }
+ 
+-    index = fd/(NBBY*sizeof(fd_mask));
+-    bit = 1 << (fd%(NBBY*sizeof(fd_mask)));
+     if (mask & TCL_READABLE) {
+-	checkMasks[index] |= bit;
++	FD_SET(fd, &checkMasks[0]);
+     }
+     if (mask & TCL_WRITABLE) {
+-	(checkMasks+MASK_SIZE)[index] |= bit;
++	FD_SET(fd, &checkMasks[1]);
+     }
+     if (mask & TCL_EXCEPTION) {
+-	(checkMasks+2*(MASK_SIZE))[index] |= bit;
++	FD_SET(fd, &checkMasks[2]);
+     }
+     if (numFdBits <= fd) {
+ 	numFdBits = fd+1;
+@@ -126,24 +123,21 @@ Tcl_FileReady(file, mask)
+ 				 * TCL_WRITABLE, and TCL_EXCEPTION:
+ 				 * indicates conditions caller cares about. */
+ {
+-    int index, result, type, fd;
+-    fd_mask bit;
+-
++    int result, type, fd;
++
+     fd = (int) Tcl_GetFileInfo(file, &type);
+     if (type != TCL_UNIX_FD) {
+ 	panic("Tcl_FileReady: unexpected file type");
+     }
+ 
+-    index = fd/(NBBY*sizeof(fd_mask));
+-    bit = 1 << (fd%(NBBY*sizeof(fd_mask)));
+     result = 0;
+-    if ((mask & TCL_READABLE) && (readyMasks[index] & bit)) {
++    if ((mask & TCL_READABLE) && FD_ISSET(fd, &readyMasks[0])) {
+ 	result |= TCL_READABLE;
+     }
+-    if ((mask & TCL_WRITABLE) && ((readyMasks+MASK_SIZE)[index] & bit)) {
++    if ((mask & TCL_WRITABLE) && FD_ISSET(fd, &readyMasks[1])) {
+ 	result |= TCL_WRITABLE;
+     }
+-    if ((mask & TCL_EXCEPTION) && ((readyMasks+(2*MASK_SIZE))[index] & bit)) {
++    if ((mask & TCL_EXCEPTION) && FD_ISSET(fd, &readyMasks[2])) {
+ 	result |= TCL_EXCEPTION;
+     }
+     return result;
+@@ -182,7 +176,7 @@ Tcl_WaitForEvent(timePtr)
+     int numFound;
+ 
+     memcpy((VOID *) readyMasks, (VOID *) checkMasks,
+-	    3*MASK_SIZE*sizeof(fd_mask));
++	    sizeof(readyMasks));
+     if (timePtr == NULL) {
+ 	timeoutPtr = NULL;
+     } else {
+@@ -191,16 +185,16 @@ Tcl_WaitForEvent(timePtr)
+ 	timeout.tv_usec = timePtr->usec;
+     }
+     numFound = select(numFdBits, (SELECT_MASK *) &readyMasks[0],
+-	    (SELECT_MASK *) &readyMasks[MASK_SIZE],
+-	    (SELECT_MASK *) &readyMasks[2*MASK_SIZE], timeoutPtr);
+-
++	    (SELECT_MASK *) &readyMasks[1],
++	    (SELECT_MASK *) &readyMasks[2], timeoutPtr);
++
+     /*
+      * Some systems don't clear the masks after an error, so
+      * we have to do it here.
+      */
+ 
+     if (numFound == -1) {
+-	memset((VOID *) readyMasks, 0, 3*MASK_SIZE*sizeof(fd_mask));
++	memset((VOID *) readyMasks, 0, sizeof(readyMasks));
+     }
+ 
+     /*
+@@ -209,7 +203,7 @@ Tcl_WaitForEvent(timePtr)
+      */
+ 
+     numFdBits = 0;
+-    memset((VOID *) checkMasks, 0, 3*MASK_SIZE*sizeof(fd_mask));
++    memset((VOID *) checkMasks, 0, sizeor(checkMasks));
+ }
+ 
+ /*

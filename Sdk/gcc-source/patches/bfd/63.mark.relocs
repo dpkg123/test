@@ -1,0 +1,16 @@
+Bug: if a section is not to be included (e.g. a discarded COMDAT) then
+we shouldn't read its relocs in.  (Causes a crash because the structure
+was not allocated to read it into.)
+
+--- cofflink.c.orig	Tue May 21 15:09:51 2002
++++ cofflink.c	Tue May 21 15:11:10 2002
+@@ -3464,7 +3464,8 @@ mark_relocs (finfo, input_bfd)
+       struct internal_reloc *	irel;
+       struct internal_reloc *	irelend;
+ 
+-      if ((a->flags & SEC_RELOC) == 0 || a->reloc_count  < 1)
++      if ((a->flags & SEC_RELOC) == 0 || a->reloc_count  < 1
++	|| a->linker_mark == 0)
+ 	continue;
+ 
+       /* Read in the relocs.  */

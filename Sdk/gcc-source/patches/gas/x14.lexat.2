@@ -1,0 +1,247 @@
+Bandaid to 13 so it handles ALL the @modifiers correctly.
+Combine with 13 someday.
+
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files config.save/tc-i386.c config/tc-i386.c
+--- config.save/tc-i386.c	Sun Feb 17 13:38:47 2002
++++ config/tc-i386.c	Sun Feb 17 15:42:30 2002
+@@ -3151,7 +3151,28 @@ md_assemble (line)
+ 
+ #if !defined(LEX_AT) || defined(RECOGNIZE_AT_GOT_ANYWAY)
+ static char *lex_got PARAMS ((RELOC_ENUM *, int *));
+-
++static const struct {
++  const char *str;
++  const int   len;
++  const boolean need_got;
++  const RELOC_ENUM rel[NUM_FLAG_CODE];
++} gotrel[] = {
++  { "PLT",      sizeof("PLT")-1,        true,
++		{ BFD_RELOC_386_PLT32,  0, BFD_RELOC_X86_64_PLT32    } },
++  { "GOTOFF",   sizeof("GOTOFF")-1,     true,
++		{ BFD_RELOC_386_GOTOFF, 0, 0                         } },
++  { "GOTPCREL", sizeof("GOTPCREL")-1,   true,
++		{ 0,                    0, BFD_RELOC_X86_64_GOTPCREL } },
++  { "GOT",      sizeof("GOT")-1,        true,
++		{ BFD_RELOC_386_GOT32,  0, BFD_RELOC_X86_64_GOT32    } },
++#ifdef TE_PE_DYN
++  { "IMAGEBASE",sizeof("IMAGE_BASE")-1, false,
++		{ BFD_RELOC_RVA,        0, 0 /* add when needed */   } },
++#endif
++};
++
++static const char * const mode_name[NUM_FLAG_CODE] = { "32", "16", "64" };
++
+ /* Parse operands of the form
+    <symbol>@GOTOFF+<nnn>
+    and similar .plt or .got references.
+@@ -3166,19 +3187,6 @@ lex_got (reloc, adjust)
+      RELOC_ENUM *reloc;
+      int *adjust;
+ {
+-  static const char * const mode_name[NUM_FLAG_CODE] = { "32", "16", "64" };
+-  static const struct {
+-    const char *str;
+-    const RELOC_ENUM rel[NUM_FLAG_CODE];
+-  } gotrel[] = {
+-    { "PLT",      { BFD_RELOC_386_PLT32,  0, BFD_RELOC_X86_64_PLT32    } },
+-    { "GOTOFF",   { BFD_RELOC_386_GOTOFF, 0, 0                         } },
+-    { "GOTPCREL", { 0,                    0, BFD_RELOC_X86_64_GOTPCREL } },
+-    { "GOT",      { BFD_RELOC_386_GOT32,  0, BFD_RELOC_X86_64_GOT32    } },
+-#ifdef TE_PE_DYN
+-    { "IMAGEBASE",{ BFD_RELOC_RVA,        0, 0 /* add when needed */   } },
+-#endif
+-  };
+   char *cp, *cp2;
+   unsigned int j;
+ 
+@@ -3202,10 +3210,8 @@ lex_got (reloc, adjust)
+ 
+   for (j = 0; j < sizeof (gotrel) / sizeof (gotrel[0]); j++)
+     {
+-      int len;
+-
+-      len = strlen (gotrel[j].str);
+-      if (strncasecmp (cp + 1, gotrel[j].str, len) == 0)
++
++      if (strncasecmp (cp + 1, gotrel[j].str, gotrel[j].len) == 0)
+ 	{
+ 	  if (gotrel[j].rel[(unsigned int) flag_code] != 0)
+ 	    {
+@@ -3214,9 +3220,9 @@ lex_got (reloc, adjust)
+ 
+ 	      *reloc = gotrel[j].rel[(unsigned int) flag_code];
+ 	      if (adjust)
+-		*adjust = len;
+-
+-	      if (GOT_symbol == NULL)
++		*adjust = gotrel[j].len;
++
++	      if (GOT_symbol == NULL && gotrel[j].need_got)
+ 		GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
+ 
+ 	      /* Replace the relocation token with ' ', so that
+@@ -3228,7 +3234,7 @@ lex_got (reloc, adjust)
+ 	      /* The second part goes from after the reloc token until
+ 		 (and including) an end_of_line char.  Don't use strlen
+ 		 here as the end_of_line char may not be a NUL.  */
+-	      past_reloc = cp + 1 + len;
++	      past_reloc = cp + 1 + gotrel[j].len;
+ 	      for (cp = past_reloc; !is_end_of_line[(unsigned char) *cp++]; )
+ 		;
+ 	      second = cp - past_reloc;
+@@ -3252,6 +3258,137 @@ lex_got (reloc, adjust)
+   /* Might be a symbol version string.  Don't as_bad here.  */
+   return NULL;
+ }
++
++#ifdef RECOGNIZE_AT_GOT_ANYWAY
++/* If we're overloading the @ as both an ordinary character and a 
++   separator for modifiers, we have to recheck identifiers in expressions
++   to get the parse to stop in the right place. (This is md_parse_name.) */
++
++int
++i386_parse_name (name, exprP, nextcharP)
++     char *name;
++     expressionS *exprP ATTRIBUTE_UNUSED;
++     char *nextcharP ATTRIBUTE_UNUSED;
++{
++  char *cp, *cp2;
++  unsigned int j;
++
++  cp = NULL;
++   /* Find the last @ in this identifier; if LEX_AT is on, we can
++      get things like foo@8@PLT (for _cdecl foo(int,int), e.g.). */
++ 
++  for (cp2 = name; ;cp2++) {
++    if (*cp2 == '@') 
++      {
++        cp = cp2;
++      }
++    if (!is_part_of_name((unsigned char) *cp2))
++      {
++	if (cp == NULL)
++ 	   return 0;
++ 	else
++ 	   break;
++       }
++  }
++
++  for (j = 0; j < sizeof (gotrel) / sizeof (gotrel[0]); j++)
++    {
++      if (strncasecmp (cp + 1, gotrel[j].str, gotrel[j].len) == 0)
++	{
++	  if (gotrel[j].rel[(unsigned int) flag_code] != 0)
++	    {
++	      /* We've found an acceptable addressing modifier; record
++		 that in the expr we're building. */
++	      //exprP->X_op = O_PIC_reloc;
++	      //exprP->X_add_number = 0;
++	      //exprP->X_md = gotrel[j].rel[(unsigned int) flag_code];
++              i.reloc[this_operand] = gotrel[j].rel[(unsigned int) flag_code];
++
++	      /* Make sure we have a GOT now that we need it. */
++	      if (GOT_symbol == NULL && gotrel[j].need_got)
++		GOT_symbol = symbol_find_or_make (GLOBAL_OFFSET_TABLE_NAME);
++
++	      /* We shorten "name" to be just the interesting part, but
++		 don't otherwise change anything in the parse. */
++	      *cp = '\0';
++
++	      return 0;
++	    }
++
++	  as_bad (_("@%s reloc is not supported in %s bit mode"),
++		  gotrel[j].str, mode_name[(unsigned int) flag_code]);
++	  return 0;
++	}
++    }
++    return 0;
++}
++#endif 
++
++#if 0
++{
++  char *next = input_line_pointer;
++  char *next_end;
++  int reloc_type;
++  segT segment;
++
++  exprP->X_op_symbol = NULL;
++
++  if (strcmp (name, GLOBAL_OFFSET_TABLE_NAME) == 0)
++    {
++      if (! GOT_symbol)
++	GOT_symbol = symbol_find_or_make (name);
++
++      exprP->X_add_symbol = GOT_symbol;
++    no_suffix:
++      /* If we have an absolute symbol or a reg, then we know its
++	     value now.  */
++      segment = S_GET_SEGMENT (exprP->X_add_symbol);
++      if (segment == absolute_section)
++	{
++	  exprP->X_op = O_constant;
++	  exprP->X_add_number = S_GET_VALUE (exprP->X_add_symbol);
++	  exprP->X_add_symbol = NULL;
++	}
++      else if (segment == reg_section)
++	{
++	  exprP->X_op = O_register;
++	  exprP->X_add_number = S_GET_VALUE (exprP->X_add_symbol);
++	  exprP->X_add_symbol = NULL;
++	}
++      else
++	{
++	  exprP->X_op = O_symbol;
++	  exprP->X_add_number = 0;
++	}
++
++      return 1;
++    }
++
++  exprP->X_add_symbol = symbol_find_or_make (name);
++  
++  if (*nextcharP != '@')
++    goto no_suffix;
++  else if ((next_end = sh_end_of_match (next + 1, "GOTOFF")))
++    reloc_type = BFD_RELOC_32_GOTOFF;
++  else if ((next_end = sh_end_of_match (next + 1, "GOT")))
++    reloc_type = BFD_RELOC_32_GOT_PCREL;
++  else if ((next_end = sh_end_of_match (next + 1, "PLT")))
++    reloc_type = BFD_RELOC_32_PLT_PCREL;
++  else
++    goto no_suffix;
++
++  *input_line_pointer = *nextcharP;
++  input_line_pointer = next_end;
++  *nextcharP = *input_line_pointer;
++  *input_line_pointer = '\0';
++
++  exprP->X_op = O_PIC_reloc;
++  exprP->X_add_number = 0;
++  exprP->X_md = reloc_type;
++
++  return 1;
++}
++#endif
+ 
+ /* x86_cons_fix_new is called via the expression parsing code when a
+    reloc is needed.  We use this hook to get the correct .got reloc.  */
+diff -drupP --exclude-from=/M/donn/diffs/exclude.files config.save/tc-i386.h config/tc-i386.h
+--- config.save/tc-i386.h	Sun Feb 17 13:38:47 2002
++++ config/tc-i386.h	Sun Feb 17 15:41:57 2002
+@@ -167,6 +167,14 @@ extern void x86_cons PARAMS ((expression
+ #define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
+ extern void x86_cons_fix_new
+   PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
++
++#ifdef RECOGNIZE_AT_GOT_ANYWAY
++#define md_parse_name(name, exprP, nextcharP) \
++  i386_parse_name ((name), (exprP), (nextcharP))
++int i386_parse_name PARAMS ((char *name,
++			   expressionS *exprP,
++			   char *nextchar));
++#endif
+ #endif
+ 
+ #define TC_FORCE_RELOCATION(fixp) tc_i386_force_relocation(fixp)

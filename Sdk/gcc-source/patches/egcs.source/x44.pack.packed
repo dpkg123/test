@@ -1,0 +1,806 @@
+The prior version of this had a problem with handling imbedded a
+explicitly aligned structures.  The first chunk of the changes to
+stor-layout.c fixes that.
+
+The rest of the patch addresses something noted at the same time: that
+packed structures were not addressed.  Since MSVC doesn't have bit-level
+packing, that's not an issue, but it does have #pragma pack(), which
+gcc supports.  The packing rules for bitfields are affected by that 
+fairly significnatly.
+
+Note: with the MSVC compiler, a structure of the form:
+    #pragma pack(1)
+    struct {
+       char a;
+       long b:3;
+       long c;
+    }
+will have a in the first byte, the three bits of b somewhere in the next 
+4 bytes (the rest unused), and c (unaligned) at bytes 5-9.
+
+I have attached a variant test for the existing bitfield test.  It just
+tests pack(1); the others should fall out.  I didn't rip out the 
+non-ms side of the conditional compilations, just in case you saw value
+in it. I don't, and I'd rip 'em out before submitting.
+
+There's also one other pair of tests that need to be made.
+I've coded them as a separate tests, but it might just as well be part
+of the first one, depending on style calls I can't make.
+
+   tree.h: (record_layout_info): add remaining_in_alignment.
+
+   stor-layout.c: (place_field): use remaining_in_alignment, recode
+   for pack(1), fix record alignment for MS structs.
+
+   doc/extend.texi: explain limits of what works.
+
+   3 New tests.
+
+--- gcc/tree.h.bak	Tue Aug 20 18:31:05 2002
++++ gcc/tree.h	Tue Aug 20 18:32:03 2002
+@@ -2405,6 +2405,8 @@ typedef struct record_layout_info_s
+   /* The static variables (i.e., class variables, as opposed to
+      instance variables) encountered in T.  */
+   tree pending_statics;
++  /* Bits remaining in the current alignment group */
++  int remaining_in_alignment;
+   int packed_maybe_necessary;
+ } *record_layout_info;
+ 
+--- gcc/stor-layout.c.bak	Mon Aug 19 14:14:27 2002
++++ gcc/stor-layout.c	Wed Aug 21 14:12:35 2002
+@@ -814,8 +814,13 @@ place_field (rli, field)
+ 	      && DECL_BIT_FIELD_TYPE (rli->prev_field)
+ 	      && ! integer_zerop (DECL_SIZE (rli->prev_field))))
+ 	{
+-	  rli->record_align = MAX (rli->record_align, TYPE_ALIGN(type));
++	  unsigned int type_align = TYPE_ALIGN (type);
++	  type_align = MAX (type_align, desired_align);
++	  if (maximum_field_alignment != 0)
++	    type_align = MIN (type_align, maximum_field_alignment);
++	  rli->record_align = MAX (rli->record_align, type_align);
+ 	  rli->unpacked_align = MAX (rli->unpacked_align, TYPE_ALIGN (type));
++	  rli->unpadded_align = MAX (rli->unpadded_align, DECL_ALIGN (field));
+ 	}
+       else
+ 	desired_align = 1;
+@@ -997,48 +1002,140 @@ place_field (rli, field)
+     }
+ #endif
+ 
+-  /* See the docs for TARGET_MS_BITFIELD_LAYOUT_P for details.  */
++  /* See the docs for TARGET_MS_BITFIELD_LAYOUT_P for details.
++     A subtlety:
++	When a bit field is inserted into a packed record, the whole
++	size of the underlying type is used by one or more same-size
++	adjacent bitfields.  (That is, if its long:3, 32 bits is 
++	used in the record, and any additional adjacent long bitfields are
++	packed into the same chunk of 32 bits. However, if the size
++	changes, a new field of that size is allocated.)  In an unpacked
++	record, this is the same as using alignment, but not eqivalent
++	when packing. 
++
++     Note: for compatability, we use the type size, not the type alignment
++     to determine alignment, since that matches the documentation */
++
+   if ((* targetm.ms_bitfield_layout_p) (rli->t)
+-      && TREE_CODE (field) == FIELD_DECL
+-      && type != error_mark_node
+-      && ! DECL_PACKED (field)
+-      && rli->prev_field
+-      && DECL_SIZE (field)
+-      && host_integerp (DECL_SIZE (field), 1)
+-      && DECL_SIZE (rli->prev_field)
+-      && host_integerp (DECL_SIZE (rli->prev_field), 1)
+-      && host_integerp (rli->offset, 1)
+-      && host_integerp (TYPE_SIZE (type), 1)
+-      && host_integerp (TYPE_SIZE (TREE_TYPE (rli->prev_field)), 1)
+-      && ((DECL_BIT_FIELD_TYPE (rli->prev_field)
+-	   && ! integer_zerop (DECL_SIZE (rli->prev_field)))
+-	  || (DECL_BIT_FIELD_TYPE (field)
+-	      && ! integer_zerop (DECL_SIZE (field))))
+-      && (! simple_cst_equal (TYPE_SIZE (type),
+-			      TYPE_SIZE (TREE_TYPE (rli->prev_field)))
+-	  /* If the previous field was a zero-sized bit-field, either
+-	     it was ignored, in which case we must ensure the proper
+-	     alignment of this field here, or it already forced the
+-	     alignment of this field, in which case forcing the
+-	     alignment again is harmless.  So, do it in both cases.  */
+-	  || (DECL_BIT_FIELD_TYPE (rli->prev_field)
+-	      && integer_zerop (DECL_SIZE (rli->prev_field)))))
++      && (DECL_BIT_FIELD_TYPE(field)
++	 || rli->prev_field))
+     {
+-      unsigned int type_align = TYPE_ALIGN (type);
+-
+-      if (rli->prev_field
+-	  && DECL_BIT_FIELD_TYPE (rli->prev_field)
+-	  /* If the previous bit-field is zero-sized, we've already
+-	     accounted for its alignment needs (or ignored it, if
+-	     appropriate) while placing it.  */
+-	  && ! integer_zerop (DECL_SIZE (rli->prev_field)))
+-	type_align = MAX (type_align,
+-			  TYPE_ALIGN (TREE_TYPE (rli->prev_field)));
+-
+-      if (maximum_field_alignment != 0)
+-	type_align = MIN (type_align, maximum_field_alignment);
+-
+-      rli->bitpos = round_up (rli->bitpos, type_align);
++      /* At this point, either the prior or current are bitfields,
++	 (possibly both), and we're dealing with MS packing. */
++      tree prev_saved = rli->prev_field;
++
++      /* Is the prior field a bitfield?  If so, handle "runs" of same
++	 type size fields. */
++      if (rli->prev_field /* necessarily a bitfield if it exists. */) 
++	{
++	  /* If both are bitfields, nonzero, and the same size, this is
++	     the middle of a run.  Zero declared size fields are special
++	     and handled as "end of run". (Note: it's nonzero declared
++	     size, but equal type sizes!) */
++	  if (DECL_BIT_FIELD_TYPE (field)
++	      && !integer_zerop (DECL_SIZE (field))
++	      && !integer_zerop (DECL_SIZE (rli->prev_field))
++	      && simple_cst_equal (TYPE_SIZE (type),
++		   TYPE_SIZE (TREE_TYPE (rli->prev_field))) )
++	    {
++	      /* We're in the middle of a run of equal type size fields; make
++		 sure we realign if we run out of bits.  (Not decl size,
++		 type size!) */
++	      int bitsize = TREE_INT_CST_LOW (DECL_SIZE (field));
++	      tree type_size = TYPE_SIZE(TREE_TYPE(rli->prev_field));
++
++	      if (rli->remaining_in_alignment < bitsize)
++		{
++		  /* out of bits; bump up to next 'word'. */
++		  rli->bitpos = size_binop (PLUS_EXPR,
++				      type_size,
++				      DECL_FIELD_BIT_OFFSET(rli->prev_field));
++		  rli->prev_field = field;
++		  rli->remaining_in_alignment = TREE_INT_CST_LOW (type_size);
++		}
++	      rli->remaining_in_alignment -= bitsize;
++	    }
++	  else
++	    {
++	      /* End of a run: if leaving a run of bitfields of the same type 
++		 size, we have to "use up" the rest of the bits of the type 
++		 size.
++
++		 Compute the new position as the sum of the size for the prior
++		 type and where we first started working on that type.
++		 Note: since the beginning of the field was aligned then
++		 of course the end will be too.  No round needed.  */
++
++	      if (!integer_zerop (DECL_SIZE (rli->prev_field)))
++		{
++		  tree type_size = TYPE_SIZE(TREE_TYPE(rli->prev_field));
++		  rli->bitpos = size_binop (PLUS_EXPR,
++				      type_size,
++				      DECL_FIELD_BIT_OFFSET(rli->prev_field));
++		}
++	      else
++		{
++		  /* We "use up" size zero fields; the code below should behave
++		     as if the prior field was not a bitfield. */
++		  prev_saved = NULL;
++		}
++
++	      /* Cause a new bitfield to be captured, either this time (if 
++		 currently a bitfield) or next time we see one. */
++	      if (!DECL_BIT_FIELD_TYPE(field)
++		 || integer_zerop (DECL_SIZE (field)))
++		{
++		  rli->prev_field = NULL;
++		}
++	    }
++	  normalize_rli (rli);
++        }
++
++      /* If we're starting a new run of same size type bitfields
++	 (or a run of non-bitfields), set up the "first of the run"
++	 fields. 
++
++	 That is, if the current field is not a bitfield, or if there
++	 was a prior bitfield the type sizes differ, or if there wasn't
++	 a prior bitfield the size of the current field is nonzero.
++
++	 Note: we must be sure to test ONLY the type size if there was
++	 a prior bitfield and ONLY for the current field being zero if
++	 there wasn't.  */
++
++      if (!DECL_BIT_FIELD_TYPE (field)
++	  || ( prev_saved != NULL 
++	       ? !simple_cst_equal (TYPE_SIZE (type),
++	              TYPE_SIZE (TREE_TYPE (prev_saved)))
++	       : !integer_zerop (DECL_SIZE (field)) ))
++	{
++	  unsigned int type_align = 8;  /* Never below 8 for compatability */
++
++	  rli->remaining_in_alignment 
++	      = TREE_INT_CST_LOW (TYPE_SIZE(TREE_TYPE(field)))
++	        - TREE_INT_CST_LOW (DECL_SIZE (field));
++
++	  /* Now align (conventionally) for the new type. */
++	  if (!DECL_PACKED(field))
++	      type_align = MAX(TYPE_ALIGN (type), type_align);
++
++	  if (prev_saved
++	      && DECL_BIT_FIELD_TYPE (prev_saved)
++	      /* If the previous bit-field is zero-sized, we've already
++		 accounted for its alignment needs (or ignored it, if
++		 appropriate) while placing it.  */
++	      && ! integer_zerop (DECL_SIZE (prev_saved)))
++	    type_align = MAX (type_align,
++			      TYPE_ALIGN (TREE_TYPE (prev_saved)));
++
++	  if (maximum_field_alignment != 0)
++	    type_align = MIN (type_align, maximum_field_alignment);
++
++	  rli->bitpos = round_up (rli->bitpos, type_align);
++          /* If we really aligned, don't allow subsequent bitfields
++	     to undo that. */
++	  rli->prev_field = NULL;
++	}
+     }
+ 
+   /* Offset so far becomes the position of this field after normalizing.  */
+@@ -1067,7 +1164,9 @@ place_field (rli, field)
+   if (known_align != actual_align)
+     layout_decl (field, actual_align);
+ 
+-  rli->prev_field = field;
++  /* Only the MS bitfields use this. */
++  if (rli->prev_field == NULL && DECL_BIT_FIELD_TYPE(field))
++      rli->prev_field = field;
+ 
+   /* Now add size of this field to the size of the record.  If the size is
+      not constant, treat the field as being a multiple of bytes and just
+--- gcc/doc/extend.texi.bak	Wed Aug 21 11:13:47 2002
++++ gcc/doc/extend.texi	Wed Aug 21 11:23:27 2002
+@@ -3054,8 +3054,11 @@ that can be used for interchange.  The e
+ architecture dependent.
+ 
+ Currently --native-struct is provided for the Windows X86 compilers
+-to match the native Microsoft compiler.
+-
++to match the native compiler.  The packing rules match the native
++compiler when packing is not used, or when @code("#pragma pack()")
++is used.  Bit-aligned packing (as provided by @code{"__attribute__
++((packed))"} is not provided by the native compiler.
++
+ @item section ("@var{section-name}")
+ @cindex @code{section} variable attribute
+ Normally, the compiler places the objects it generates in sections like
+@@ -3356,8 +3359,12 @@ may provide a common format (when packed
+ that can be used for interchange.  The exact packing rules are
+ architecture dependent.
+ 
+-Currently @option(-m[no-]ms-bitfields) is provided for the Windows X86 
+-compilers to match the native Microsoft compiler.
++Currently @option(-m[no-]ms-bitfields) is provided for the Windows
++X86 compilers to match the native compiler.  The packing rules
++match the native compiler when packing is not used, or when
++@code("#pragma pack()") is used.  Bit-aligned packing (as provided
++by @code{"__attribute__ ((packed))"} is not provided by the native
++compiler.
+ 
+ @opindex fshort-enums
+ Specifying this attribute for @code{struct} and @code{union} types is
+
+--------------------- New test for packed stuff... only the "right answers"
+and the addition of the #pragma pack(1) changed from the non -p version,
+but both versions are needed to test thorughly.
+
+/* bf-ms-layout-p.c */
+/* Adapted from Donn Terry <donnte@microsoft.com> testcase
+   posted to GCC-patches
+   http://gcc.gnu.org/ml/gcc-patches/2000-08/msg00577.html */ 
+
+/* { dg-do run { target *-*-mingw* *-*-cygwin*  } } */
+/* { dg-options "-mms-bitfields -D_TEST_MS_LAYOUT" } */
+
+#include <stddef.h>
+#include <string.h>
+
+extern void abort(void);
+
+#pragma pack(1)
+
+struct one {
+  int d;
+  unsigned char a;
+  unsigned short b:7;
+  char c;	
+};
+
+struct two {
+  int d;
+  unsigned char a;
+  unsigned int b:7;
+  char c;	    	
+};
+
+struct three {
+  short d;
+  unsigned short a:3;
+  unsigned short b:9;
+  unsigned char c:7;
+};
+
+
+/* Bitfields of size 0 have some truly odd behaviors. */
+
+struct four {
+  unsigned short a:3;
+  unsigned short b:9;
+  unsigned int :0;  /* forces struct alignment to int */
+  unsigned char c:7;
+};
+
+struct five {
+  char a;	  	
+  int :0;        /* ignored; prior field is not a bitfield. */
+  char b;
+  char c;
+};
+
+struct six { 
+  char a :8;
+  int :0;	/* not ignored; prior field IS a bitfield, causes
+		   struct alignment as well. */
+  char b;
+  char c;
+} ;
+
+struct seven {
+  char a:8;
+  char :0;
+  int  :0;	/* Ignored; prior field is zero size bitfield. */
+  char b;
+  char c;
+};
+
+struct eight { /* ms size 4 */
+  short b:3;  
+  char  c;
+};
+
+#ifdef _MSC_VER
+#define LONGLONG __int64
+#else
+#define LONGLONG long long
+#endif
+
+union nine {   /* ms size 8 */
+   LONGLONG a:3;
+   char  c;
+};
+
+struct ten {   /* ms size 16 */
+   LONGLONG a:3;
+   LONGLONG b:3;
+   char  c;
+};
+
+#define val(s,f) (s.f)
+
+#define check_struct(_X) \
+{ \
+  if (sizeof (struct _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    fprintf(stderr, "content of " #_X " %d != %d\n", val(test_##_X,c), exp_##_X##_c); \
+}
+
+#define check_union(_X) \
+{ \
+  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    abort();                                    \
+}
+
+#define check_struct_size(_X) \
+{ \
+  if (sizeof (struct _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+}
+
+#define check_struct_off(_X) \
+{ \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    abort();                                    \
+}
+
+#define check_union_size(_X) \
+{ \
+  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+}
+
+#define check_union_off(_X) \
+{ \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    abort();                                    \
+}
+
+int main(){
+
+  unsigned char filler[16];
+  struct one test_one;
+  struct two test_two;
+  struct three test_three;
+  struct four test_four;
+  struct five test_five;
+  struct six test_six;
+  struct seven test_seven;
+  struct eight test_eight;
+  union nine test_nine;
+  struct ten test_ten;
+
+#if defined (_TEST_MS_LAYOUT) || defined (_MSC_VER)
+  size_t exp_sizeof_one = 8;
+  size_t exp_sizeof_two = 10;
+  size_t exp_sizeof_three =5;
+  size_t exp_sizeof_four = 3;
+  size_t exp_sizeof_five = 3;
+  size_t exp_sizeof_six = 3;
+  size_t exp_sizeof_seven = 3;
+  size_t exp_sizeof_eight = 3;
+  size_t exp_sizeof_nine = 8;
+  size_t exp_sizeof_ten = 9;
+ 
+  unsigned char exp_one_c = 7;
+  unsigned char exp_two_c  = 9;
+  unsigned char exp_three_c = 4;
+  unsigned char exp_four_c = 2;
+  char exp_five_c = 2;
+  char exp_six_c = 2;
+  char exp_seven_c = 2;
+  char exp_eight_c = 2;
+  char exp_nine_c = 0;
+  char exp_ten_c = 8;
+
+#else /* testing -mno-ms-bitfields */
+
+  size_t exp_sizeof_one = 8;
+  size_t exp_sizeof_two = 8;
+  size_t exp_sizeof_three = 6;
+  size_t exp_sizeof_four = 6;  
+  size_t exp_sizeof_five = 6;
+  size_t exp_sizeof_six = 6;
+  size_t exp_sizeof_seven = 6;
+  size_t exp_sizeof_eight = 2;
+  size_t exp_sizeof_nine = 8;
+  size_t exp_sizeof_ten = 8;
+
+  unsigned short exp_one_c = 6;
+  unsigned int exp_two_c  = 6;
+  unsigned char exp_three_c = 64;
+  unsigned char exp_four_c = 4;
+  char exp_five_c = 5;
+  char exp_six_c = 5;
+  char exp_seven_c = 5;
+  char exp_eight_c = 1;
+  char exp_nine_c = 0;
+  char exp_ten_c = 1;
+
+#endif
+
+  unsigned char i; 
+  for ( i = 0; i < 16; i++ )
+    filler[i] = i;
+
+  check_struct_off (one);
+  check_struct_off (two);  
+  check_struct_off (three);
+  check_struct_off (four);
+  check_struct_off (five);
+  check_struct_off (six);
+  check_struct_off (seven);
+  check_struct_off (eight);
+  check_union_off (nine);
+  check_struct_off (ten);
+
+  check_struct_size (one);
+  check_struct_size (two);  
+  check_struct_size (three);
+  check_struct_size (four);
+  check_struct_size (five);
+  check_struct_size (six);
+  check_struct_size (seven);
+  check_struct_size (eight);
+  check_union_size (nine);
+  check_struct_size (ten);
+
+  return 0;
+};
+
+------------ Another new pair of tests: make sure that spanning across
+word boundaries works correctly.  Two versions, one packed, one not.
+/* bf-ms-layout-span.c */
+/* Adapted from Donn Terry <donnte@microsoft.com> testcase
+   posted to GCC-patches
+   http://gcc.gnu.org/ml/gcc-patches/2000-08/msg00577.html */ 
+
+/* { dg-do run { target *-*-mingw* *-*-cygwin*  } } */
+/* { dg-options "-mms-bitfields -D_TEST_MS_LAYOUT" } */
+
+#include <stddef.h>
+#include <string.h>
+
+extern void abort(void);
+
+struct eleven {
+  short d;
+  int a1:7;
+  int a2:7;
+  int a3:7;
+  int a4:7;
+  int a5:7;
+  int a6:7;
+  short c;
+};
+
+struct twelve {
+  short d;
+  char a1:7;
+  char a2:7;
+  char a3:7;
+  char a4:7;
+  char a5:7;
+  char a6:7;
+  short c;
+};
+
+#define val(s,f) (s.f)
+
+#define check_struct(_X) \
+{ \
+  if (sizeof (struct _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    fprintf(stderr, "content of " #_X " %d != %d\n", val(test_##_X,c), exp_##_X##_c); \
+}
+
+#define check_union(_X) \
+{ \
+  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    abort();                                    \
+}
+
+#define check_struct_size(_X) \
+{ \
+  if (sizeof (struct _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+}
+
+#define check_struct_off(_X) \
+{ \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    printf("---%d\n", val(test_##_X,c))/*,abort()*/;                                    \
+}
+
+#define check_union_size(_X) \
+{ \
+  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+}
+
+#define check_union_off(_X) \
+{ \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    abort();                                    \
+}
+
+int main(){
+
+  unsigned char filler[32];
+  struct eleven test_eleven;
+  struct twelve test_twelve;
+
+#if defined (_TEST_MS_LAYOUT) || defined (_MSC_VER)
+
+  size_t exp_sizeof_eleven = 16;
+  size_t exp_sizeof_twelve = 10;
+  short exp_eleven_c = 3340;
+  short exp_twelve_c = 2312;
+ 
+#else /* testing -mno-ms-bitfields */
+
+  size_t exp_sizeof_eleven = 8;
+  char exp_eleven_c = 1;
+
+#endif
+
+  unsigned char i; 
+  for ( i = 0; i < 32; i++ )
+    filler[i] = i;
+
+  check_struct_off(eleven);
+
+  if (test_eleven.a1 != 4)
+     abort();
+  if (test_eleven.a2 != 10)
+     abort();
+  if (test_eleven.a3 != 24)
+     abort();
+  if (test_eleven.a4 != 56)
+     abort();
+  if (test_eleven.a5 != 8)
+     abort();
+  if (test_eleven.a6 != 18)
+     abort();
+
+  check_struct_off(twelve);
+
+  if (test_twelve.a1 != 2)
+     abort();
+  if (test_twelve.a2 != 3)
+     abort();
+  if (test_twelve.a3 != 4)
+     abort();
+  if (test_twelve.a4 != 5)
+     abort();
+  if (test_twelve.a5 != 6)
+     abort();
+  if (test_twelve.a6 != 7)
+     abort();
+
+  check_struct_size (eleven);
+  check_struct_size (twelve);
+
+  return 0;
+};
+--------------------- The packed version.
+/* bf-ms-layout-span-p.c */
+/* Adapted from Donn Terry <donnte@microsoft.com> testcase
+   posted to GCC-patches
+   http://gcc.gnu.org/ml/gcc-patches/2000-08/msg00577.html */ 
+
+/* { dg-do run { target *-*-mingw* *-*-cygwin*  } } */
+/* { dg-options "-mms-bitfields -D_TEST_MS_LAYOUT" } */
+
+#include <stddef.h>
+#include <string.h>
+
+extern void abort(void);
+
+struct eleven {
+  short d;
+  int a1:7;
+  int a2:7;
+  int a3:7;
+  int a4:7;
+  int a5:7;
+  int a6:7;
+  short c;
+};
+
+struct twelve {
+  short d;
+  char a1:7;
+  char a2:7;
+  char a3:7;
+  char a4:7;
+  char a5:7;
+  char a6:7;
+  short c;
+};
+
+#define val(s,f) (s.f)
+
+#define check_struct(_X) \
+{ \
+  if (sizeof (struct _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    fprintf(stderr, "content of " #_X " %d != %d\n", val(test_##_X,c), exp_##_X##_c); \
+}
+
+#define check_union(_X) \
+{ \
+  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    abort();                                    \
+}
+
+#define check_struct_size(_X) \
+{ \
+  if (sizeof (struct _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+}
+
+#define check_struct_off(_X) \
+{ \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    printf("---%d\n", val(test_##_X,c))/*,abort()*/;                                    \
+}
+
+#define check_union_size(_X) \
+{ \
+  if (sizeof (union _X) != exp_sizeof_##_X )	\
+    abort();                                    \
+}
+
+#define check_union_off(_X) \
+{ \
+  memcpy(&test_##_X, filler, sizeof(test_##_X));\
+  if (val(test_##_X,c) != exp_##_X##_c) 	\
+    abort();                                    \
+}
+
+int main(){
+
+  unsigned char filler[32];
+  struct eleven test_eleven;
+  struct twelve test_twelve;
+
+#if defined (_TEST_MS_LAYOUT) || defined (_MSC_VER)
+
+  size_t exp_sizeof_eleven = 16;
+  size_t exp_sizeof_twelve = 10;
+  short exp_eleven_c = 3340;
+  short exp_twelve_c = 2312;
+ 
+#else /* testing -mno-ms-bitfields */
+
+  size_t exp_sizeof_eleven = 8;
+  char exp_eleven_c = 1;
+
+#endif
+
+  unsigned char i; 
+  for ( i = 0; i < 32; i++ )
+    filler[i] = i;
+
+  check_struct_off(eleven);
+
+  if (test_eleven.a1 != 4)
+     abort();
+  if (test_eleven.a2 != 10)
+     abort();
+  if (test_eleven.a3 != 24)
+     abort();
+  if (test_eleven.a4 != 56)
+     abort();
+  if (test_eleven.a5 != 8)
+     abort();
+  if (test_eleven.a6 != 18)
+     abort();
+
+  check_struct_off(twelve);
+
+  if (test_twelve.a1 != 2)
+     abort();
+  if (test_twelve.a2 != 3)
+     abort();
+  if (test_twelve.a3 != 4)
+     abort();
+  if (test_twelve.a4 != 5)
+     abort();
+  if (test_twelve.a5 != 6)
+     abort();
+  if (test_twelve.a6 != 7)
+     abort();
+
+  check_struct_size (eleven);
+  check_struct_size (twelve);
+
+  return 0;
+};

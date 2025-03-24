@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# MSVC can't handle symbolic links in headers; since some of the 
+# build process does ln -s on headers, we simply stomp on the -s option.
+#
+# Yes, that's ugly.
+#
+if [ $# -gt 2 ]
+then
+   if [ $1 = -s ]
+   then
+      shift
+   fi
+fi
+
+/bin/ln $@
+exit $?

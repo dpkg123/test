@@ -1,0 +1,10 @@
+A D/compat////
+A D/pch////
+A D/tls////
+A D/torture////
+A D/vmx////
+A D/weak////
+R D/vmx////
+R D/torture////
+R D/pch////
+R D/compat////

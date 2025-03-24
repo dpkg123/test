@@ -1,0 +1,16 @@
+#!/bin/ksh
+CC="$1"
+
+# check that gcc -s contiunes to work right; it's fragile.
+# (Should be in ld tests, but...)
+
+echo "main() {exit(0);}" >min.c
+$CC -s min.c
+a.out >/dev/null 2>&1
+if [ $? != 0 ]
+then
+   echo stripped executable failed
+   exit 1
+fi
+rm min.c a.out
+exit 0

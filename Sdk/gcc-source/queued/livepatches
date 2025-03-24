@@ -1,0 +1,239 @@
+q-patch bfd 06 1     # Hold as private
+q-patch bfd 07 1     # Minor tweaks to original; need to sell or give up.
+q-patch bfd 10 1	# Line number problem.  Sent Ian a testcase. (sitting)
+q-patch bfd 12 1	# flags.3; submitted; needs resubmit
+q-patch bfd 14 1	# sort; residual; asked Ian why; applied
+q-patch bfd 16 1	# debug; residual; low pri; defer for moment; (testcase)
+q-patch bfd 32 1        # residuals, don't submit
+q-patch bfd 39 1	# Ian isn't biteing on this yet; discussing
+q-patch bfd 43 1	# idata
+q-patch bfd 44 1	# alignment power
+# What's the story on 45?
+q-patch bfd 46 1	# Image base for gdb
+q-patch bfd 47 0	# fileno for gdb
+q-patch bfd 48 0	# NO READ flag bit.
+q-patch bfd 49 0	# Weak in archive
+q-patch bfd 50 0	# New magic number checking
+q-patch bfd 51 1	# .lib symbols
+q-patch bfd 52 1	# .bss size on copy
+if [ "$NODYN" != 1 ]
+then
+    q-patch bfd 60 1
+fi
+
+if [ "$ALPHA" = 1 ]
+then
+    q-patch bfd 70 5
+fi
+
+#101: maybe never.
+
+exit
+
+Other Notes: look at "Why not?" at roughly cofflink.c:2600 (See 35?)
+(Recheck that 19* semantics were preserved.)
+(Cofflink.c, 1753, C_FCN: is bf being handled correctly?) (#23)
+q-patch binutils 08 1  # nm -f ... sent exact reference; pending
+q-patch binutils 11 1  # Find another way... alternative in BFD?
+# q-patch binutils 13 1  # Find a variant; suppress for now, and test.
+q-patch binutils 15 1
+q-patch binutils 16 0  # Change section size
+q-patch binutils 17 0  # Write only sections
+# q-patch binutils 18 0  # dyn-string got moved to libiberty in some cases
+q-patch binutils 19 0  # strip shouldn't write non-writeable files.
+
+if [ "$NODYN" != 1 ]
+then
+    q-patch binutils 30 2
+    q-patch binutils 31 1
+fi
+q-patch binutils 40 5
+
+if [ "$ALPHA" = 1 ]
+then
+    q-patch binutils 50 5
+fi
+
+# q-patch binutils 101 0
+
+exit
+
+Check that 03 works right, but assume it does.
+12... I suspect he introduced a bug.  His fix taken, for now.
+q-patch dejagnu 01 2
+q-patch dejagnu 02 2
+#q-patch dejagnu 101 1
+if [ $# -gt 0 ]
+then
+    APPLY_VERSION_HACKS=1
+else
+    APPLY_VERSION_HACKS=0
+fi
+q-patch egcs.source 05 1  #pathname (env var) in spec:              2.2 only
+# 07: crti: pending finish binutils				    # PENDING binutils wrapup and global CTOR stuff.
+q-patch egcs.source 08 1  #path name in lib search		    2.2 only
+# 14: gdb off by 1; pending finish binutils/gdb                     # SYMPTOM?
+
+# Below requires regression research.
+if [ $APPLY_VERSION_HACKS = 1 ]
+then
+    cp //C/CVS/egcs.baseline/gcc/gcc.c-torture/execute/ieee/mzero2.x gcc/gcc.c-torture/execute/ieee/mzero2.x
+fi
+
+# Below requires regression research. Turned off 6/00
+#q-patch egcs.source 18 1  # mzero: RTH suggests DejaGnu fix.        # LAW DEFER
+                   # Asking if maintainer?
+
+# q-patch egcs.source 24 1  # Resubed to list by another; I seconded  6/27/00.
+q-patch egcs.source 40 1  # print_rtl robustness                      6/27/00
+q-patch egcs.source 41 1  # packed struct			      6/06/00, 8/14/00
+: q-patch egcs.source 50 0 # rbug fix				    PENDING -- must resubmit.
+
+: q-patch egcs.source 52 1 # static functions for gdb; was tmp?     PENDING
+q-patch egcs.source 54 1 # lib path (interix)     		      2.2 only
+: q-patch egcs.source 65 0 # libio robustness                        PENDING (find more details)  FIND RIGHT MAINTAINER!
+# q-patch egcs.source 68 1 # make quoting			     PENDING (retest); preliminary indications are that this may be fixed but a new one introduced.  (The \$(CC) stuff...)  ## Now not needed if we don't do 2.2
+q-patch egcs.source 74 1 # gen_stdcall_suffix prototype              8/21/00
+# q-patch egcs.source 75 1 # -isystem ./include                        8/21/00  equiv appears applied
+q-patch egcs.source 76 0 # alloca                                    NYS
+q-patch egcs.source 77 0 # page                                      NEVER!
+q-patch egcs.source 78 0 # remap                                     NYS
+
+# ALSO, the bit about include-next in gcc/include/limits.h and xlimits.h
+q-patch expect 01 2
+q-patch expect 02 2
+q-patch gdb 01 7
+q-patch gdb 02 1
+q-patch gdb 03 5
+q-patch gdb 04 5
+q-patch gdb 05 5
+q-patch gdb 06 5 
+q-patch gdb 07 5
+q-patch gdb 08 5
+q-patch gdb 09 5
+# q-patch gdb 10 1  Never apply, but a question there remains.
+q-patch gdb 11 5
+
+# q-patch gdb 12 5  May not be needed, but needs careful testing.
+# It may be that SOME of it is needed, some not.  (procfs not?)
+
+q-patch gdb 13 5
+q-patch gdb 14 1
+q-patch gdb 15 5
+q-patch gdb 16 5
+q-patch gdb 17 5
+q-patch gdb 18 5
+# q-patch gdb 19 1  Prob not needed (OBE bugfix).
+q-patch gdb 20 5
+q-patch gdb 21 5
+q-patch gdb 22 5
+q-patch gdb 23 5
+q-patch gdb 24 5
+q-patch gdb 25 5
+q-patch gdb 26 5
+# 27-29 nonexistant
+q-patch gdb 30 5
+q-patch gdb 31 2 
+q-patch gdb 32 5
+# q-patch gdb 33 5  No longer needed, but retained for reference
+q-patch gdb 34 5  ### patch to annota1.exp may be OBE, but waiting confirm; see y34...
+q-patch gdb 35 5
+q-patch gdb 36 5
+# q-patch gdb 37 5  gdbtk stuff.
+# 38-40 nonexistant
+q-patch gdb 41 5
+# 42 nonexistant
+q-patch gdb 43 5
+# 44-49 nonexistant
+q-patch gdb 50 5
+q-patch gdb 51 5
+q-patch gdb 52 5
+q-patch gdb 53 5
+# 54 nonexistant
+q-patch gdb 55 5
+# 56-60 nonexistent
+if [ "$ALPHA" = 1 ]
+then
+    q-patch gdb 60 5
+    q-patch gdb 61 5
+fi
+# 62-69 nonexistent
+q-patch gdb 70 5
+q-patch gdb 71 1
+# q-patch gdb 72 5 # 
+# q-patch gdb 73 1
+q-patch gdb 74 5
+# q-patch gdb 75 1
+q-patch gdb 76 1
+q-patch gdb 77 0
+q-patch gdb 78 0
+# 77-79 nonexistent
+# 80 may never apply (gdbtk)
+# 81-97 nonexistent
+# q-patch gdb 98 5 gdbtk
+# q-patch include 01 5 # splay tree no longer needed
+# q-patch include 02 1 # hash tab include...
+# q-patch include 03 1 # hash tab include... (again).
+# q-patch include 04 1 # hash tab include... (again).
+# No more hashtab.h fixes here... e.makeit does it with a cp
+
+if [ "$NODYN" != 1 ]
+then
+    q-patch include 30 2
+fi
+
+if [ "$ALPHA" = 1 ]
+then
+    q-patch include 50 5
+fi
+
+q-patch ld 01 1  # remove derived files
+q-patch ld 08 1  # script... image base stuff; residual; pending 39
+# q-patch ld 20 5  # version numbers -- should I???
+q-patch ld 22 5  # simple constructor
+q-patch ld 23 5  # 0 base
+q-patch ld 24 5  # Current Interix constructor
+q-patch ld 25 0  # idata hack
+if [ "$NODYN" != 1 ]
+then
+    q-patch ld 30 1  # dynamic link
+fi
+q-patch ld 40 5  # regressions
+
+if [ "$ALPHA" = 1 ]
+then
+  q-patch ld 50 5  # Alpha: to make configure happy.
+fi
+
+exit
+
+I'm a little nervous about INITIAL_SYMBOL_CHAR in 02.
+04... should work, but watch it.
+05... prove his conjecture (or not).  If fail, try my alternative.
+# q-patch libexec 01 1
+# q-patch libiberty 01 5
+# q-patch libiberty 02 5 # looks as if someone finally did it.
+q-patch libiberty 03 1 # Alloca
+
+# There is no base patch
+# q-patch opcodes 01 5
+
+if [ "$ALPHA" = 1 ]
+then
+    q-patch opcodes 50 5
+fi
+q-patch readline 01 7
+q-patch readline 02 7
+q-patch tcl 01 2
+q-patch tcl 02 0
+# Nothing (tcl/tk changes make the change here, too).
+# q-patch tix 01 0
+q-patch tix 02 0
+q-patch tk 01 0
+# q-patch toplevel 01 1
+
+if [ "$ALPHA" = 1 ]
+then
+    :
+    #q-patch toplevel 50 1
+fi

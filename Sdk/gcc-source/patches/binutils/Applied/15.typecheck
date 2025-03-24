@@ -1,0 +1,96 @@
+Applied (with variants).
+
+A picky compiler chokes on this one.
+
+	* debug.c(debug_name_type): return proper type of null.
+	(debug_tag_type): Likewise.
+
+diff debug.c.orig debug.c
+--- debug.c.orig	Mon Jan 10 15:31:33 2000
++++ debug.c	Mon Jan 10 15:32:04 2000
+@@ -1988,7 +1988,7 @@ debug_name_type (handle, name, type)
+   nm = debug_add_to_namespace (info, &info->current_file->globals, name,
+ 			       DEBUG_OBJECT_TYPE, DEBUG_LINKAGE_NONE);
+   if (nm == NULL)
+-    return false;
++    return DEBUG_TYPE_NULL;
+ 
+   nm->u.type = t;
+ 
+@@ -2044,7 +2044,7 @@ debug_tag_type (handle, name, type)
+   nm = debug_add_to_namespace (info, &info->current_file->globals, name,
+ 			       DEBUG_OBJECT_TAG, DEBUG_LINKAGE_NONE);
+   if (nm == NULL)
+-    return false;
++    return DEBUG_TYPE_NULL;
+ 
+   nm->u.tag = t;
+ 
+diff stabs.c.orig stabs.c
+--- stabs.c.orig	Mon Jan 10 15:40:03 2000
++++ stabs.c	Mon Jan 10 15:42:12 2000
+@@ -1639,7 +1639,7 @@ parse_stab_type (dhandle, info, typename
+   if (size != -1)
+     {
+       if (! debug_record_type_size (dhandle, dtype, (unsigned int) size))
+-	return false;
++	return DEBUG_TYPE_NULL;
+     }
+ 
+   return dtype;
+@@ -3131,7 +3131,7 @@ parse_stab_array_type (dhandle, info, pp
+   /* If the index type is type 0, we take it as int.  */
+   p = *pp;
+   if (! parse_stab_type_number (&p, typenums))
+-    return false;
++    return DEBUG_TYPE_NULL;
+   if (typenums[0] == 0 && typenums[1] == 0 && **pp != '=')
+     {
+       index_type = debug_find_named_type (dhandle, "int");
+@@ -3139,7 +3139,7 @@ parse_stab_array_type (dhandle, info, pp
+ 	{
+ 	  index_type = debug_make_int_type (dhandle, 4, false);
+ 	  if (index_type == DEBUG_TYPE_NULL)
+-	    return false;
++            return DEBUG_TYPE_NULL;
+ 	}
+       *pp = p;
+     }
+@@ -3168,7 +3168,7 @@ parse_stab_array_type (dhandle, info, pp
+   if (**pp != ';')
+     {
+       bad_stab (orig);
+-      return false;
++      return DEBUG_TYPE_NULL;
+     }
+   ++*pp;
+ 
+@@ -3182,14 +3182,14 @@ parse_stab_array_type (dhandle, info, pp
+   if (**pp != ';')
+     {
+       bad_stab (orig);
+-      return false;
++      return DEBUG_TYPE_NULL;
+     }
+   ++*pp;
+ 
+   element_type = parse_stab_type (dhandle, info, (const char *) NULL, pp,
+ 				  (debug_type **) NULL);
+   if (element_type == DEBUG_TYPE_NULL)
+-    return false;
++    return DEBUG_TYPE_NULL;
+ 
+   if (adjustable)
+     {
+diff ieee.c.orig ieee.c
+--- ieee.c.orig	Mon Jan 10 15:44:56 2000
++++ ieee.c	Mon Jan 10 15:45:11 2000
+@@ -779,7 +779,7 @@ ieee_builtin_type (info, p, indx)
+ 
+     case builtin_bcd_float:
+       ieee_error (info, p, _("BCD float type not supported"));
+-      return false;
++      return NULL;
+     }
+ 
+   if (name != NULL)

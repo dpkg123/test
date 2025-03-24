@@ -1,0 +1,18 @@
+D/config////
+D/consistency.vlad////
+D/g++.dg////
+D/g++.old-deja////
+D/g77.dg////
+D/g77.f-torture////
+D/gcc.c-torture////
+D/gcc.dg////
+D/gcc.misc-tests////
+D/lib////
+D/objc////
+D/objc.dg////
+/ChangeLog/1.2261.2.170/Fri May 16 11:23:11 2003//Tgcc_3_3_release
+/README/1.6/Mon Oct 16 10:00:23 2000//Tgcc_3_3_release
+/README.QMTEST/1.3/Thu Sep 26 19:49:48 2002//Tgcc_3_3_release
+/README.compat/1.1/Fri Oct 18 00:22:55 2002//Tgcc_3_3_release
+/README.g++/1.3/Wed Dec 16 21:21:29 1998//Tgcc_3_3_release
+/README.gcc/1.3/Wed Dec 16 21:21:30 1998//Tgcc_3_3_release

@@ -1,0 +1,139 @@
+In WinXP, stack unwind wasn't always recognizing trampolines because
+there was another possible level of indirection.  For NT 5.1 (XP) and
+above, recognize that.  (To identify 5.1, we get the info from utsname.)
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/config/i386/tm-i386interix.h gdb/config/i386/tm-i386interix.h
+--- gdb.before/config/i386/tm-i386interix.h	Thu Mar  7 09:18:43 2002
++++ gdb/config/i386/tm-i386interix.h	Tue Mar 12 14:19:44 2002
+@@ -72,7 +72,8 @@ extern CORE_ADDR tramp_start;
+ extern CORE_ADDR tramp_end;
+ extern CORE_ADDR null_start;
+ extern CORE_ADDR null_end;
+-
++extern int winver;
++
+ /* This is sufficient, where used, but is NOT a complete test; there's more
+    in INIT_EXTRA_FRAME_INFO (a.k.a. interix_back_one_frame) */
+ #define IN_SIGTRAMP(p,f) ((((p)>=tramp_start && (p)<tramp_end)) \
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/exec.c gdb/exec.c
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/i386interix-nat.c gdb/i386interix-nat.c
+--- gdb.before/i386interix-nat.c	Thu Mar  7 09:19:00 2002
++++ gdb/i386interix-nat.c	Tue Mar 12 14:10:35 2002
+@@ -35,7 +38,8 @@ CORE_ADDR tramp_start;
+ CORE_ADDR tramp_end;
+ CORE_ADDR null_start;
+ CORE_ADDR null_end;
+-
++int winver; /* Windows NT version number */
++
+ /*  The /proc interface traditionally divides the target machine's register 
+     set up into two different sets, the general register set (gregset) 
+     and the floating point register set (fpregset).   This is reflected
+@@ -316,6 +320,15 @@ interix_back_one_frame (fromleaf, frame)
+            ra = SAVED_PC_AFTER_CALL (frame);
+            if (ra >= null_start && ra < null_end)
+ 	      frame->signal_handler_caller = 1;
++	   /* There might also be an indirect call to the mini-frame,
++	      putting one more return address on the stack.  (XP only,
++	      I think?)  This can't (reasonably) return the address of the 
++	      signal handler caller unless it's that situation, so this
++	      is safe. */
++           ra = read_memory_unsigned_integer (
++	       (CORE_ADDR) read_register (SP_REGNUM)+4, 4);
++           if (ra >= null_start && ra < null_end)
++	      frame->signal_handler_caller = 1;
+ 	 }
+        return;
+     }
+@@ -401,6 +414,14 @@ interix_back_one_frame (fromleaf, frame)
+ 	 a system call mini-frame */
+       ra = (CORE_ADDR)read_memory_integer 
+ 	 (context + offsetof(mcontext_t, gregs.gregs[UESP]), 4);
++
++      if (winver>=51) {
++	  /* Newer versions of Windows NT interpose another return
++	     address (but no other "stack frame" stuff) that we need
++	     to simply ignore here. */
++	 ra+=4;
++      }
++
+       ra = (CORE_ADDR)read_memory_integer(ra,4);
+ 
+       /* We might be done (no Null API if so) */
+@@ -413,20 +434,25 @@ interix_back_one_frame (fromleaf, frame)
+ 	}
+     }
+   /* At this point, we're looking at the frame for PdxNullPosixApi,
+-     in either case. */
+-
+-  /* extract the frame for PdxNullPosixApi */
+-  fm = read_memory_integer (fm, 4);
+-
+-  /* extract the frame for PdxNullApiCaller */
+-  /* The saved frame register for PdxNullApiCaller skips us over the
+-     saved context, which is the wrong thing to do, because it skips
+-     the interrrupted routine!  Instead, get the arg that was passed
+-     which has the address of the context (which is really in no frame) */
+-
+-  fm = (CORE_ADDR)read_memory_integer (fm + 8, 4);
+-
+-  /* THIS context is accounted for in a frame */
++     in either case.
++
++     PdxNullPosixApi is called by PdxNullApiCaller (which in turn
++     is called by _PdxNullApiCaller (note the _).)
++     PdxNullPosixApiCaller (no _) is a frameless function.
++
++     The saved frame pointer is as fm, but it's not of interest
++     to us because it skips us over the saved context, which is
++     the wrong thing to do, because it skips the interrrupted
++     routine!  PdxNullApiCaller takes as its only argument the
++     address of the context of the interrupded function (which
++     is really in no frame, but jammed on the stack by the system)
++
++     So: fm+0: saved bp
++         fm+4: return address to _PdxNullApiCaller
++         fm+8: arg to PdxNullApiCaller pushed by _Pdx...  */
++
++  fm = (CORE_ADDR)read_memory_integer (fm+0x8, 4); 
++
+   /* Extract the second context record */
+ 
+   ra = (CORE_ADDR)read_memory_integer 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gdb.before/procfs.c gdb/procfs.c
+--- gdb.before/procfs.c	Thu Mar  7 09:19:01 2002
++++ gdb/procfs.c	Fri Mar  8 15:45:42 2002
+@@ -26,7 +26,8 @@ Inc., 59 Temple Place - Suite 330, Bosto
+ #include "elf-bfd.h"		/* for elfcore_write_* */
+ #include "gdbcmd.h"
+ #include "gdbthread.h"
+-
++#include <sys/utsname.h>
++
+ #if defined (NEW_PROC_API)
+ #define _STRUCTURED_PROC 1	/* Should be done by configure script. */
+ #endif
+@@ -1140,10 +1141,23 @@ proc_get_status (procinfo *pi)
+ 	 that info here. */
+ // THIS MAY NOT BE THE BEST PLACE to read
+ // IT MAY BE BEST TO MAKE THESE FIELDS PER-PROC
++// Agreed... tell me how for /proc stuff?  DT
+       tramp_start = (CORE_ADDR)pi->prstatus.pr_signaldeliverer;
+       tramp_end = (CORE_ADDR)pi->prstatus.pr_endsignaldeliverer;
+       null_start = (CORE_ADDR)pi->prstatus.pr_nullapi;
+       null_end = (CORE_ADDR)pi->prstatus.pr_endnullapi;
++      {
++	  /* While we're doing such ugly things, find out which version of
++	     NT this is, so we can change our unwind rules a bit. */
++	  struct utsname info;
++	  // N.B.  If we move this, move the include of utsname.h, too.
++
++	  (void)uname(&info);
++	  /* Convert the first two digits (skip the decimal point) into
++	     a number.  E.g. 5.0 -> 50.  We'll test this later to know
++	     how to unwind. */
++	  winver=(info.release_host[0]-'0')*10 + info.release_host[2]-'0';
++      }
+ #endif
+ 
+ 	}

@@ -1,0 +1,72 @@
+In PE/COFF (and COFF in general?), we don't get any clue as to the
+type of a symbol without emitting some extra clues, and in particular
+we need to be able to distinguish a function from a non-function,
+so that gdb doesn't get confused (particularly by goto labels).
+
+Emit minimal type information: this ends up costing nothing in the .o file, 
+as it all ends up in the COFF symbol table.
+
+With this applied, gdb will pass the shlib-call.exp regression, where 
+otherwise it would not.
+
+ChangeLog:
+	* sdbout.c (sdbout_minimal_mark_begin_function): New function.
+	* sdbout.h (sdbout_minimal_mark_begin_function): Declare it.
+	* varasm.c (assemble_start_function): Use it.
+
+diff -urP egcs.source.old/gcc/sdbout.c egcs.source/gcc/sdbout.c
+--- egcs.source.old/gcc/sdbout.c	Sun Apr 18 20:18:04 1999
++++ egcs.source/gcc/sdbout.c	Tue Jun 29 14:08:13 1999
+@@ -1588,6 +1588,25 @@ sdbout_mark_begin_function ()
+   sdbout_symbol (current_function_decl, 0);
+ }
+ 
++/* Very much like the above, but it doesn't try to get the type right
++   (which makes it much simpler).   This is called when debugging
++   is not being done, but we need SOMETHING to distinguish a function
++   from any other label (else gdb breaks on static functions).
++   Because of possible struct/enum (etc.) complex types,  we can't
++   really output a meaningful type.   (Calling sdbout_mark_begin_function
++   when stabs is enabled and SDB_ALLOW_FORWARD_REFERENCES is defined
++   will cause the compiler to crash.) */
++
++void
++sdbout_minimal_mark_begin_function ()
++{
++  PUT_SDB_DEF (IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (current_function_decl)));
++  PUT_SDB_VAL (XEXP (DECL_RTL (current_function_decl), 0));
++  PUT_SDB_SCL (TREE_PUBLIC (current_function_decl) ? C_EXT : C_STAT);
++  PUT_SDB_TYPE (PUSH_DERIVED_LEVEL (DT_FCN, T_NULL));
++  PUT_SDB_ENDEF;
++}
++
+ /* Called at beginning of function body (after prologue).
+    Record the function's starting line number, so we can output
+    relative line numbers for the other lines.
+diff -urP egcs.source.old/gcc/varasm.c egcs.source/gcc/varasm.c
+--- egcs.source.old/gcc/varasm.c	Tue Jun 22 09:36:37 1999
++++ egcs.source/gcc/varasm.c	Tue Jun 29 14:08:13 1999
+@@ -981,9 +981,13 @@ assemble_start_function (decl, fnname)
+ #endif
+ 
+ #ifdef SDB_DEBUGGING_INFO
+-  /* Output SDB definition of the function.  */
++  /* Output SDB definition of the function; part of this needs to be 
++     unconditional so gdb can tell a static function from a goto label;
++     this only chages values in the symbol table (at least for coff) */
+   if (write_symbols == SDB_DEBUG)
+     sdbout_mark_begin_function ();
++  else
++    sdbout_minimal_mark_begin_function ();
+ #endif
+ 
+ #ifdef DBX_DEBUGGING_INFO
+diff -urP egcs.source.old/gcc/sdbout.h egcs.source/gcc/sdbout.h
+--- egcs.source.old/gcc/sdbout.h	Fri Apr  9 10:02:54 1999
++++ egcs.source/gcc/sdbout.h	Tue Jun 29 14:14:47 1999
+@@ -36,4 +36,5 @@ extern void sdbout_end_epilogue		PARAMS 
+ extern void sdbout_start_new_source_file 	PARAMS ((char *));
+ extern void sdbout_resume_previous_source_file	PARAMS ((void));
+ extern void sdbout_mark_begin_function	PARAMS ((void));
++extern void sdbout_minimal_mark_begin_function	PARAMS ((void));
+ 

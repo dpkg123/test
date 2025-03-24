@@ -1,0 +1,48 @@
+This is the dynamic linking stuff, currently being applied.
+
+diff -drup be.build.reference/binutils/objdump.c be.build/binutils/objdump.c
+--- be.build.reference/binutils/objdump.c	Wed May 26 16:06:49 1999
++++ be.build/binutils/objdump.c	Fri Jun  4 21:29:37 1999
+@@ -2278,26 +2278,30 @@ dump_symbols (abfd, dynamic)
+      boolean dynamic;
+ {
+   asymbol **current;
++  asymbol **base;
+   long max;
+   long count;
+ 
+   if (dynamic)
+     {
+-      current = dynsyms;
++      base = current = dynsyms;
++      current++;
+       max = dynsymcount;
+       printf ("DYNAMIC SYMBOL TABLE:\n");
++      count=1;
+     }
+   else
+     {
+-      current = syms;
++      base = current = syms;
+       max = symcount;
+       printf ("SYMBOL TABLE:\n");
++      count=0;
+     }
+ 
+   if (max == 0)
+     printf (_("no symbols\n"));
+ 
+-  for (count = 0; count < max; count++)
++  for (count; count < max; count++)
+     {
+       if (*current)
+ 	{
+@@ -2321,7 +2325,7 @@ dump_symbols (abfd, dynamic)
+ 		}
+ 
+ 	      bfd_print_symbol (cur_bfd, stdout, *current,
+-				bfd_print_symbol_all);
++				bfd_print_symbol_all, *base);
+ 
+ 	      (*current)->name = name;
+ 	      if (alloc != NULL)

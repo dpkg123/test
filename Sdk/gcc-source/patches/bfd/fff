@@ -1,0 +1,19 @@
+This also should be combined into dynlink
+
+!!!!!!!!
+Apply this to the "old" stuff.  Also apply the COMDAT fixes to the old stuff.
+(See #56)
+
+--- coffcode.h.save	Tue Mar  5 10:39:37 2002
++++ coffcode.h	Tue Mar  5 10:43:32 2002
+@@ -1028,7 +1026,9 @@ handle_COMDAT (abfd, sec_flags, hdr, nam
+     but it could, and we don't know how to recover gracefully
+     (or for that matter, at all) until we see an example. */
+   if (section->comdat != NULL && section->comdat->name == NULL)
+-     abort ();
++      (*_bfd_error_handler)
++	(_("%s (%s): matching COMDAT symbol name not found"),
++	 bfd_archive_filename (abfd), name);
+ 
+   return sec_flags;
+ }

@@ -1,0 +1,29 @@
+A couple of minor miscellaneous print improvements:
+
+	* objdump.c (disassemble_bytes): print a message when giving up.
+	(dump_headers): use wider fields when in 64 bit mode.
+
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files binutils.nil/objdump.c binutils/objdump.c
+--- binutils.nil/objdump.c	Wed Jul  7 16:58:52 1999
++++ binutils/objdump.c	Wed Jul  7 17:01:10 1999
+@@ -365,9 +373,9 @@ dump_headers (abfd)
+ {
+   printf (_("Sections:\n"));
+ #ifndef BFD64
+-  printf (_("Idx Name          Size      VMA       LMA       File off  Algn\n"));
++  printf (_("Idx Name          Size      VMA       LMA       File off  Algn  Flags\n"));
+ #else
+-  printf (_("Idx Name          Size      VMA               LMA               File off  Algn\n"));
++  printf (_("Idx Name          Size      VMA               LMA               File off  Algn  Flags\n"));
+ #endif
+   bfd_map_over_sections (abfd, dump_section_header, (PTR) NULL);
+ }
+@@ -1314,6 +1322,7 @@ disassemble_bytes (info, disassemble_fn,
+ 		  if (sfile.current != sfile.buffer)
+ 		    printf ("%s\n", sfile.buffer);
+ 		  free (sfile.buffer);
++ 		  printf(_("... lost instruction sync; giving up on section\n"));
+ 		  break;
+ 		}
+ 	    }

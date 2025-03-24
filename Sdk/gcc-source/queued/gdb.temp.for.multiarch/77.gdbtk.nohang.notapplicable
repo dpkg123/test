@@ -1,0 +1,88 @@
+	browser.test: there is no breakpoint 0, and it yeilds an
+	error to access it.
+	
+	gdb.lib: Not all systems default to windows; make it explicit.
+
+	c_variable.*: if there happens to be a bug so stepping the
+	last line in a function steps out of the function, the tests
+	hang.  Assure they won't.  (Or at least better the odds.)
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files testsuite/gdb.gdbtk/browser.test.orig testsuite/gdb.gdbtk/browser.test
+--- testsuite/gdb.gdbtk/browser.test	Fri Apr 21 14:11:03 2000
++++ testsuite/gdb.gdbtk/browser.test.orig	Fri Apr 21 14:16:18 2000
+@@ -629,7 +629,7 @@ gdbtk_test browser-7.1 {toggle_all_bp on
+     }
+   }
+ 
+-  for {set i 0} {$i < 20} {incr i} {
++  for {set i 1} {$i < 20} {incr i} {
+     catch {gdb_cmd "delete $i"}
+   }
+ 
+@@ -661,7 +661,7 @@ gdbtk_test browser-7.2 {toggle_all_bp of
+     }
+   }
+ 
+-  for {set i 0} {$i < 20} {incr i} {
++  for {set i 1} {$i < 20} {incr i} {
+     catch {gdb_cmd "delete $i"}
+   }
+ 
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files testsuite/lib/gdb.exp testsuite/lib/gdb.exp
+--- testsuite/lib/gdb.exp.orig	Fri Apr 21 14:21:56 2000
++++ testsuite/lib/gdb.exp	Fri Apr 21 14:22:08 2000
+@@ -1645,7 +1645,7 @@ proc gdbtk_start {test} {
+   set env(GDBTK_VERBOSE) 1
+   set env(GDBTK_LOGFILE) [file join $objdir gdb.log]
+   set env(GDBTK_TEST_RUNNING) 1
+-  set err [catch {exec $GDB -nx -q --tclcommand=$test} res]
++  set err [catch {exec $GDB -nx -windows -q --tclcommand=$test} res]
+   if { $err } {
+     perror "Execing $GDB failed: $res"
+     exit 1;
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files testsuite/gdb.gdbtk/c_variable.test.orig testsuite/gdb.gdbtk/c_variable.test
+--- testsuite/gdb.gdbtk/c_variable.test.orig	Fri Apr 21 17:26:55 2000
++++ testsuite/gdb.gdbtk/c_variable.test	Fri Apr 21 17:27:13 2000
+@@ -381,7 +381,7 @@ gdbtk_test c_variable-2.14 {change do_lo
+   check_update
+ } {llong {lsimple.character lsimple.integer lpsimple lsimple i lcharacter lpcharacter global_simple linteger lpinteger lfloat lpfloat l func lplong lpsimple->integer ldouble lpdouble} {}}
+ 
+-gdb_cmd "next"
++gdb_cmd "finish"
+ 
+ # Test: c_variable-2.15
+ # Desc: check for out of scope subroutine1 locals
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files testsuite/gdb.gdbtk/c_variable.c.orig testsuite/gdb.gdbtk/c_variable.c
+--- testsuite/gdb.gdbtk/c_variable.c.orig	Fri Apr 21 17:25:30 2000
++++ testsuite/gdb.gdbtk/c_variable.c	Fri Apr 21 15:56:25 2000
+@@ -146,8 +146,9 @@ subroutine1 (int i, long *l)
+   global_simple.integer = i + 3;
+   i = 212;
+   *l = 12;
+-}
+-
++  nothing();
++}
++
+ void
+ do_block_tests ()
+ {
+@@ -257,6 +258,7 @@ do_children_tests (void)
+   snp0.long_ptr = &y3;
+   snp1.long_ptr = &x3;
+   snp2.long_ptr = &z3;
++  nothing();
+ }
+ 
+ void
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files testsuite/gdb.gdbtk/cpp_variable.test.orig testsuite/gdb.gdbtk/cpp_variable.test
+--- testsuite/gdb.gdbtk/cpp_variable.test.orig	Fri Apr 21 17:56:55 2000
++++ testsuite/gdb.gdbtk/cpp_variable.test	Fri Apr 21 17:58:25 2000
+@@ -151,6 +151,7 @@ proc delete_all_variables {} {
+ # run to "do_simple_class_tests"
+ gdb_cmd "break do_simple_class_tests"
+ gdb_cmd "run"
++gdb_cmd "next"  # just to be sure
+ 
+ # Test:  cpp_variable-1.1
+ # Desc:  stopped in do_simple_class_tests

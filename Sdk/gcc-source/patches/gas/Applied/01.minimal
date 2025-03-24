@@ -1,0 +1,217 @@
+FOR RESUBMIT: split out dynamic linking stuff; note // Comments.
+
+SUBMITTED 0408.
+The following group of patches, when applied along with the corresponding
+testsuite and bfd patch groups, cleans up the PE/i386 interface so it passes 
+all regressions(*), and is more compatible with MSVC-generated .obj files.
+
+(*) One test fails because my compiler does not yet have the option,
+and one test (3Dnow) has an as yet (to my knowledge) unapplied fix to
+be submitted.  In the latter case, the test passes, but there are
+some (irrelevant) alignment differences (after the code being tested)
+that cause a failure to be reported.
+
+These notes are in no particular order, and cover only things that
+aren't immediately obvious (to me!) from either the patch itself or
+the ChangeLog entry.
+
+The section flags did not match MSVC, and were in general incomplete.
+Added code to generate them correctly (c.f. corresponding code in bfd.)
+
+atof_ieee() was declared (in as.h) inconsistently with its definition
+(in atof-ieee.c).  Fix declaration, fix warnings in other places.
+
+Because a line-number of 0 is special, it cannot be allowed as input.
+(Crashes gas if it happens and isn't rejected.)
+
+Add obj_coff_loc() (the Alpha uses .loc).  (There's more coming here.)
+
+The .bf, .ef, and .lf operators are somewhat different from each other,
+and need to be handled separately.  Change the test to be more thorough,
+and do slightly different things.
+
+The merging of symbols needs to be more sophisticated than it was.
+
+BFD_RELOC_RVA needs to be handled in more places.
+
+MSVC generates symbols with @ in them; to be able to access them from 
+gas, the parser should not trip over the special assembler notations for
+such as @GOT if LEX_AT is turned on.  This is done by:
+1) Moving/modifing the LEX_AT test in i386_displacement to new function
+i386_parse_name (and deferring seting of disp_reloc until answer is known).
+2) Making that be md_parse_name.
+3) Return whether @<stuff> is a PIC relocation properly, and know
+when it's just an ordinary @.  
+4) Set appropriate machine-dependent macros so expr uses this stuff.
+More details there.
+
+This has the side-effect of allowing @GOT (etc.) in immediate expressions,
+but a change must be made to be sure the relocations are handled correctly.
+
+See the comments about PUSHMI_PULLU in bfd; tc-i386.c is affected in 2
+places here.
+
+flag_16bit_code: as an extern in tc-i386.h it conflicts with static
+in tc-i386.c
+
+The section reloc count needs to be exact in PE (else it occasionlly 
+runs off the end into trash space, if I remember correctly).  Once
+all the deleted relocations are recognized, reset the value to the precise
+one required.
+
+In a future change, GLOBAL_OFFSET_TABLE will have its spelling changed
+slightly.  Here, allow it to be #defined, and handle a special case which
+checks for it.
+
+Add .loc, .ident pseudos for consistency.
+
+ChangeLog
+	* .gdbinit: New (restored) file.
+
+	* as.c (dump_statistics): Prototype.
+	* config/obj-coff.c (obj_coff_ln): Prototype.
+	* config/obj-coff.c (obj_coff_dim): Prototype.
+	* config/obj-coff.c (obj_coff_line): Prototype.
+	* config/obj-coff.c (obj_coff_size): Prototype.
+	* config/obj-coff.c (obj_coff_scl): Prototype.
+	* config/obj-coff.c (obj_coff_tag): Prototype.
+	* config/obj-coff.c (obj_coff_val): Prototype.
+	* config/obj-coff.c (obj_coff_read_begin_hook): Prototype.
+	* config/obj-coff.c (coff_from_file_after_relocs): Prototype.
+	* config/obj-coff.c (obj_coff_section): Prototype.
+	* config/obj-coff.c (obj_coff_def): Prototype.
+	* config/obj-coff.c (obj_coff_type): Prototype.
+	* config/obj-coff.c (obj_coff_pop_insert): Prototype.
+	* write.c (chain_frchains_together): Prototype.
+	* write.c (relax_and_size_seg): Prototype.
+	* write.c (adjust_reloc_syms): Prototype.
+	* write.c (write_relocs): Prototype.
+	* write.c (write_contents): Prototype.
+
+	* as.c (perform_an_assembly_pass): More general flag bits allowed.
+	* config/obj-coff.c (obj_coff_section): Use them.
+
+	* as.h (atof_ieee): Make prototype match actual function (char arg).
+	* config/tc-i386.c (md_atof): Shut up warning.
+	* config/atof-vax.c (atof_vas): Ditto.
+	* config/tc-i386.c (md_atof): Ditto.
+
+	* config/atof-vax.c (md_atof): Shut up warning.
+
+	* config/obj-coff.c (BFD_ASSEMBLER): Add comments (several places).
+
+	* config/obj-coff.c (S_GET_DATA_TYPE): Array/pointer clarity change.
+	* config/obj-coff.c (S_SET_DATA_TYPE): Ditto.
+	* config/obj-coff.c (S_GET_STORAGE_CLASS): Ditto.
+	* config/obj-coff.c (S_SET_STORAGE_CLASS): Ditto.
+
+	* config/obj-coff.c (c_dot_file_symbol): Comment.
+	* config/obj-coff.c (c_dot_file_symbol): Use function instead 
+	of assignment.
+
+	* config/obj-coff.c (add_lineno): Check for 0 lineno.
+
+	* config/obj-coff.c (obj_coff_loc): add (from non-bfd side).
+
+	* config/obj-coff.c (obj_coff_endef): more thorough 
+	parsing of .bf,.ef,.lf.
+
+	* config/obj-coff.c (obj_coff_endef): refine merging of debug symbols.
+
+	* config/obj-coff.c (obj_coff_line): .ef, .lf not same as .bf.
+
+	* config/obj-coff.c (obj_coff_val): Comments.
+
+	* config/obj-coff.c (obj_coff_read_begin_hook): 
+	Macro instead of direct assignment.
+
+	* config/obj-coff.c (coff_frob_symbol): Check for both weak and common.
+
+        * config/tc-i386.c (SET_SECTION_RELOC_COUNT): Put in exact value.
+	* config/obj-coff.c (coff_adjust_section_syms): Comment about this.
+	* write.c (write_relocs): use.
+
+	* config/obj-coff.c (obj_coff_ident): New.
+
+	* config/obj-coff.c (obj_coff_begin_hook): Shut up warnings.
+
+	* config/obj-coff.c (obj_pseudo_table): add loc, ident, 
+
+	* config/tc-i386.c (tc_i386_fix_adjustable): add RVA to test.
+
+	* config/tc-i386.c (md_assemble): use actual insn length, not constant;
+	clarify with (no-op) assignment.
+
+	* config/tc-i386.c (special_reloc): declare.  (Allow @ in symbols w/o
+	breaking PIC special operators.)
+	* config/tc-i386.c (i386_parse_name): new function.
+	* config/tc-i386.c (i386_displacement): move LEX_AT logic 
+	to i386_parse_name.  Move a few lines around to match.
+	* config/tc-i386.c (i386_parse_cons_expression): Init special_reloc. 
+	* config/tc-i386.c (i386_cons_fix_new): New; track special_reloc.
+	* config/tc-i386.c (i386_immediate): delete LEX_AT code, rely
+	on expr and code above to do same.
+	* config/tc-i386.h (md_parse_name): Define as i386_parse_name.
+	* config/tc-i386.h (TC_PARSE_CONS_EXPRESSION): Define as 
+	i386_parse_cons_expression.
+	* config/tc-i386.h (TC_CONS_FIX_NEW): Define as i386_cons_fix_new.
+
+	* config/tc-i386.c (md_apply_fix): add PUSHMI_PULLU (see bfd).
+	* config/tc-i386.c (tc_gen_reloc): add PUSHMI_PULLU (see bfd).
+
+	* config/tc-i386.c (md_apply_fix): Refine test to handle PIC.
+
+	* config/tc-i386.h (GLOBAL_OFFSET_TABLE_NAME): #define
+	* config/tc-i386.c (md_undefined_symbol): Respect it for optimization.
+
+	* config/tc-i386.h (flag_16bit_code): delete extern.
+
+	* config/te-interix.h: New file.
+
+        * configure.in (interix): Add.
+
+	* expr.c (integer_constant): calculation was off by one.
+
+	* expr.h (expr): use enum arg in prototype.
+
+	* symbols.c (exit_dont_set_value): eliminate dup. message text.
+	* write.c (write_contents): eliminate dup. message text.
+
+	* write.c (dump_section_relocs): avoid coredump if section unnamed.
+
+	* write.c (adjust_reloc_syms): New DEBUG, print result of adjust.
+
+	* write.c (fixup_segment): handle section symbols specially (see bfd).
+
+
+
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files gas.nil/config/te-interix.h gas/config/te-interix.h
+--- gas.nil/config/te-interix.h	Wed Dec 31 17:00:00 1969
++++ gas/config/te-interix.h	Wed Jul  7 15:17:24 1999
+@@ -0,0 +1,14 @@
++#define TE_PE_DYN /* PE with dynamic linking (UNIX shared lib) support */
++#define TE_PE
++#define LEX_AT 1 /* can have @'s inside labels */
++#define LEX_QM 3 /* can have ?'s in or begin labels */
++
++/* The PE format supports long section names.  */
++#define COFF_LONG_SECTION_NAMES
++
++/* Both architectures use these */
++#ifndef LOCAL_LABELS_FB
++#define LOCAL_LABELS_FB 1
++#endif
++
++#include "obj-format.h"
+diff -drupP --exclude-from=//M/donn/bin/exclude.files gas.nil/configure.in gas/configure.in
+--- gas.nil/configure.in	Wed Jul  7 15:16:58 1999
++++ gas/configure.in	Wed Jul  7 15:17:24 1999
+@@ -201,6 +201,7 @@ changequote([,])dnl
+       i386-*-pe)            fmt=coff em=pe ;;
+       i386-*-cygwin*)       fmt=coff em=pe bfd_gas=yes ;;
+       i386-*-mingw32*)      fmt=coff em=pe bfd_gas=yes ;;
++      i386-*-interix)       fmt=coff em=interix bfd_gas=yes ;;
+       i386-*-*nt*)          fmt=coff em=pe ;;
+       i960-*-bout)          fmt=bout ;;
+       i960-*-coff)          fmt=coff em=ic960 ;;

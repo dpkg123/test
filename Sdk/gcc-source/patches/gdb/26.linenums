@@ -1,0 +1,21 @@
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+
+	* coffread.c(enter_linenos): if no line numbers, just skip.
+
+Index: src/gdb/coffread.c
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/coffread.c,v
+retrieving revision 1.10
+diff -p -u -r1.10 coffread.c
+--- src/gdb/coffread.c	2001/12/24 01:31:02	1.10
++++ src/gdb/coffread.c	2001/12/24 01:35:28
+@@ -1538,6 +1538,9 @@ enter_linenos (long file_offset, registe
+ 
+   if (!linetab)
+     return;
++  /* no line numbers recorded in the function (-g1) */
++  if (file_offset == 0)
++    return;
+   if (file_offset < linetab_offset)
+     {
+       complain (&lineno_complaint, file_offset);

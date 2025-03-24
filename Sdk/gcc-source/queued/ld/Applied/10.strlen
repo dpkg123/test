@@ -1,0 +1,22 @@
+Submitted, applied.
+
+	* emultempl/pe.em (gld_${EMULATION_NAME}_after_open): allow for 
+	terminating null.
+
+diff -drupP --exclude-from=//M/donn/bin/exclude.files ld.19-25/emultempl/pe.em ld/emultempl/pe.em
+--- ld.19-24/emultempl/pe.em	Tue Sep 14 14:39:34 1999
++++ ld/emultempl/pe.em	Tue Sep 14 14:40:44 1999
+@@ -936,11 +936,11 @@ gld_${EMULATION_NAME}_after_open ()
+ 		else /* sentinel */
+ 		  seq = 'c';
+ 
+-		new_name = xmalloc (strlen (is->the_bfd->filename) + 2);
++		new_name = xmalloc (strlen (is->the_bfd->filename) + 3);
+ 		sprintf (new_name, "%s.%c", is->the_bfd->filename, seq);
+ 		is->the_bfd->filename = new_name;
+ 
+-		new_name = xmalloc (strlen(is->filename) + 2);
++		new_name = xmalloc (strlen(is->filename) + 3);
+ 		sprintf (new_name, "%s.%c", is->filename, seq);
+ 		is->filename = new_name;
+ 	      }

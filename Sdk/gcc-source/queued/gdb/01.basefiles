@@ -1,0 +1,104 @@
+ST0 patch should be cross-applied.
+
+This patch contains the "basic, obvious" stuff necessary to support
+gdb on interix, given a /proc filesystem interface for debugging.
+It alone is not sufficient, but the pieces herein do not affect
+anything else.  To compile successfully for interix, the /proc
+patch is needed as well.  (And then, it probably won't run very
+well.)
+
+Some compilers don't permit filenames before -D options; reorder.
+
+Some versions of make set -e when they arguably shouldn't; if grep
+exits 1 (no match) it will exit the make if init.c too early.
+
+Fri Dec  3 10:07:20 PST 1999  Donn Terry <donnte@microsoft.com>
+	* Makefile.in: Be more robust w.r.t. shell -e option.
+	* xm-interix.h: New file.
+	* configure.host: add interix case.
+	* configure.tgt: add interix case.
+
+Index: src/gdb/Makefile.in
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/Makefile.in,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 Makefile.in
+--- src/gdb/Makefile.in	2001/12/23 00:34:50	1.1.1.1
++++ src/gdb/Makefile.in	2001/12/23 20:34:46
+@@ -882,7 +882,7 @@ init.c: $(INIT_FILES)
+ 	    -e 's/\.o/.c/' \
+ 	    -e 's,signals\.c,signals/signals\.c,' \
+ 	    -e 's|\([^  ][^     ]*\)|$(srcdir)/\1|g' | \
+-	while read f; do grep '^_initialize_[a-z_0-9A-Z]* *(' $$f 2>/dev/null; done | \
++	while read f; do ( grep '^_initialize_[a-z_0-9A-Z]* *(' $$f 2>/dev/null || exit 0) ; done | \
+ 	sed -e 's/^.*://' -e 's/^\([a-z_0-9A-Z]*\).*/\1/' | \
+ 	( echo _initialize_gdbtypes ; grep -v '^_initialize_gdbtypes$$' ) > init.l-tmp
+ 	@echo '/* Do not modify this file.  */' >>init.c-tmp
+diff -p -u -r1.1.1.1 configure.host
+--- src/gdb/configure.host	2001/12/23 00:34:44	1.1.1.1
++++ src/gdb/configure.host	2001/12/23 20:34:46
+@@ -80,6 +80,7 @@ i[3456]86-*-unixware*)	gdb_host=i386v4 ;
+ i[3456]86-*-sysv*)	gdb_host=i386v ;;
+ i[3456]86-*-isc*)	gdb_host=i386v32 ;;
+ i[3456]86-*-cygwin*)	gdb_host=cygwin ;;
++i[3456]86-*-interix*)	gdb_host=interix ;;
+ 
+ ia64-*-aix*)		gdb_host=aix ;;
+ ia64-*-linux*)		gdb_host=linux ;;
+Index: src/gdb/configure.tgt
+===================================================================
+RCS file: /dev/fs/H/rupp/devel-local-repository/src/gdb/configure.tgt,v
+retrieving revision 1.1.1.1
+diff -p -u -r1.1.1.1 configure.tgt
+--- src/gdb/configure.tgt	2001/12/23 00:34:44	1.1.1.1
++++ src/gdb/configure.tgt	2001/12/23 20:34:46
+@@ -113,6 +113,7 @@ i[3456]86-*-sco3.2v4*)	gdb_target=i386sc
+ i[3456]86-*-sco3.2v5*)	gdb_target=i386sco5 ;;
+ i[3456]86-*-sco*)	gdb_target=i386v ;;
+ i[3456]86-*-sysv*)	gdb_target=i386v ;;
++i[3456]86-*-interix*)	gdb_target=interix ;;
+ i[3456]86-*-linux*)	gdb_target=linux
+ 		configdirs="${configdirs} gdbserver" ;;
+ i[3456]86-pc-linux-gnu)	gdb_target=linux
+Index: src/gdb/config/i386/xm-interix.h
+===================================================================
+RCS file: xm-interix.h
+diff -N xm-interix.h
+--- /dev/null	Sun Dec 23 12:45:17 2001
++++ src/gdb/config/i386/xm-interix.h	Sun Dec 23 12:34:46 2001
+@@ -0,0 +1,35 @@
++/* Host-dependent definitions for i386 running Interix.
++   Copyright 2002 Free Software Foundation, Inc.
++
++   This file is part of GDB.
++
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU General Public License as published by
++   the Free Software Foundation; either version 2 of the License, or
++   (at your option) any later version.
++
++   This program is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU General Public License for more details.
++
++   You should have received a copy of the GNU General Public License
++   along with this program; if not, write to the Free Software
++   Foundation, Inc., 59 Temple Place - Suite 330,
++   Boston, MA 02111-1307, USA.  */
++
++#ifndef XM_I386INTERIX_H
++#define XM_I386INTERIX_H
++
++/* FIXME: This file is only temporary, and the final intent is to get
++   rid of each macro defined here. This will be done later.  */
++
++/*  Used in coffread.c to adjust the symbol offsets.  */
++#define ADJUST_OBJFILE_OFFSETS(objfile, type) \
++    pei_adjust_objfile_offsets(objfile, type)
++
++extern CORE_ADDR bfd_getImageBase(bfd *abfd);
++#define NONZERO_LINK_BASE(abfd) bfd_getImageBase(abfd)
++
++#endif /* XM_I386INTERIX_H */
++

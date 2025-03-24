@@ -1,0 +1,16 @@
+BFD_RELOC_RVA needs to be handled in more places; specifically,
+RVAs should not be adjusted.
+
+	* config/tc-i386.c (tc_i386_fix_adjustable): add RVA to test.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -954,6 +956,7 @@ tc_i386_fix_adjustable(fixP)
+   if (fixP->fx_r_type == BFD_RELOC_386_GOTOFF
+       || fixP->fx_r_type == BFD_RELOC_386_PLT32
+       || fixP->fx_r_type == BFD_RELOC_386_GOT32
++      || fixP->fx_r_type == BFD_RELOC_RVA
+       || fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
+       || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
+     return 0;

@@ -1,0 +1,572 @@
+The following group of patches, when applied along with the associated
+testsuite patches, and corresponding bfd patch group, cleans up the PE/i386 
+interface so it passes all expected regressions(*), and is more compatible 
+with MSVC-generated .obj files.
+
+(*) - no attempt was made to make S-records work
+    - my compiler doesn't yet have -fdata-sections, so that's as yet 
+      untested by me.
+    - see the 04.constructor patch for discussion of cdtest.
+
+Notes:
+
+(There are a few alpha-specific minor changes that are just easier to deal
+with now; there will be a set of alpha patches to follow this up.)
+
+It's possible for lex or yacc to be installed in such a way that
+the current search doesn't find it, but configure does.  Continue
+to honor the preference for the locay bison or flex, but in their
+absence use what configure found.  (Just using configure's result
+would be fine with me; this is conservative.)
+
+The current setting of RUNTESTFLAGS to explicitly null overrides 
+input from the command line, making it impossible to run a single
+test from "make check RUNTESTFLAGS=<stuff>" (as can be done many
+other places in the whole gcc package.)
+
+The Alpha on NT doesn't use the leading underscore naming convention;
+allow that to be tuned.
+
+These patches are for a POSIX subsystem application; allow tuning of
+the subsystem and entry point in the .sh setup scripts.
+
+When using -r, the linker put the special symbols that belong only
+in an executable image.  Skip doing that, so they don't end up as
+conflicts at final link time.
+
+Some compilers don't like really not strings; make stringify make smaller
+chunks.  If the last line of the file comes out even with a break, it
+will be misedited; bandaid that.
+
+bfd defines a new symbol class "section".  This needs to be honored;
+in most cases it's the same as defined, but not in bfd.
+
+MSVC does string pooling by hashing in a way that can cause conflicting
+sections upon occasion (when the same string ends up in both .data
+and .rdata); handle that.  Detailed comments in the code.
+
+Reorder .bss and .reloc for better layout of the executable (matches
+MSVC more).
+
+The testsuite tries to pick itens out of the output of configure.host.
+These are in "make" syntax (w.r.t quoting of $'s anyway).  If the
+resulting value contains a substitution or environment variable, it
+should be handled as intended.  Because the output is in make syntax,
+$$ becomes the PID of the current process rather than a single $.
+Use sed to clean this up.
+
+Handle the possibility of date-stamped executables for the binary
+compare of executables in the ld bootstrap tests.
+
+When testing nm, extract the value of ImageBase (if present) and use
+it to correct the printed values to the expected ones.
+
+ChangeLog
+
+	* Makefile.am (LEX, YACC): Use what configure found as the last resort.
+	* Makefile.am (RUNTESTFLAGS): Remove null value.
+	* Makefile.am (interix): Add
+
+	* configure.host (interix): Add
+
+	* configure.tgt (interix): Add
+
+	* emulparams/i386pe.sh (ENTRY): Make settable.
+	* emultempl/pe.em (definfo): Use.
+	* scripttempl/pe.sc:  Use
+
+	* emulparams/i386pe.sh (SUBSYSTEM): Make settable.
+	* emultempl/pe.em (definfo): Use.
+
+	* emulparams/i386pe.sh (INITIAL_SYMBOL_CHAR): Define
+	* emultempl/pe.em (set_pe_subsystem): use.
+
+	* emulparams/i386pei.sh: New file.
+
+	* emultempl/pe.em: rm (belt and suspenders).
+
+	* emultempl/pe.em: <string.h>
+
+	* emultempl/pe.em: Allow section alignment override from .sh file.
+
+	* emultempl/pe.em: Allow executable name override from .sh file.
+
+	* emultempl/pe.em (gld_${EMULATION_NAME}_set_symbols): No PEI
+	symbols in relocateable output.
+
+	* emultempl/stringify.set: make smaller chunks.
+
+	* ldcref.c (output_one_cref): Handle bfd_link_hash_section.
+	* ldcref.c (check_nocrossref): Ditto.
+	* ldlang.c (print_one_symbol): Ditto.
+	* ldlang.c (hash_entry_pointer): Ditto.
+	* ldmain.c (add_archive_element): Ditto.
+	* ldmain.c (multiple_common): Ditto.
+	* mpw-eppcmac.c (gldppcmacos_after_open): Ditto
+
+	* ldlang.c (exp_init_os): Improve COMDAT handling.
+	* ldlang.c (section_already_linked): Ditto.
+
+	* ldmain.c (multiple_definition): Handle possible name conflict.
+
+	* lexsup.c (ld_options): Clarify messages.
+
+	* lexsup.c (parse_args): Respond to -? usefully.
+
+	* lexsup.c (parse_args): Allow multiple bases for OPTION_SPLIT_BY_RELOC
+
+	* scripttempl/pe.sc (.bss, .reloc): Reorder 
+
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/Makefile.am //D/home/donn.intel/be.build/ld/Makefile.am
+--- //Q/Gnusrc/cygwin.0414/ld/Makefile.am	Wed Apr 14 02:24:48 1999
++++ //D/home/donn.intel/be.build/ld/Makefile.am	Wed Apr 14 17:59:24 1999
+@@ -9,9 +9,9 @@ SUBDIRS = po
+ 
+ tooldir = $(exec_prefix)/$(target_alias)
+ 
+-YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo bison -y ; fi`
++YACC = `if [ -f ../bison/bison ] ; then echo ../bison/bison -y -L$(srcdir)/../bison/ ; else echo @YACC@ ; fi`
+ YFLAGS = -d
+-LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo flex ; fi`
++LEX = `if [ -f ../flex/flex ] ; then echo ../flex/flex ; else echo @LEX@ ; fi`
+ 
+ # We put the scripts in the directory $(scriptdir)/ldscripts.
+ # We can't put the scripts in $(datadir) because the SEARCH_DIR
+@@ -52,8 +52,6 @@ RUNTEST = `if [ -f $${srcroot}/../dejagn
+ 	then echo $${srcroot}/../dejagnu/runtest ; \
+ 	else echo runtest ; fi`
+ 
+-RUNTESTFLAGS =
+-
+ CC_FOR_TARGET = ` \
+   if [ -f $$r/../gcc/xgcc ] ; then \
+     if [ -f $$r/../newlib/Makefile ] ; then \
+@@ -457,6 +455,9 @@ ei386nw.c:	$(srcdir)/emulparams/i386nw.s
+ ei386pe.c: $(srcdir)/emulparams/i386pe.sh \
+   $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} i386pe "$(tdir_i386pe)"
++ei386pe_posix.c: $(srcdir)/emulparams/i386pe_posix.sh \
++  $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/pe.sc ${GEN_DEPENDS}
++	${GENSCRIPTS} 'i386pe_posix' "$(tdir_i386pe_posix)"
+ elnk960.c: $(srcdir)/emulparams/lnk960.sh \
+   $(srcdir)/emultempl/lnk960.em $(srcdir)/scripttempl/i960.sc ${GEN_DEPENDS}
+ 	${GENSCRIPTS} lnk960 "$(tdir_lnk960)"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/configure.host //D/home/donn.intel/be.build/ld/configure.host
+--- //Q/Gnusrc/cygwin.0414/ld/configure.host	Wed Apr 14 02:15:16 1999
++++ //D/home/donn.intel/be.build/ld/configure.host	Wed Apr 14 17:59:24 1999
+@@ -100,6 +100,12 @@ i[3456]86-*-lynxos*)
+   HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -lc -lm /lib/initn.o'
+   ;;
+ 
++i[3456]86-pc-interix)
++  HOSTING_CRT0='$$INTERIX_ROOT/usr/lib/crt0.o'
++  NATIVE_LIB_DIRS='$$INTERIX_ROOT/usr/lib/'
++  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else gcc -print-libgcc-file-name; fi` -L $$X/local_bin -L $$INTERIX_ROOT/usr/lib -lc -lcpsx -lc -lcpsx $$INTERIX_ROOT/usr/lib/psxdll.a $$INTERIX_ROOT/usr/lib/psxdll2.a'
++  ;;
++
+ mips*-dec-bsd*)
+   HOSTING_CRT0=/usr/lib/crt0.o
+   ;;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/configure.tgt //D/home/donn.intel/be.build/ld/configure.tgt
+--- //Q/Gnusrc/cygwin.0414/ld/configure.tgt	Wed Apr 14 02:24:51 1999
++++ //D/home/donn.intel/be.build/ld/configure.tgt	Wed Apr 14 18:00:47 1999
+@@ -105,6 +105,8 @@ i[3456]86-*-msdos*)	targ_emul=i386msdos;
+ i[3456]86-*-moss*)	targ_emul=i386moss; targ_extra_emuls=i386msdos ;;
+ i[3456]86-*-winnt*)	targ_emul=i386pe ;
+ 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
++i[3456]86-*-interix)	targ_emul=i386pe_posix;
++ 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
+ i[3456]86-*-pe)		targ_emul=i386pe ;
+ 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
+ i[3456]86-*-cygwin*)	targ_emul=i386pe ;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/emulparams/i386pe.sh //D/home/donn.intel/be.build/ld/emulparams/i386pe.sh
+--- //Q/Gnusrc/cygwin.0414/ld/emulparams/i386pe.sh	Wed Apr 14 02:15:34 1999
++++ //D/home/donn.intel/be.build/ld/emulparams/i386pe.sh	Wed Apr 14 17:59:24 1999
+@@ -3,3 +3,6 @@ SCRIPT_NAME=pe
+ OUTPUT_FORMAT="pei-i386"
+ RELOCATEABLE_OUTPUT_FORMAT="pe-i386"
+ TEMPLATE_NAME=pe
++ENTRY="___mainCRTStartup"
++SUBSYSTEM=3
++INITIAL_SYMBOL_CHAR=\"_\"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/emulparams/i386pe_posix.sh //D/home/donn.intel/be.build/ld/emulparams/i386pe_posix.sh
+--- //Q/Gnusrc/cygwin.0414/ld/emulparams/i386pe_posix.sh	Wed Dec 31 17:00:00 1969
++++ //D/home/donn.intel/be.build/ld/emulparams/i386pe_posix.sh	Wed Apr 14 17:59:24 1999
+@@ -0,0 +1,9 @@
++ARCH=i386
++SCRIPT_NAME=pe
++OUTPUT_FORMAT="pei-i386"
++RELOCATEABLE_OUTPUT_FORMAT="pe-i386"
++TEMPLATE_NAME=pe
++ENTRY="___PosixProcessStartup"
++SUBSYSTEM=7
++EXECUTABLE_NAME=a.out
++INITIAL_SYMBOL_CHAR=\"_\"
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/emultempl/pe.em //D/home/donn.intel/be.build/ld/emultempl/pe.em
+--- //Q/Gnusrc/cygwin.0414/ld/emultempl/pe.em	Wed Apr 14 02:15:39 1999
++++ //D/home/donn.intel/be.build/ld/emultempl/pe.em	Wed Apr 14 17:59:25 1999
+@@ -1,5 +1,6 @@
+ # This shell script emits a C file. -*- C -*-
+ # It does some substitutions.
++rm -f e${EMULATION_NAME}.c
+ cat >e${EMULATION_NAME}.c <<EOF
+ /* This file is part of GLD, the Gnu Linker.
+    Copyright 1995, 96, 97, 1998 Free Software Foundation, Inc.
+@@ -43,9 +44,15 @@ Foundation, Inc., 59 Temple Place - Suit
+ #include "coff/internal.h"
+ #include "../bfd/libcoff.h"
+ #include "deffile.h"
++#include <sysdep.h>
+ 
+ #define TARGET_IS_${EMULATION_NAME}
+ 
++#if PE_DEF_SECTION_ALIGNMENT != ${OVERRIDE_SECTION_ALIGNMENT:-PE_DEF_SECTION_ALIGNMENT}
++#undef PE_DEF_SECTION_ALIGNMENT
++#define PE_DEF_SECTION_ALIGNMENT ${OVERRIDE_SECTION_ALIGNMENT}
++#endif
++
+ static void gld_${EMULATION_NAME}_set_symbols PARAMS ((void));
+ static void gld_${EMULATION_NAME}_after_open PARAMS ((void));
+ static void gld_${EMULATION_NAME}_before_parse PARAMS ((void));
+@@ -76,7 +83,7 @@ extern const char *output_filename;
+ static void
+ gld_${EMULATION_NAME}_before_parse()
+ {
+-  output_filename = "a.exe";
++  output_filename = "${EXECUTABLE_NAME:-a.exe}";
+   ldfile_output_architecture = bfd_arch_${ARCH};
+ #ifdef TARGET_IS_i386pe
+   config.has_shared = 1;
+@@ -174,7 +181,7 @@ static definfo init[] =
+   D(MinorImageVersion,"__minor_image_version__", 0),
+   D(MajorSubsystemVersion,"__major_subsystem_version__", 4),
+   D(MinorSubsystemVersion,"__minor_subsystem_version__", 0),
+-  D(Subsystem,"__subsystem__", 3),
++  D(Subsystem,"__subsystem__", ${SUBSYSTEM}),
+   D(SizeOfStackReserve,"__size_of_stack_reserve__", 0x2000000),
+   D(SizeOfStackCommit,"__size_of_stack_commit__", 0x1000),
+   D(SizeOfHeapReserve,"__size_of_heap_reserve__", 0x100000),
+@@ -248,14 +255,14 @@ set_pe_subsystem ()
+     }
+   v[] =
+     {
+-      { "native", 1, "_NtProcessStartup" },
+-      { "windows", 2, "_WinMainCRTStartup" },
+-      { "console", 3, "_mainCRTStartup" },
++      { "native", 1, ${INITIAL_SYMBOL_CHAR} "NtProcessStartup" },
++      { "windows", 2, ${INITIAL_SYMBOL_CHAR} "WinMainCRTStartup" },
++      { "console", 3, ${INITIAL_SYMBOL_CHAR} "mainCRTStartup" },
+ #if 0
+       /* The Microsoft linker does not recognize this.  */
+       { "os2", 5, "" },
+ #endif
+-      { "posix", 7, "___PosixProcessStartup"},
++      { "posix", 7, ${INITIAL_SYMBOL_CHAR} "__PosixProcessStartup"},
+       { 0, 0, 0 }
+     };
+ 
+@@ -474,7 +481,9 @@ gld_${EMULATION_NAME}_set_symbols ()
+     {
+       long val = init[j].value;
+       lang_assignment_statement_type *rv;
+-      rv = lang_add_assignment (exp_assop ('=' ,init[j].symbol, exp_intop (val)));
++      /* don't polute the .o's namespace with this junk! */
++      if (!link_info.relocateable)
++          lang_add_assignment (exp_assop ('=',init[j].symbol, exp_intop (val)));
+       if (init[j].size == sizeof(short))
+ 	*(short *)init[j].ptr = val;
+       else if (init[j].size == sizeof(int))
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/emultempl/stringify.sed //D/home/donn.intel/be.build/ld/emultempl/stringify.sed
+--- //Q/Gnusrc/cygwin.0414/ld/emultempl/stringify.sed	Wed Apr 14 02:15:39 1999
++++ //D/home/donn.intel/be.build/ld/emultempl/stringify.sed	Wed Apr 14 17:59:25 1999
+@@ -1,4 +1,13 @@
+ s/["\\]/\\&/g
+ s/$/\\n\\/
+ 1 s/^/"/
++25s/\\$/"/
++26s/^/"/
++50s/\\$/"/
++51s/^/"/
++75s/\\$/"/
++76s/^/"/
++100s/\\$/"/
++101s/^/"/
+ $ s/$/n"/
++$ s/\\n"n"$/\\n"/
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/ldcref.c //D/home/donn.intel/be.build/ld/ldcref.c
+--- //Q/Gnusrc/cygwin.0414/ld/ldcref.c	Wed Apr 14 02:15:17 1999
++++ //D/home/donn.intel/be.build/ld/ldcref.c	Wed Apr 14 17:59:25 1999
+@@ -287,7 +287,8 @@ output_one_cref (fp, h)
+     {
+       /* If this symbol is defined in a dynamic object but never
+ 	 referenced by a normal object, then don't print it.  */
+-      if (hl->type == bfd_link_hash_defined)
++      if (hl->type == bfd_link_hash_defined  
++       || hl->type == bfd_link_hash_section)
+ 	{
+ 	  if (hl->u.def.section->output_section == NULL)
+ 	    return;
+@@ -372,9 +373,11 @@ check_nocrossref (h, ignore)
+     }
+ 
+   if (hl->type != bfd_link_hash_defined
++      && hl->type != bfd_link_hash_section
+       && hl->type != bfd_link_hash_defweak)
+     return true;
+ 
++  
+   defsec = hl->u.def.section->output_section;
+   if (defsec == NULL)
+     return true;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/ldlang.c //D/home/donn.intel/be.build/ld/ldlang.c
+--- //Q/Gnusrc/cygwin.0414/ld/ldlang.c	Wed Apr 14 02:15:18 1999
++++ //D/home/donn.intel/be.build/ld/ldlang.c	Wed Apr 14 17:59:25 1999
+@@ -724,12 +724,13 @@ exp_init_os (exp)
+     }
+ }
+ 
+-/* Sections marked with the SEC_LINK_ONCE flag should only be linked
++/* Sections marked with the SEC_LINK_ONCE are candidates to only be linked
+    once into the output.  This routine checks each sections, and
+-   arranges to discard it if a section of the same name has already
+-   been linked.  This code assumes that all relevant sections have the
+-   SEC_LINK_ONCE flag set; that is, it does not depend solely upon the
+-   section name.  This is called via bfd_map_over_sections.  */
++   arranges to discard it if a section of the same name for the same
++   COMDAT symbol has already been linked.  This code assumes that all 
++   relevant sections have the SEC_LINK_ONCE flag set; that is, it does
++   not depend solely upon the section name.
++   This is called via bfd_map_over_sections.  */
+ 
+ /*ARGSUSED*/
+ static void
+@@ -767,7 +768,9 @@ section_already_linked (abfd, sec, data)
+ 
+   for (l = sec_link_once_list; l != NULL; l = l->next)
+     {
+-      if (strcmp (name, bfd_get_section_name (l->sec->owner, l->sec)) == 0)
++      if (strcmp (name, bfd_get_section_name (l->sec->owner, l->sec)) == 0 &&
++	  sec->comdat_symbol != -1 && l->sec->comdat_symbol != -1 &&
++	  strcmp (sec->comdat_info.name, l->sec->comdat_info.name) == 0)
+ 	{
+ 	  /* The section has already been linked.  See if we should
+              issue a warning.  */
+@@ -780,8 +783,8 @@ section_already_linked (abfd, sec, data)
+ 	      break;
+ 
+ 	    case SEC_LINK_DUPLICATES_ONE_ONLY:
+-	      einfo (_("%P: %B: warning: ignoring duplicate section `%s'\n"),
+-		     abfd, name);
++ 	      einfo (_("%P: %B: warning: ignoring duplicate `%s' section symbol `%s'\n"),
++ 		     abfd, name, sec->comdat_info.name);
+ 	      break;
+ 
+ 	    case SEC_LINK_DUPLICATES_SAME_CONTENTS:
+@@ -800,8 +803,14 @@ section_already_linked (abfd, sec, data)
+ 	    }
+ 
+ 	  /* Set the output_section field so that wild_doit does not
+-	     create a lang_input_section structure for this section.  */
++	     create a lang_input_section structure for this section.
++	     Since there might be a symbol in the section, we must retain
++	     a REAL section pointer, but output_section must be 
++	     abs_section for other reasons.  However, we're done with the
++	     name, so overload it here. */
+ 	  sec->output_section = bfd_abs_section_ptr;
++	  free(sec->comdat_info.name);
++	  sec->comdat_info.sec = l->sec;
+ 
+ 	  return;
+ 	}
+@@ -1821,6 +1830,7 @@ print_one_symbol (hash_entry, ptr)
+   asection *sec = (asection *) ptr;
+ 
+   if ((hash_entry->type == bfd_link_hash_defined
++       || hash_entry->type == bfd_link_hash_section
+        || hash_entry->type == bfd_link_hash_defweak)
+       && sec == hash_entry->u.def.section)
+     {
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/ldmain.c //D/home/donn.intel/be.build/ld/ldmain.c
+--- //Q/Gnusrc/cygwin.0414/ld/ldmain.c	Wed Apr 14 02:15:18 1999
++++ //D/home/donn.intel/be.build/ld/ldmain.c	Wed Apr 14 17:59:25 1999
+@@ -747,6 +747,7 @@ add_archive_element (info, abfd, name)
+ 
+ 	    case bfd_link_hash_defined:
+ 	    case bfd_link_hash_defweak:
++	    case bfd_link_hash_section:
+ 	      from = h->u.def.section->owner;
+ 	      break;
+ 
+@@ -838,6 +839,39 @@ multiple_definition (info, name, obfd, o
+ 	  && bfd_is_abs_section (nsec->output_section)))
+     return true;
+ 
++#if defined(__INTERIX) || defined(_WIN32)
++  /* Uglyness alert:  MSVC does constant (string) pooling by hashing the
++     contents into a internal symbol, and relying on the linker to match
++     the names.   However, if one is a literal and the other an initializer
++     for data, one will end up in the .data section, the other in .rdata,
++     as far as the compiler is concerned.  LINK.EXE does the name match, but 
++     combines the two different sections into .data (at least in observed
++     cases) which is technically wrong (altho instances of actual failures
++     would be very rare).
++
++     As long as there are no EXTERN references to the symbols, which there
++     shouldn't be, we can treat the .data and .rdata instances as separate
++     symbols.  We'll gripe about duplicates except when we have a COMDAT
++     of the same name but different sections, AND it's one of these synthetic
++     names.  Those will be "matched up" via the COMDAT code elsewhere. */
++
++  if (osec->comdat_symbol != -1 && nsec->comdat_symbol != -1 &&
++      strcmp (osec->comdat_info.name, nsec->comdat_info.name) == 0 &&
++      strcmp (osec->comdat_info.name, name) == 0 &&
++      strncmp(name, "??_",3 )==0)
++  {
++      /*
++      char *oldname = bfd_get_section_name (obfd, osec);
++      char *newname = bfd_get_section_name (nbfd, nsec);
++      einfo (_("%P: %B:  \
++warning: symbol `%s' appears in both `%s' and `%s' sections.  \
++Treated as distinct symbols.\n"),
++	     nbfd, name, oldname, newname);
++      */
++      return true;
++  }
++#endif
++
+   einfo (_("%X%C: multiple definition of `%T'\n"),
+ 	 nbfd, nsec, nval, name);
+   if (obfd != (bfd *) NULL)
+@@ -867,6 +901,7 @@ multiple_common (info, name, obfd, otype
+ 
+   if (ntype == bfd_link_hash_defined
+       || ntype == bfd_link_hash_defweak
++      || ntype == bfd_link_hash_section
+       || ntype == bfd_link_hash_indirect)
+     {
+       ASSERT (otype == bfd_link_hash_common);
+@@ -877,6 +912,7 @@ multiple_common (info, name, obfd, otype
+     }
+   else if (otype == bfd_link_hash_defined
+ 	   || otype == bfd_link_hash_defweak
++	   || otype == bfd_link_hash_section
+ 	   || otype == bfd_link_hash_indirect)
+     {
+       ASSERT (ntype == bfd_link_hash_common);
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/lexsup.c //D/home/donn.intel/be.build/ld/lexsup.c
+--- //Q/Gnusrc/cygwin.0414/ld/lexsup.c	Wed Apr 14 02:15:19 1999
++++ //D/home/donn.intel/be.build/ld/lexsup.c	Wed Apr 14 17:59:25 1999
+@@ -328,11 +328,11 @@ static const struct ld_option ld_options
+   { {"traditional-format", no_argument, NULL, OPTION_TRADITIONAL_FORMAT},
+       '\0', NULL, N_("Use same format as native linker"), TWO_DASHES },
+   { {"Tbss", required_argument, NULL, OPTION_TBSS},
+-      '\0', N_("ADDRESS"), N_("Set address of .bss section"), ONE_DASH },
++      '\0', N_("ADDRESS"), N_("Set [Image Rel] address of .bss section"), ONE_DASH },
+   { {"Tdata", required_argument, NULL, OPTION_TDATA},
+-      '\0', N_("ADDRESS"), N_("Set address of .data section"), ONE_DASH },
++      '\0', N_("ADDRESS"), N_("Set [Image Rel] address of .data section"), ONE_DASH },
+   { {"Ttext", required_argument, NULL, OPTION_TTEXT},
+-      '\0', N_("ADDRESS"), N_("Set address of .text section"), ONE_DASH },
++      '\0', N_("ADDRESS"), N_("Set [Image Rel] address of .text section"), ONE_DASH },
+   { {"verbose", no_argument, NULL, OPTION_VERBOSE},
+       '\0', NULL, N_("Output lots of information during link"), TWO_DASHES },
+   { {"dll-verbose", no_argument, NULL, OPTION_VERBOSE}, /* Linux.  */
+@@ -635,6 +635,10 @@ parse_args (argc, argv)
+ 	case OPTION_GC_SECTIONS:
+ 	  command_line.gc_sections = true;
+ 	  break;
++	case '?':
++	  einfo(_("For detailed help, type %s -help\n"), argv[0]);
++	  xexit(0);
++	  break;
+ 	case OPTION_HELP:
+ 	  help ();
+ 	  xexit (0);
+@@ -939,7 +943,7 @@ the GNU General Public License.  This pr
+              ignored.  Someday we should handle it correctly.  FIXME.  */
+ 	  break;
+ 	case OPTION_SPLIT_BY_RELOC:
+-	  config.split_by_reloc = atoi (optarg);
++	  config.split_by_reloc = strtoul (optarg, NULL, 0);
+ 	  break; 
+ 	case OPTION_SPLIT_BY_FILE:
+ 	  config.split_by_file = true;
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/mpw-eppcmac.c //D/home/donn.intel/be.build/ld/mpw-eppcmac.c
+--- //Q/Gnusrc/cygwin.0414/ld/mpw-eppcmac.c	Wed Apr 14 02:15:19 1999
++++ //D/home/donn.intel/be.build/ld/mpw-eppcmac.c	Wed Apr 14 17:59:25 1999
+@@ -464,6 +464,7 @@ gldppcmacos_after_open ()
+ 	 collect, and the sets may already have been built, so we do
+ 	 not do anything.  */
+       if (p->h->type == bfd_link_hash_defined
++          || p->h->type == bfd_link_hash_section 
+ 	  || p->h->type == bfd_link_hash_defweak)
+ 	continue;
+ 
+diff -urpPd --exclude-from=exclude.files //Q/Gnusrc/cygwin.0414/ld/scripttempl/pe.sc //D/home/donn.intel/be.build/ld/scripttempl/pe.sc
+--- //Q/Gnusrc/cygwin.0414/ld/scripttempl/pe.sc	Wed Apr 14 02:15:44 1999
++++ //D/home/donn.intel/be.build/ld/scripttempl/pe.sc	Wed Apr 14 18:03:52 1999
+@@ -41,11 +41,11 @@ ${RELOCATING-OUTPUT_FORMAT(${RELOCATEABL
+ 
+ ${LIB_SEARCH_DIRS}
+ 
+-ENTRY(_mainCRTStartup)
++ENTRY($ENTRY)
+ 
+ SECTIONS
+ {
+-  .text ${RELOCATING+ __image_base__ + __section_alignment__ } : 
++  .text ${RELOCATING+ __section_alignment__ } :
+   {
+     ${RELOCATING+ *(.init)}
+     *(.text)
+@@ -79,14 +79,6 @@ SECTIONS
+     ${RELOCATING+*(.data_cygwin_nocopy)}
+   }
+ 
+-  .bss ${RELOCATING+BLOCK(__section_alignment__)} :
+-  {
+-    ${RELOCATING+__bss_start__ = . ;}
+-    *(.bss)
+-    *(COMMON)
+-    ${RELOCATING+__bss_end__ = . ;}
+-  }
+-
+   .rdata ${RELOCATING+BLOCK(__section_alignment__)} :
+   {
+     *(.rdata)
+@@ -94,6 +86,14 @@ SECTIONS
+     *(.eh_frame)
+   }
+ 
++  .bss ${RELOCATING+ BLOCK(__section_alignment__) } :
++  {
++    ${RELOCATING+ __bss_start__ = . };
++    *(.bss)
++    *(COMMON)
++    ${RELOCATING+ __bss_end__ = . };
++  }
++
+   .edata ${RELOCATING+BLOCK(__section_alignment__)} :
+   {
+     *(.edata)
+@@ -126,15 +126,15 @@ SECTIONS
+     ${RELOCATING+ __end__ = .;}
+   }
+ 
+-  .reloc ${RELOCATING+BLOCK(__section_alignment__)} :
+-  { 					
+-    *(.reloc)
+-  }
+-
+   .rsrc ${RELOCATING+BLOCK(__section_alignment__)} :
+   { 					
+     *(.rsrc)
+     ${R_RSRC}
++  }
++
++  .reloc ${RELOCATING+BLOCK(__section_alignment__)} :
++  { 					
++    *(.reloc)
+   }
+ 
+   .stab ${RELOCATING+BLOCK(__section_alignment__)} ${RELOCATING+(NOLOAD)} :

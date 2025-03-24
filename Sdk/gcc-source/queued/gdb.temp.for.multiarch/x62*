@@ -1,0 +1,142 @@
+This set of patches addresses a bunch of things that should be fixed fairly
+soon in the real stuff, but which are needed for now.
+
+
+	tm-i386interix.h: generic_use_struct_convention appears to take
+	a boolean, but is sent a value of 2; convert nonzero to boolean.
+	Wrap functions as macros (replacing inline code) to get unwind
+	working correctly.
+
+	i386-tdep.c: use legacy_pc_in_sigtramp for Interix.
+
+	i386interix-nat.c: Use new function to find saved PC.
+	Define other new functions.  (These are NOT defined in the "right"
+	way, but "quick and dirty" until the multiarch changes go in, when
+	they need to be redone "in spirit".)
+
+
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files //C/home/donn.intel/gnu2.intel/../gnu2.intel.82.junk4/egcs.source/gdb/config/i386/tm-i386interix.h //C/home/donn.intel/gnu2.intel/egcs.source/gdb/config/i386/tm-i386interix.h
+--- //C/home/donn.intel/gnu2.intel/../gnu2.intel.82.junk4/egcs.source/gdb/config/i386/tm-i386interix.h	Wed Oct  9 20:17:34 2002
++++ //C/home/donn.intel/gnu2.intel/egcs.source/gdb/config/i386/tm-i386interix.h	Wed Oct 16 17:41:32 2002
+@@ -97,18 +97,14 @@ void interix_back_one_frame (int fromlea
+ 
+ #undef FRAME_CHAIN_VALID
+ #define FRAME_CHAIN_VALID(CHAIN, FRAME) \
+-  ((FRAME)->signal_handler_caller ||\
+-  ((CHAIN) != 0  \
+-  && !inside_entry_file (read_memory_integer ((FRAME)->frame + 4, 4))))
+-
++   i386_interix_frame_chain_valid(CHAIN, FRAME)
++
+ /* Assume that we've already unwound enough to have the caller's address
+    if we're dealing with a signal handler caller.  (And if that fails,
+    return 0.)  */
+ #undef FRAME_SAVED_PC
+ #define FRAME_SAVED_PC(FRAME) \
+-  (((FRAME)->signal_handler_caller) \
+-      ? ((FRAME)->next ? (FRAME)->next->pc : 0) \
+-      : (CORE_ADDR)read_memory_integer ((FRAME)->frame + 4, 4))
++   i386_interix_frame_saved_pc(FRAME)
+ 
+ #define I386_FLOATS_RETURN_IN_ST0
+ 
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files //C/home/donn.intel/gnu2.intel/../gnu2.intel.82.junk4/egcs.source/gdb/i386-tdep.c //C/home/donn.intel/gnu2.intel/egcs.source/gdb/i386-tdep.c
+--- //C/home/donn.intel/gnu2.intel/../gnu2.intel.82.junk4/egcs.source/gdb/i386-tdep.c	Wed Oct  9 20:17:25 2002
++++ //C/home/donn.intel/gnu2.intel/egcs.source/gdb/i386-tdep.c	Thu Oct 17 14:09:05 2002
+@@ -1478,6 +1478,7 @@ i386_nw_init_abi (struct gdbarch_info in
+ static struct gdbarch *
+ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
+ {
++CORE_ADDR i386_interix_frame_saved_pc (struct frame_info *); // new
+   struct gdbarch_tdep *tdep;
+   struct gdbarch *gdbarch;
+   enum gdb_osabi osabi = GDB_OSABI_UNKNOWN;
+@@ -1628,7 +1628,11 @@ i386_gdbarch_init (struct gdbarch_info i
+   set_gdbarch_frame_locals_address (gdbarch, default_frame_address);
+   set_gdbarch_saved_pc_after_call (gdbarch, i386_saved_pc_after_call);
+   set_gdbarch_frame_num_args (gdbarch, i386_frame_num_args);
++#ifndef __INTERIX // ... thus use "legacy" version, that works (for now), until multiarch
+   set_gdbarch_pc_in_sigtramp (gdbarch, i386_pc_in_sigtramp);
++#else
++  set_gdbarch_frame_saved_pc (gdbarch, i386_interix_frame_saved_pc);
++#endif
+ 
+   /* Wire in the MMX registers.  */
+   set_gdbarch_num_pseudo_regs (gdbarch, mmx_num_regs);
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files //C/home/donn.intel/gnu2.intel/../gnu2.intel.82.junk4/egcs.source/gdb/i386interix-nat.c //C/home/donn.intel/gnu2.intel/egcs.source/gdb/i386interix-nat.c
+--- //C/home/donn.intel/gnu2.intel/../gnu2.intel.82.junk4/egcs.source/gdb/i386interix-nat.c	Wed Oct  9 20:17:36 2002
++++ //C/home/donn.intel/gnu2.intel/egcs.source/gdb/i386interix-nat.c	Thu Oct 17 14:10:29 2002
+@@ -338,7 +338,7 @@ interix_back_one_frame (fromleaf, frame)
+ 
+   if (!frame->next->signal_handler_caller)
+     {
+-      frame->pc = (CORE_ADDR)read_memory_integer (frame->next->frame + 4, 4);
++      frame->pc = gdbarch_frame_saved_pc(current_gdbarch, frame->next);
+       return;
+     }
+ 
+@@ -401,7 +401,6 @@ interix_back_one_frame (fromleaf, frame)
+ 	 in a syscall mini-frame, if so, and the rules are different;
+ 	 reserved[1] contains 0 if running free, 1 if blocked on a system
+-	 call, and 2 if blocked on an exception message (e.g. a trap);
+-	 we don't expect to get here with a 2. */
++	 call, and 2 if blocked on an exception message (e.g. a trap); */
+       t = (long)read_memory_integer 
+ 	 (context + offsetof(mcontext_t, gregs.reserved[1]), 4);
+       if (t != 1)
+@@ -466,6 +466,54 @@ interix_back_one_frame (fromleaf, frame)
+   frame->pc = ra;
+ 
+   return;
++}
++
++#undef PC_IN_CALL_DUMMY
++/* All this gets redone when multiarch goes in, but limp by for now */
++int
++PC_IN_CALL_DUMMY (CORE_ADDR pc, CORE_ADDR sp,
++				 CORE_ADDR frame_address)
++{
++  return ((pc) >= CALL_DUMMY_ADDRESS ()
++	  && (pc) <= (CALL_DUMMY_ADDRESS () + DECR_PC_AFTER_BREAK));
++}
++
++
++CORE_ADDR
++i386_interix_frame_saved_pc (struct frame_info *fi)
++{
++  if (PC_IN_CALL_DUMMY (fi->pc, 0, 0))
++    return deprecated_read_register_dummy (fi->pc, fi->frame,
++					   PC_REGNUM);
++
++  /* equivalent to: if (i386_frameless_signal_p (fi)) */
++  if (fi->next && fi->next->signal_handler_caller
++	  && (frameless_look_for_prologue (fi)
++	      || fi->pc == get_pc_function_start (fi->pc)))
++    /* This takes the role of "sigtramp_saved_pc" */
++    return read_memory_integer (fi->frame - 12, 4);
++
++  /* Assume that we've already unwound enough to have the caller's address
++     if we're dealing with a signal handler caller.  If that isn't
++     the case, then we're probably not yet into the handler body;
++     return the current PC. */
++  if (fi->signal_handler_caller)
++    return fi->next ? fi->next->pc : fi->pc;
++  else
++    return read_memory_integer (fi->frame + 4, 4);
++}
++
++
++/* Could be identical to generic_file... */
++int
++i386_interix_frame_chain_valid (CORE_ADDR fp, struct frame_info *fi)
++{
++  if (PC_IN_CALL_DUMMY (FRAME_SAVED_PC (fi), fp, fp))
++    return 1;			/* don't prune CALL_DUMMY frames */
++  else				/* fall back to default algorithm (see frame.h) */
++    return (fp != 0
++	    && (INNER_THAN (fi->frame, fp) || fi->frame == fp)
++	    && !inside_entry_file (FRAME_SAVED_PC (fi)));
+ }
+ 
+ /* Figure out where the longjmp will land.

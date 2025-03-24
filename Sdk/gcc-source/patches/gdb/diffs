@@ -1,0 +1,39 @@
+--- frame.c.hold	Fri Nov  8 15:12:11 2002
++++ frame.c	Fri Nov  8 15:11:17 2002
+@@ -843,8 +843,26 @@ get_prev_frame (struct frame_info *next_
+    the default INIT_FRAME_PC does.  Some machines will call it from
+    INIT_PREV_FRAME (either at the beginning, the end, or in the middle).
+    Some machines won't use it.
+-   kingdon@cygnus.com, 13Apr93, 31Jan94, 14Dec94.  */
+-
++   kingdon@cygnus.com, 13Apr93, 31Jan94, 14Dec94.  
++
++
++   Actually, this problem CANNOT be solved, in general, with macros because
++   there are machines (Interix, e.g.) that require interleaved extraction of 
++   BOTH fp and pc, and which require sometimes fairly complex operations to
++   find the next pc.  It might make more sense to replace most of this section
++   of code with a SINGLE macro, which defaults to something like a copy of
++   the current code, but which might be replaced with something suitable
++   for those which need pc before fp, or a custom routine for the really
++   complex cases.  (The macro should compute all the parameters of the
++   next frame, including fp, pc, signal_handler_caller; it might want
++   to return the local NAME in case it needs the value before it's needed
++   here.  (In the short term, this can be achieved by putting all the load
++   on INIT_EXTRA_FRAME_INFO, and appropriately defining other macros; however,
++   the "appropriate" definition of some of those macros is "iffy" because
++   they are used in other places.
++
++   */
++
+   INIT_FRAME_PC_FIRST (fromleaf, prev);
+ 
+   if (INIT_EXTRA_FRAME_INFO_P ())
+@@ -864,6 +882,7 @@ get_prev_frame (struct frame_info *next_
+       if (prev->frame == next_frame->frame
+ 	  && prev->pc == next_frame->pc)
+ 	{
++	  warning("Stack Unwind is not progressing; quitting unwind\n");
+ 	  next_frame->prev = NULL;
+ 	  obstack_free (&frame_cache_obstack, prev);
+ 	  return NULL;

@@ -1,0 +1,105 @@
+This is the Interix-specific set of changes needed to turn on MS style bitfield
+packing.  I have included at the end the changes needed to i386.c that
+are required if the changes being made for Cygwin/Mingw have not yet
+been made.  (Otherwise the other changes here are useless.)
+
+Other than that, this is essentially an adaptation of Danny Smith's changes
+to apply to Interix.
+
+
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/i386-interix.h gcc/config/i386-interix.h 
+--- gcc.back/config/i386/i386-interix.h	Wed Apr  3 10:13:20 2002
++++ gcc/config/i386/i386-interix.h	Thu Apr  4 10:53:57 2002
+@@ -37,14 +37,29 @@ Boston, MA 02111-1307, USA.  */
+ #define HANDLE_SYSV_PRAGMA
+ #undef HANDLE_PRAGMA_WEAK  /* until the link format can handle it */
+ 
++/* Masks for subtarget switches used by other files.  */
++#define MASK_MS_BITFIELD_LAYOUT 0x10000000 /* Use native (MS) bitfield layout */
++
++/* Tell i386.c to put a target-specific specialization of
++   ms_bitfield_layout_p in struct gcc_target targetm.  */
++#define TARGET_USE_MS_BITFIELD_LAYOUT  \
++  (target_flags & MASK_MS_BITFIELD_LAYOUT)
++
++#undef  SUBTARGET_SWITCHES
++#define SUBTARGET_SWITCHES \
++{ "ms-bitfields", MASK_MS_BITFIELD_LAYOUT, N_("Use native (MS) bitfield layout") }, \
++{ "no-ms-bitfields", -MASK_MS_BITFIELD_LAYOUT, N_("use gcc default bitfield layout") },
++
++
+ /* By default, target has a 80387, uses IEEE compatible arithmetic,
+    and returns float values in the 387 and needs stack probes
+-   We also align doubles to 64-bits for MSVC default compatibility */
++   We also align doubles to 64-bits for MSVC default compatibility
++   We do bitfields MSVC-compatably by default, too. */
+ #undef TARGET_SUBTARGET_DEFAULT
+ #define TARGET_SUBTARGET_DEFAULT \
+    (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_STACK_PROBE | \
+-    MASK_ALIGN_DOUBLE)
+-
++    MASK_ALIGN_DOUBLE | MASK_MS_BITFIELD_LAYOUT)
++
+ #undef TARGET_CPU_DEFAULT
+ #define TARGET_CPU_DEFAULT 2 /* 486 */
+ 
+@@ -290,6 +305,11 @@ const_section ()							\
+    ld -r (specifically -rU).  */
+ #define CTOR_LISTS_DEFINED_EXTERNALLY 1
+ 
++/* If using MS bitfield layout, alignment is limited to 32 bits even if the
++   overall default is larger. */
++#define ADJUST_FIELD_ALIGN(RLI, FIELD, COMPUTED)			      \
++  (((TARGET_USE_MS_BITFIELD_LAYOUT) && (COMPUTED) > 32) ? 32 : (COMPUTED))
++
+ #define SET_ASM_OP	"\t.set\t"
+ /* Output a definition (implements alias) */
+ #define ASM_OUTPUT_DEF(FILE,LABEL1,LABEL2)				\
+@@ -307,8 +327,6 @@ while (0)
+ #define HOST_PTR_AS_INT unsigned long
+ 
+ #define PCC_BITFIELD_TYPE_MATTERS 1
+-#define PCC_BITFIELD_TYPE_TEST TYPE_NATIVE(rec)
+-#define GROUP_BITFIELDS_BY_ALIGN TYPE_NATIVE(rec)
+ 
+ /* The following two flags are usually "off" for i386, because some non-gnu
+    tools (for the i386) don't handle them.  However, we don't have that
+diff -drupP --exclude-from=/dev/fs/M/donn/diffs/exclude.files gcc.back/config/i386/i386.c gcc/config/i386/i386.c 
+--- gcc.save/config/i386/i386.c	Wed Apr  3 10:21:37 2002
++++ gcc/config/i386/i386.c	Wed Apr  3 10:24:48 2002
+@@ -725,7 +725,8 @@ static int ix86_comp_type_attributes PAR
+ const struct attribute_spec ix86_attribute_table[];
+ static tree ix86_handle_cdecl_attribute PARAMS ((tree *, tree, tree, int, bool *));
+ static tree ix86_handle_regparm_attribute PARAMS ((tree *, tree, tree, int, bool *));
+-
++static bool ix86_ms_bitfield_layout_p PARAMS ((tree));
++
+ #ifdef DO_GLOBAL_CTORS_BODY
+ static void ix86_svr3_asm_out_constructor PARAMS ((rtx, int));
+ #endif
+@@ -821,6 +822,9 @@ static enum x86_64_reg_class merge_class
+ #undef TARGET_SCHED_REORDER
+ #define TARGET_SCHED_REORDER ix86_sched_reorder
+ 
++#undef TARGET_MS_BITFIELD_LAYOUT_P
++#define TARGET_MS_BITFIELD_LAYOUT_P ix86_ms_bitfield_layout_p
++
+ struct gcc_target targetm = TARGET_INITIALIZER;
+ 
+ /* Sometimes certain combinations of command options do not make
+@@ -12487,4 +12491,15 @@ x86_order_regs_for_local_alloc ()
+       at all.  */
+    while (pos < FIRST_PSEUDO_REGISTER)
+      reg_alloc_order [pos++] = 0;
++}
++
++#ifndef TARGET_USE_MS_BITFIELD_LAYOUT
++#define TARGET_USE_MS_BITFIELD_LAYOUT 0
++#endif
++
++static bool
++ix86_ms_bitfield_layout_p (record_type)
++     tree record_type ATTRIBUTE_UNUSED;
++{
++  return TARGET_USE_MS_BITFIELD_LAYOUT;
+ }

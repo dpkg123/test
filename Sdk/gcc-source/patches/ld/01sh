@@ -1,0 +1,7 @@
+# Clean up files that will be generated later; this is
+# needed because of the MSVC search path rules.  These
+# will be regenerated in the bin directory, but MSVC will
+# find the copy in the source directory.
+
+rm -f ldgram.c ldgram.h
+rm -f deffilep.c deffilep.h

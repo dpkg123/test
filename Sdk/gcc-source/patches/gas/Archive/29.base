@@ -1,0 +1,156 @@
+See the comments about PUSHMI_PULLU in bfd; tc-i386.c is affected in 2
+places here.
+
+ChangeLog
+
+
+	* config/tc-i386.c (md_apply_fix3): add PUSHMI_PULLU (see bfd).
+	* config/tc-i386.c (tc_gen_reloc): add PUSHMI_PULLU (see bfd).
+
+	* config/tc-i386.c (md_apply_fix): Refine test to handle PIC.
+
+
+
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/tc-i386.c gas/config/tc-i386.c
+--- gas.orig/config/tc-i386.c	Fri Aug 20 14:00:41 1999
++++ gas/config/tc-i386.c	Fri Aug 20 14:01:23 1999
+@@ -3907,7 +3919,7 @@ md_apply_fix3 (fixP, valp, seg)
+   register char *p = fixP->fx_where + fixP->fx_frag->fr_literal;
+   valueT value = *valp;
+ 
+-#if defined (BFD_ASSEMBLER) && !defined (TE_Mach)
++#if defined (BFD_ASSEMBLER) && !defined (TE_Mach) /* [ */
+   if (fixP->fx_pcrel)
+     {
+       switch (fixP->fx_r_type)
+@@ -3927,9 +3939,12 @@ md_apply_fix3 (fixP, valp, seg)
+ 	}
+     }
+ 
++#ifndef PUSHMI_PULLU /* [ */
+   /*
+    * This is a hack.  There should be a better way to
+-   * handle this.
++   * handle this.  This covers for the fact that bfd_install_relocation
++   * will subtract the current location (for partial_inplace, PC relative
++   * relocations); see more below.
+    */
+   if ((fixP->fx_r_type == BFD_RELOC_32_PCREL
+        || fixP->fx_r_type == BFD_RELOC_16_PCREL
+@@ -3960,69 +3975,62 @@ md_apply_fix3 (fixP, valp, seg)
+ 	  value += fixP->fx_where + fixP->fx_frag->fr_address;
+ 	}
+ #endif
++
++#ifdef PUSHMI_PULLU
+ #if defined (OBJ_COFF) && defined (TE_PE)
+       /* For some reason, the PE format does not store a section
+ 	 address offset for a PC relative symbol.  */
+       if (S_GET_SEGMENT (fixP->fx_addsy) != seg)
+ 	value += md_pcrel_from (fixP);
+ #endif
++#endif
+     }
++#endif /* ] */
+ 
+   /* Fix a few things - the dynamic linker expects certain values here,
+      and we must not dissappoint it. */
++#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) || defined (TE_PE_DYN) /* [ */
++  if (fixP->fx_addsy
+ #if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+-  if (OUTPUT_FLAVOR == bfd_target_elf_flavour
+-      && fixP->fx_addsy)
++      && OUTPUT_FLAVOR == bfd_target_elf_flavour
++#endif
++  )
+     switch (fixP->fx_r_type) {
+     case BFD_RELOC_386_PLT32:
++#ifdef TE_PE_DYN
++      /* On PE, to get the right value in the .o file, we need to fake out 
++	 _bfd_install_relocaction, see above.  */
++      value += fixP->fx_where + fixP->fx_frag->fr_address;
++#else
+       /* Make the jump instruction point to the address of the operand.  At
+ 	 runtime we merely add the offset to the actual PLT entry. */
+       value = 0xfffffffc;
++#endif
+       break;
++
++#ifdef TE_PE_DYN
++    case BFD_RELOC_32:
++      /* On PE, to get the right value in the .o file, we need to fake out 
++	 _bfd_install_relocaction, see above.
++	 In this case, we're looking to see if this might be transformed
++	 into a GOTPC, later*/
++      if (GOT_symbol == NULL || fixP->fx_addsy != GOT_symbol)
++	  break;
++      /* drop thru */
++#endif
++
+     case BFD_RELOC_386_GOTPC:
+-/*
+- *   This is tough to explain.  We end up with this one if we have
+- * operands that look like "_GLOBAL_OFFSET_TABLE_+[.-.L284]".  The goal
+- * here is to obtain the absolute address of the GOT, and it is strongly
+- * preferable from a performance point of view to avoid using a runtime
+- * relocation for this.  The actual sequence of instructions often look
+- * something like:
+- *
+- *	call	.L66
+- * .L66:
+- *	popl	%ebx
+- *	addl	$_GLOBAL_OFFSET_TABLE_+[.-.L66],%ebx
+- *
+- *   The call and pop essentially return the absolute address of
+- * the label .L66 and store it in %ebx.  The linker itself will
+- * ultimately change the first operand of the addl so that %ebx points to
+- * the GOT, but to keep things simple, the .o file must have this operand
+- * set so that it generates not the absolute address of .L66, but the
+- * absolute address of itself.  This allows the linker itself simply
+- * treat a GOTPC relocation as asking for a pcrel offset to the GOT to be
+- * added in, and the addend of the relocation is stored in the operand
+- * field for the instruction itself.
+- *
+- *   Our job here is to fix the operand so that it would add the correct
+- * offset so that %ebx would point to itself.  The thing that is tricky is
+- * that .-.L66 will point to the beginning of the instruction, so we need
+- * to further modify the operand so that it will point to itself.
+- * There are other cases where you have something like:
+- *
+- *	.long	$_GLOBAL_OFFSET_TABLE_+[.-.L66]
+- *
+- * and here no correction would be required.  Internally in the assembler
+- * we treat operands of this form as not being pcrel since the '.' is
+- * explicitly mentioned, and I wonder whether it would simplify matters
+- * to do it this way.  Who knows.  In earlier versions of the PIC patches,
+- * the pcrel_adjust field was used to store the correction, but since the
+- * expression is not pcrel, I felt it would be confusing to do it this way.
+- */
+-      value -= 1;
++#ifdef TE_PE_DYN
++      /* On PE, to get the right value in the .o file, we need to fake out
++	 _bfd_install_relocaction, see above.  */
++      value += fixP->fx_where + fixP->fx_frag->fr_address;
++#endif
+       break;
++
+     case BFD_RELOC_386_GOT32:
+       value = 0; /* Fully resolved at runtime.  No addend.  */
+       break;
++
+     case BFD_RELOC_386_GOTOFF:
+       break;
+ 
+@@ -4034,9 +4042,9 @@ md_apply_fix3 (fixP, valp, seg)
+     default:
+       break;
+     }
+-#endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) */
++#endif /* defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF) ] */
+   *valp = value;
+-#endif /* defined (BFD_ASSEMBLER) && !defined (TE_Mach) */
++#endif /* defined (BFD_ASSEMBLER) && !defined (TE_Mach) ] */
+   md_number_to_chars (p, value, fixP->fx_size);
+ 
+   return 1;

@@ -1,0 +1,207 @@
+Patch to treat tabs as tabs except in first 5 columns.  Option parsing
+has not been done.
+
+
+diff lex.c.bak lex.c
+--- lex.c.bak	Thu Aug 19 15:32:58 1999
++++ lex.c	Tue Aug 24 10:41:42 1999
+@@ -1455,10 +1455,20 @@ ffelex_image_char_ (int c, ffewhereColum
+       break;
+ 
+     case '\t':
++      /* If <option> and we're parsing a character literal or hollerith,
++         treat tabs as ordinary characters. */
++	 // DT
++      if (column < 7)
++	{
++	  ffelex_card_image_[column++] = ' ';
++	  while ((column & 7) != 0)
++	    ffelex_card_image_[column++] = ' ';
++	}
++      else 
++	{
++          ffelex_card_image_[column++] = c;
++	}
+       ffelex_saw_tab_ = TRUE;
+-      ffelex_card_image_[column++] = ' ';
+-      while ((column & 7) != 0)
+-	ffelex_card_image_[column++] = ' ';
+       break;
+ 
+     case '\0':
+@@ -1583,10 +1593,11 @@ ffelex_include_ ()
+ static bool
+ ffelex_is_free_char_ctx_contin_ (ffewhereColumnNumber col)
+ {
+-  while (ffelex_card_image_[col] != '\0')
++  int c;
++  while ((c = ffelex_card_image_[col++]) != '\0')
+     {
+-      if (ffelex_card_image_[col++] != ' ')
+-	return FALSE;
++      if (c != ' ' && c != '\t') 
++         return FALSE;
+     }
+   return TRUE;
+ }
+@@ -1604,10 +1615,13 @@ ffelex_is_free_char_ctx_contin_ (ffewher
+ static bool
+ ffelex_is_free_nonc_ctx_contin_ (ffewhereColumnNumber col)
+ {
+-  while ((ffelex_card_image_[col] != '\0') && (ffelex_card_image_[col] != '!'))
++  int c;
++  while ((c = ffelex_card_image_[col++]) != '\0')
+     {
+-      if (ffelex_card_image_[col++] != ' ')
+-	return FALSE;
++      if (c == '!')
++	 break;
++      if (c != ' ' && c != '\t') 
++	 return FALSE;
+     }
+   return TRUE;
+ }
+@@ -2018,6 +2032,7 @@ ffelex_file_fixed (ffewhereFile wf, FILE
+ 	  goto stop_looking;	/* :::::::::::::::::::: */
+ 
+ 	case ' ':
++	case '\t':
+ 	  break;
+ 
+ 	case '0':
+@@ -2069,8 +2084,13 @@ ffelex_file_fixed (ffewhereFile wf, FILE
+ 
+   if (column == 5)		/* In which case we didn't see end of line in
+ 				   label field. */
+-    while ((c = ffelex_card_image_[column]) == ' ')
+-      ++column;
++    while (1) 
++      {
++        c = ffelex_card_image_[column];
++        if (c != ' ' && c != '\t')
++	    break;
++	column++;
++      }
+ 
+   /* Now we're trying to figure out whether this is a continuation line and
+      whether there's anything else of substance on the line.  The cases are
+@@ -2204,8 +2224,12 @@ ffelex_file_fixed (ffewhereFile wf, FILE
+ 
+      check_for_content:		/* :::::::::::::::::::: */
+ 
+-      while ((c = ffelex_card_image_[++column]) == ' ')
+-	;
++      do 
++	{
++	  c = ffelex_card_image_[++column];
++	}
++      while (c == ' ' || c == '\t');
++
+       if ((c == '\0')
+ 	  || (c == '!')
+ 	  || ((c == '/')
+@@ -2376,7 +2400,7 @@ ffelex_file_fixed (ffewhereFile wf, FILE
+ 	{
+ 	  ffelex_send_token_ ();
+ 	  assert (ffelex_raw_mode_ == 0);
+-	  while (c == ' ')
++	  while (c == ' ' || c == '\t')
+ 	    c = ffelex_card_image_[++column];
+ 	  if ((c == '\0')
+ 	      || (c == '!')
+@@ -2974,7 +2998,7 @@ ffelex_file_fixed (ffewhereFile wf, FILE
+   if (ffelex_raw_mode_ != 0)
+     goto parse_raw_character;	/* :::::::::::::::::::: */
+ 
+-  while (c == ' ')
++  while (c == ' ' || c == '\t')
+     c = ffelex_card_image_[++column];
+ 
+   if ((c == '\0')
+@@ -3132,8 +3156,14 @@ ffelex_file_free (ffewhereFile wf, FILE 
+      is exclamation point, newline, or EOF (line is therefore a comment) or
+      ampersand (line is therefore a continuation line). */
+ 
+-  while ((c = ffelex_card_image_[column]) == ' ')
+-    ++column;
++  do 
++    {
++      c = ffelex_card_image_[column];
++      if (c != ' ' && c != '\t')
++	  break;
++      column++;
++    }
++  while (1);
+ 
+   switch (c)
+     {
+@@ -3281,7 +3311,7 @@ ffelex_file_free (ffewhereFile wf, FILE 
+ 	{
+ 	  ffelex_send_token_ ();
+ 	  assert (ffelex_raw_mode_ == 0);
+-	  while (c == ' ')
++	  while (c == ' ' || c == '\t')
+ 	    c = ffelex_card_image_[++column];
+ 	  if ((c == '\0') || (c == '!'))
+ 	    {
+@@ -3311,11 +3341,11 @@ ffelex_file_free (ffewhereFile wf, FILE 
+   switch (ffelex_token_->type)
+     {
+     case FFELEX_typeNONE:
+-      if (c == ' ')
++      if (c == ' ' || c == '\t')
+ 	{			/* Otherwise
+ 				   finish-statement/continue-statement
+ 				   already checked. */
+-	  while (c == ' ')
++	  while (c == ' ' || c == '\t')
+ 	    c = ffelex_card_image_[++column];
+ 	  if ((c == '\0') || (c == '!'))
+ 	    {
+@@ -3977,6 +4007,7 @@ ffelex_init_1 ()
+   ffelex_first_char_['\f'] = FFELEX_typeCOMMENT;
+   ffelex_first_char_['\r'] = FFELEX_typeRAW;
+   ffelex_first_char_[' '] = FFELEX_typeRAW;
++  ffelex_first_char_['\t'] = FFELEX_typeRAW;
+   ffelex_first_char_['!'] = FFELEX_typeCOMMENT;
+   ffelex_first_char_['*'] = FFELEX_typeCOMMENT;
+   ffelex_first_char_['/'] = FFELEX_typeSLASH;
+diff target.c.bak target.c
+--- target.c.bak	Thu Aug 19 15:33:13 1999
++++ target.c	Tue Aug 24 10:50:10 1999
+@@ -555,7 +555,7 @@ ffetarget_convert_any_character1_ (char 
+       for (p = &l.text[0] + size, i = l.length - size;
+ 	   i > 0;
+ 	   ++p, --i)
+-	if (*p != ' ')
++	if (*p != ' ' && *p != '\t')
+ 	  return FFEBAD_TRUNCATING_CHARACTER;
+     }
+   else
+@@ -580,7 +580,7 @@ ffetarget_convert_any_hollerith_ (char *
+       for (p = &l.text[0] + size, i = l.length - size;
+ 	   i > 0;
+ 	   ++p, --i)
+-	if (*p != ' ')
++	if (*p != ' ' && *p != '\t')
+ 	  return FFEBAD_TRUNCATING_HOLLERITH;
+     }
+   else
+@@ -713,7 +713,7 @@ ffetarget_convert_character1_hollerith (
+ 	  for (p = &l.text[0] + size, i = l.length - size;
+ 	       i > 0;
+ 	       ++p, --i)
+-	    if (*p != ' ')
++	    if (*p != ' ' && *p != '\t')
+ 	      return FFEBAD_TRUNCATING_HOLLERITH;
+ 	}
+       else
+@@ -2475,7 +2475,7 @@ ffetarget_num_digits_ (ffelexToken token
+       i = 0;
+       for (c = ffelex_token_text (token); *c != '\0'; ++c)
+ 	{
+-	  if (*c != ' ')
++	  if (*c != ' ' && *c != '\t')
+ 	    ++i;
+ 	}
+       return i;

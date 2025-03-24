@@ -1,0 +1,3 @@
+q-patch tcl 01 1   # 
+#q-patch tcl 03 0   # split build patch needed for make check
+q-patch tcl 03 0   # make test hack

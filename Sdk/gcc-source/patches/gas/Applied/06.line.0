@@ -1,0 +1,21 @@
+Because a line-number of 0 is special, it cannot be allowed as input.
+(Crashes gas if it happens and isn't rejected.)
+
+	* config/obj-coff.c (add_lineno): Check for 0 lineno.
+
+diff -drupP --exclude-from=//M/donn/diffs/exclude.files gas.orig/config/obj-coff.c gas/config/obj-coff.c
+--- gas.orig/config/obj-coff.c	Fri Aug 20 14:00:39 1999
++++ gas/config/obj-coff.c	Fri Aug 20 14:18:35 1999
+@@ -420,6 +422,12 @@ add_lineno (frag, offset, num)
+     {
+       abort ();
+     }
++  if (num <= 0) 
++    {
++      /* allowing zero (because it's used as an end marker) wreaks
++	 havoc later */
++      as_fatal(_("Line numbers must be positive integers\n"));
++    }
+   new_line->next = line_nos;
+   new_line->frag = frag;
+   new_line->l.line_number = num;

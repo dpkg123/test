@@ -1,0 +1,25 @@
+The objective C tests were failing across the board because of a missing
+symbol.  Apparently objc wasn't ever fixed to follow the * convention in
+identifier names in this case, and "leading underscore" machines were
+failing.
+
+--- gcc/objc/objc-act.c.saved	Sat Feb 23 14:32:45 2002
++++ gcc/objc/objc-act.c	Sat Feb 23 15:58:47 2002
+@@ -8282,7 +8282,7 @@ handle_class_ref (chain)
+   tree decl;
+   tree exp;
+ 
+-  sprintf (string, "%sobjc_class_name_%s",
++  sprintf (string, "*%sobjc_class_name_%s",
+ 	   (flag_next_runtime ? "." : "__"), name);
+ 
+ #ifdef ASM_DECLARE_UNRESOLVED_REFERENCE
+@@ -8302,7 +8302,7 @@ handle_class_ref (chain)
+   rest_of_decl_compilation (decl, 0, 0, 0);
+ 
+   /* Make a decl for the address.  */
+-  sprintf (string, "%sobjc_class_ref_%s",
++  sprintf (string, "*%sobjc_class_ref_%s",
+ 	   (flag_next_runtime ? "." : "__"), name);
+   exp = build1 (ADDR_EXPR, string_type_node, decl);
+   decl = build_decl (VAR_DECL, get_identifier (string), string_type_node);

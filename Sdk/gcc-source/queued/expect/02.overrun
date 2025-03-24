@@ -1,0 +1,30 @@
+On my fast Interix box, this test will overrun and partially lose
+sync, complaining about not being able to set verbose.  Insist on
+synchronization at each step in case it goes too fast.
+
+diff -drup dejagnu/expect/testsuite/config/default.exp.orig dejagnu/expect/testsuite/config/default.exp
+--- dejagnu/expect/testsuite/config/default.exp.orig	Mon Jun 28 22:07:30 1999
++++ dejagnu/expect/testsuite/config/default.exp	Tue Jun 29 11:39:24 1999
+@@ -65,7 +65,7 @@ proc expect_start { } {
+     }
+ 
+     expect {
+-	-re "expect.*> " {
++	-re "$eprompt" {
+ 	    verbose "Started the child expect shell"
+ 	}
+ 	timeout {
+@@ -74,6 +74,13 @@ proc expect_start { } {
+     }
+     
+     exp_send "set objdir $objdir\r"
++    expect {
++        -re ".*$eprompt" {
++        }
++        timeout {
++            perror "Timed out setting objdir."
++        }
++    }
+     verbose "Sourcing $defs..."
+     exp_send "source $defs\r"
+     expect {
